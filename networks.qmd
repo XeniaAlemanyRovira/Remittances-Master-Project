@@ -1,0 +1,8 @@
+---
+title: "networks"
+description: "desc"
+author: ""
+format:
+  html:
+    embed-resources: true
+---

@@ -1,0 +1,8 @@
+---
+title: "geospatial"
+description: "desc"
+author: ""
+format:
+  html:
+    embed-resources: true
+---
