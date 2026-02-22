@@ -52,3 +52,6 @@ rsconnect/
 # macOS system files
 ._*
 .DS_Store
+
+# local files
+Utility scripts/
