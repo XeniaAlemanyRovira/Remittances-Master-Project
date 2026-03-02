@@ -197,6 +197,26 @@ for (year in 2010:2024) {
   process_year(year)
 }
 
+# Delete known bad files
+cat("\n--- Post-processing: deleting known bad files ---\n")
+
+bad_files <- list(
+  list(year = 2013, name = "FLORIDA_2013.xlsx"),
+  list(year = 2024, name = "CONNECTICUT_2024.xlsx")
+)
+
+for (entry in bad_files) {
+  path <- file.path(estados_dir,
+                    paste0("Edos_USA_", entry$year),
+                    entry$name)
+  if (file.exists(path)) {
+    file.remove(path)
+    message(sprintf("  [DEL] %s", entry$name))
+  } else {
+    message(sprintf("  [NOT FOUND] %s — already absent or never created", entry$name))
+  }
+}
+
 cat("\n", strrep("=", 70), "\n")
 cat("Done! Only STATE_YEAR.xlsx files remain in each year folder.\n")
 cat(strrep("=", 70), "\n")
