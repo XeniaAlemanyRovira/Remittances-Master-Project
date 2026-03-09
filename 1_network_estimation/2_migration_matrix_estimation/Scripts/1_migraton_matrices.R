@@ -8,7 +8,8 @@ library(readxl)
 library(writexl)
 
 # Config
-base_dir <- "Data_clean/MCAS/Estados_US"
+base_dir <- "2_SQL_database/Data_clean_updated/MCAS/Estados_US"
+output_dir  <- "1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2"
 years    <- 2010:2024
 
 # Lookup table of verified typos and duplicates to correct
@@ -57,7 +58,12 @@ name_corrections <- tribble(
   "Tlaxcala",             "Ziltlaltepec De Trinidad Sanchez Santos",     "Zitlaltepec De Trinidad Sanchez Santos",
   "Tlaxcala",             "Amaxac De Guerero",                           "Amaxac De Guerrero",
   "Tlaxcala",             "Yauhquemecan",                                "Yauhquemehcan",
-  "Tlaxcala",             "Altzayanca",                                  "Atltzayanca"
+  "Tlaxcala",             "Altzayanca",                                  "Atltzayanca",
+  "Veracruz",             "Tuxpam",                                      "Tuxpan",
+  "Oaxaca",               "Santo Domingo Tonaltepec",                    "Santo Domingo Tomaltepec",
+  "Guanajuato",           "Alcozauca De Guerero",                        "Alcozauca De Guerrero",
+  "Guerrero",             "Tixtla De Guerero",                           "Tixtla De Guerrero",
+  "Hidalgo",              "San Martin Hidalgo",                          "San Martin De Hidalgo"
 )
 
 # Helper: extracts the US State name from the file path
@@ -113,6 +119,7 @@ panel <- map_dfr(years, function(yr) {
     warning("No files found for year ", yr)
     return(NULL)
   }
+  message("Reading year ", yr, " (", length(files), " files)...") 
   map_dfr(files, read_state_file, yr = yr)
 }) %>%
   select(year, us_state, mx_state, mx_municipality, n_matriculas) %>%
@@ -158,12 +165,12 @@ matrices <- map(years, function(yr) {
   set_names(paste0("MIGRATION_MATRIX_", years))
 
 # Directory for the exported datasets
-if (dir.exists("yearly migration matrices")) {
-  unlink("yearly migration matrices", recursive = TRUE)
+if (dir.exists(output_dir)) {
+  unlink(output_dir, recursive = TRUE)
 }
-dir.create("yearly migration matrices")
+dir.create(output_dir)
 
 # Export each matrix as a xlsx file
 walk2(matrices, names(matrices), function(df, name) {
-  write_xlsx(df, path = file.path("yearly migration matrices", paste0(name, ".xlsx")))
+  write_xlsx(df, path = file.path(output_dir, paste0(name, ".xlsx")))
 })

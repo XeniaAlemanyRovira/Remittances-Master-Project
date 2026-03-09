@@ -8,7 +8,8 @@ library(readxl)
 library(writexl)
 
 # Config
-input_dir <- "yearly migration matrices"
+input_dir <- "1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2"
+output_dir <- "1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2"
 years    <- 2010:2024
 
 # Function that loads each years migration matrix
@@ -128,14 +129,14 @@ avg_weighting_matrix %>%
   sum()
 
 # Directory for the exported datasets
-if (dir.exists("migration weighting matrices")) {
-  unlink("migration weighting matrices", recursive = TRUE)
+if (dir.exists(output_dir)) {
+  unlink(output_dir, recursive = TRUE)
 }
-dir.create("migration weighting matrices")
+dir.create(output_dir)
 
 # Export each matrix as an xlsx file
 walk2(weighting_matrices, names(weighting_matrices), function(df, name) {
-  write_xlsx(df, path = file.path("migration weighting matrices", paste0(name, ".xlsx")))
+  write_xlsx(df, path = file.path(output_dir, paste0(name, ".xlsx")))
 })
 
-write_xlsx(avg_weighting_matrix, path = "migration weighting matrices/AVG_WEIGHTING_MATRIX.xlsx")
+write_xlsx(avg_weighting_matrix, path = file.path(output_dir, "AVG_WEIGHTING_MATRIX.xlsx"))
