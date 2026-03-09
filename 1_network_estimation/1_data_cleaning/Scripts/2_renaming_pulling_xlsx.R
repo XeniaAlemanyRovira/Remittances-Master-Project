@@ -4,8 +4,10 @@ library(tools)
 library(readxl)
 library(writexl)
 
+setwd("C:/Users/T14/7Programming/Python/Thesis")
+
 # Config
-estados_dir <- file.path("Data_clean", "MCAS", "Estados_US")
+estados_dir <- file.path("1_network_estimation","Data_clean", "MCAS", "Estados_US")
 
 states <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California",
             "Colorado", "Connecticut", "Delaware", "District of Columbia",
@@ -195,26 +197,6 @@ cat(strrep("=", 70), "\n\n")
 for (year in 2010:2024) {
   cat(sprintf("\n--- Year %d ---\n", year))
   process_year(year)
-}
-
-# Delete known bad files
-cat("\n--- Post-processing: deleting known bad files ---\n")
-
-bad_files <- list(
-  list(year = 2013, name = "FLORIDA_2013.xlsx"),
-  list(year = 2024, name = "CONNECTICUT_2024.xlsx")
-)
-
-for (entry in bad_files) {
-  path <- file.path(estados_dir,
-                    paste0("Edos_USA_", entry$year),
-                    entry$name)
-  if (file.exists(path)) {
-    file.remove(path)
-    message(sprintf("  [DEL] %s", entry$name))
-  } else {
-    message(sprintf("  [NOT FOUND] %s — already absent or never created", entry$name))
-  }
 }
 
 cat("\n", strrep("=", 70), "\n")
