@@ -5,8 +5,9 @@ library(readxl)
 library(stringr)
 library(writexl)
 library(dplyr)
-
-estados_dir <- file.path("Data_clean", "MCAS", "Estados_US")
+setwd("C:/Users/T14/7Programming/Python/Thesis")
+estados_dir <- file.path("1_network_estimation", "1_data_cleaning", "Data_clean", "MCAS", "Estados_US")    # input (from _1/_2)
+out_dir     <- file.path("2_SQL_database", "Data_clean_updated", "MCAS", "Estados_US")  # final output
 
 # Rename columns
 STANDARD_COLS <- c("mx_state", "mx_municipality", "n_matriculas", "pct_matriculas")
@@ -20,6 +21,99 @@ header_phrases <- c(
   "porcentaje de matriculas"
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# normalise_mx_state()
+#
+# Applies in this order:
+#   1. iconv ASCII//TRANSLIT    strips accents uniformly regardless of file
+#                               encoding, so "Michoac\u00e1n" and "Michoácan" both become "Michoacan"
+#   2. str_to_title / trimws    already done upstream, but safe to repeat
+#   3. str_remove " Total$"     drops "Total" aggregate rows
+#   4. recode                   maps all historical/formal-name variants to a single
+#                               ASCII name per state, fixing the year-split duplicates
+
+# ─────────────────────────────────────────────────────────────────────────────
+normalise_mx_state <- function(x) {
+  x <- iconv(trimws(as.character(x)), to = "ASCII//TRANSLIT")
+  x <- str_to_title(x)
+  x <- str_remove(x, "\\s+Total$")
+  dplyr::recode(x,
+                # CDMX: IME switched name ~2015-2016; use the current official name
+                "Distrito Federal"                = "Ciudad De Mexico",
+                # Estado de Mexico: appeared as short "Mexico" pre-2014
+                "Mexico"                          = "Estado De Mexico",
+                # Michoacan: formal name "De Ocampo" used in some years
+                "Michoacan De Ocampo"             = "Michoacan",
+                # Queretaro: formal name "De Arteaga" used pre-2014
+                "Queretaro De Arteaga"            = "Queretaro",
+                # Veracruz: full constitutional name used in some files
+                "Veracruz De Ignacio De La Llave" = "Veracruz",
+                # Coahuila: formal name "De Zaragoza" used in some files
+                "Coahuila De Zaragoza"            = "Coahuila",
+                # Typo in one 2020 file
+                "Guerero"                         = "Guerrero"
+                # Nuevo Leon, San Luis Potosi, Yucatan, Queretaro, etc. are already
+                # handled by iconv stripping the accent, so no explicit recode needed.
+  )
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# normalise_mx_muni()
+#
+# Strips accents via ASCII//TRANSLIT so that "Cosío" and "Cosio", or
+# "Tuxtla Gutiérrez" and "Tuxtla Gutierrez", collapse to the same key.
+# Applied to mx_municipality in every fix function.
+# ─────────────────────────────────────────────────────────────────────────────
+normalise_mx_muni <- function(x) {
+  x <- iconv(trimws(as.character(x)), to = "ASCII//TRANSLIT")
+  str_to_title(x)
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# is_junk_muni()
+#
+# Returns TRUE for municipality values that are not real place names:
+#   - "Total"                   aggregate row that should have been dropped as a footer
+#   - "Desconocido"             MCAS "unknown origin" category; not a municipality
+#   - "Masculino" / "Femenino"  gender breakdown rows from a different file format
+#   - "No Se Registro…"         MCAS "municipality not recorded" label
+# ─────────────────────────────────────────────────────────────────────────────
+JUNK_MUNI_PATTERN <- paste(
+  "^Total$",
+  "^Desconocido$",
+  "^Masculino$",
+  "^Femenino$",
+  "^No Se Registr",   # covers full multi-word label regardless of accent
+  sep = "|"
+)
+
+is_junk_muni <- function(x) grepl(JUNK_MUNI_PATTERN, trimws(x), ignore.case = TRUE)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# is_junk_state()
+#
+# Returns TRUE for rows whose mx_state is not a real Mexican state — i.e.
+# education-level metadata rows that leaked from 2013 files with an extra
+# summary section (1o. Primaria, Posgrado, Profesional Titulado, etc.).
+# ─────────────────────────────────────────────────────────────────────────────
+JUNK_STATE_PATTERN <- paste(
+  "^[0-9]",             # "1o. Primaria", "3er. Ano De Profesional", etc.
+  "Posgrado",
+  "Preparatoria",
+  "Profesional",
+  "^Primaria",
+  "Secundaria",
+  "Capacitacion",
+  "Menores De Edad",
+  "Sin Estudios",
+  "^Total$",
+  sep = "|"
+)
+
+is_junk_state <- function(x) grepl(JUNK_STATE_PATTERN, x, ignore.case = TRUE)
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 fix_file <- function(path) {
   raw <- tryCatch(
     read_xlsx(path, col_names = FALSE),
@@ -30,73 +124,78 @@ fix_file <- function(path) {
   # Check if row 1 is already the standard header
   first_row <- tolower(trimws(as.character(unlist(raw[1, ]))))
   first_row <- first_row[!is.na(first_row) & first_row != "na" & first_row != ""]
-  if (all(STANDARD_COLS %in% first_row)) {
-    message("  [OK - already standard] ", basename(path))
-    return(invisible(NULL))
-  }
+  already_standard <- all(STANDARD_COLS %in% first_row)
   
-  # Find the real header row (scanning first 15 rows)
-  header_row <- NA_integer_
-  for (i in seq_len(min(nrow(raw), 15))) {
-    row_vals <- tolower(trimws(as.character(unlist(raw[i, ]))))
-    row_vals  <- row_vals[!is.na(row_vals) & row_vals != "na" & row_vals != ""]
-    if (length(row_vals) == 0) next
-    if (any(sapply(header_phrases, function(ph) any(grepl(ph, row_vals))))) {
-      header_row <- i
-      break
-    }
-  }
-  
-  if (is.na(header_row)) {
-    message("  [WARN - header not found] ", basename(path))
-    return(invisible(NULL))
-  }
-  if (header_row >= nrow(raw)) {
-    message("  [WARN - no data after header] ", basename(path))
-    return(invisible(NULL))
-  }
-  
-  # Extract data rows and assign standard column names by position
-  df <- raw[(header_row + 1):nrow(raw), ]
-  n_cols <- ncol(df)
-  
-  if (n_cols >= 4) {
-    colnames(df)[1:4] <- STANDARD_COLS
-    if (n_cols > 4) {
-      df <- df[, 1:4]
-      message("  [INFO - dropped ", n_cols - 4, " extra col(s)] ", basename(path))
-    }
+  if (already_standard) {
+    # Header is already correct — re-read with col_names so row 1 becomes the header
+    df <- tryCatch(
+      read_xlsx(path, col_names = TRUE),
+      error = function(e) { message("  [ERROR] ", basename(path), " — ", e$message); NULL }
+    )
+    if (is.null(df)) return(invisible(NULL))
+    df <- df[, STANDARD_COLS, drop = FALSE]
   } else {
-    message("  [WARN - only ", n_cols, " columns, expected 4] ", basename(path))
-    return(invisible(NULL))
+    # Find the real header row (scanning first 15 rows)
+    header_row <- NA_integer_
+    for (i in seq_len(min(nrow(raw), 15))) {
+      row_vals <- tolower(trimws(as.character(unlist(raw[i, ]))))
+      row_vals  <- row_vals[!is.na(row_vals) & row_vals != "na" & row_vals != ""]
+      if (length(row_vals) == 0) next
+      if (any(sapply(header_phrases, function(ph) any(grepl(ph, row_vals))))) {
+        header_row <- i
+        break
+      }
+    }
+    
+    if (is.na(header_row)) {
+      message("  [WARN - header not found] ", basename(path))
+      return(invisible(NULL))
+    }
+    if (header_row >= nrow(raw)) {
+      message("  [WARN - no data after header] ", basename(path))
+      return(invisible(NULL))
+    }
+    
+    df <- raw[(header_row + 1):nrow(raw), ]
+    n_cols <- ncol(df)
+    
+    if (n_cols >= 4) {
+      colnames(df)[1:4] <- STANDARD_COLS
+      if (n_cols > 4) {
+        df <- df[, 1:4]
+        message("  [INFO - dropped ", n_cols - 4, " extra col(s)] ", basename(path))
+      }
+    } else {
+      message("  [WARN - only ", n_cols, " columns, expected 4] ", basename(path))
+      return(invisible(NULL))
+    }
   }
   
-  # Coerce numeric columns to handle text-stored numbers
+  # Apply normalization
+  
   df <- df %>%
     mutate(
-      n_matriculas   = suppressWarnings(as.numeric(n_matriculas)),
-      pct_matriculas = suppressWarnings(as.numeric(pct_matriculas)),
-      mx_state        = str_to_title(trimws(mx_state)),
-      mx_municipality = str_to_title(trimws(mx_municipality))
-    )
+      n_matriculas    = suppressWarnings(as.numeric(n_matriculas)),
+      pct_matriculas  = suppressWarnings(as.numeric(pct_matriculas)),
+      mx_state        = str_to_title(trimws(as.character(mx_state))),
+      mx_municipality = normalise_mx_muni(mx_municipality)
+    ) %>%
+    fill(mx_state, .direction = "down") %>%
+    mutate(mx_state = normalise_mx_state(mx_state)) %>%
+    filter(!is_junk_state(mx_state), !is_junk_muni(mx_municipality))
   
-  # Fill mx_state downward
-  df <- df %>% fill(mx_state, .direction = "down")
-  
-  # Drop footers by finding the last row in which there is a number in the 
-  # n_matriculas column
   valid_rows <- which(!is.na(df$n_matriculas))
   if (length(valid_rows) == 0) {
     message("  [WARN - no numeric data found] ", basename(path))
     return(invisible(NULL))
   }
   df <- df[1:max(valid_rows), , drop = FALSE]
-  
-  # Drop completely empty rows
   df <- df[rowSums(!is.na(df)) > 0, , drop = FALSE]
   
-  write_xlsx(df, path)
-  message("  [FIXED] ", basename(path), "  (header was row ", header_row, ")")
+  out_path <- file.path(out_dir, basename(dirname(path)), basename(path))
+  dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
+  write_xlsx(df, out_path)
+  message("  [DONE] ", basename(path))
 }
 
 # Run on all xlsx files
@@ -156,17 +255,20 @@ fix_extra_column_file <- function(path) {
       n_matriculas    = suppressWarnings(as.numeric(n_matriculas)),
       pct_matriculas  = suppressWarnings(as.numeric(pct_matriculas)),
       mx_state        = str_to_title(trimws(as.character(mx_state))),
-      mx_municipality = str_to_title(trimws(as.character(mx_municipality)))
+      mx_municipality = normalise_mx_muni(mx_municipality)
     ) %>%
-    mutate(mx_state = str_remove(mx_state, "\\s+Total$")) %>%
-    fill(mx_state, .direction = "down")
+    fill(mx_state, .direction = "down") %>%
+    mutate(mx_state = normalise_mx_state(mx_state)) %>%
+    filter(!is_junk_state(mx_state), !is_junk_muni(mx_municipality))
   
   # Truncate at last valid numeric row (drops footer)
   valid_rows <- which(!is.na(df$n_matriculas))
   df <- df[1:max(valid_rows), , drop = FALSE]
   df <- df[rowSums(!is.na(df)) > 0, , drop = FALSE]
   
-  write_xlsx(df, path)
+  out_path <- file.path(out_dir, basename(dirname(path)), basename(path))
+  dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
+  write_xlsx(df, out_path)
   message("  [FIXED - extra column] ", basename(path))
 }
 

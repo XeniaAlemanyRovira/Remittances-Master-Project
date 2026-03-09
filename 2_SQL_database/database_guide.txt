@@ -1,0 +1,233 @@
+================================================================================
+  THESIS DATABASE GUIDE — thesis.duckdb
+================================================================================
+
+HOW TO CONNECT (Python)
+────────────────────────
+    import duckdb
+    con = duckdb.connect("Thesis/2_SQL_database/thesis.duckdb")
+
+    df = con.execute("SELECT ...").df()   # returns a pandas DataFrame
+    con.close()
+
+To preview a table quickly:
+    con.execute("SELECT * FROM dim_us_state LIMIT 10").df()
+
+
+================================================================================
+  SCHEMA OVERVIEW
+================================================================================
+
+Three dimension (lookup) tables and four fact (data) tables.
+
+DIMENSION TABLES — the "who/what" labels
+─────────────────────────────────────────
+  dim_us_state          50 US states + DC/PR
+    us_state_id (PK)    integer ID
+    name                e.g. "Illinois", "California"
+    abbreviation        e.g. "IL", "CA"
+
+  dim_mx_state          32 Mexican states
+    mx_state_id (PK)
+    name                e.g. "Jalisco", "Ciudad De Mexico"
+
+  dim_mx_municipality   ~4,500 Mexican municipalities
+    mx_muni_id (PK)
+    name                e.g. "Guadalajara", "Atlixco"
+    mx_state_id (FK)    → dim_mx_state
+
+
+FACT TABLES (the actual data)
+──────────────────────────────
+  fact_mcas                     MCAS migrant counts (DS3)
+    mx_muni_id, us_state_id, year (composite PK)
+    n_matriculas                number of Matrícula Consular IDs issued
+    pct_matriculas              % of that US state's total issuances
+    Period: 2010–2024, annual
+
+  fact_remittance_us            Banxico DS2 — outflows by US state
+    us_state_id, year, quarter (composite PK)
+    remit_musd                  millions USD sent from that US state to Mexico
+    Period: 2013Q1–2025Q3, quarterly
+
+  fact_remittance_mx_muni       Banxico DS1 — inflows by MX municipality
+    mx_muni_id, year, quarter (composite PK)
+    remit_musd                  millions USD received by that municipality
+    Period: 2013Q1–2025Q3, quarterly
+
+  fact_remittance_mx_state      Banxico DS1 — inflows by MX state
+    mx_state_id, year, quarter (composite PK)
+    remit_musd                  millions USD received by that MX state
+    Period: 2013Q1–2025Q3, quarterly
+
+
+================================================================================
+  QUERYING — THE BASICS
+================================================================================
+
+Always JOIN fact tables to dimension tables to get readable names.
+IDs are foreign keys; names live in the dim_ tables.
+
+-- Who are the top 10 municipalities sending migrants to Illinois?
+SELECT
+    m.name          AS municipality,
+    s.name          AS mx_state,
+    SUM(f.n_matriculas) AS total_migrants
+FROM fact_mcas f
+JOIN dim_mx_municipality m USING (mx_muni_id)
+JOIN dim_mx_state        s USING (mx_state_id)
+JOIN dim_us_state        u USING (us_state_id)
+WHERE u.name = 'Illinois'
+GROUP BY m.name, s.name
+ORDER BY total_migrants DESC
+LIMIT 10;
+
+
+-- Illinois quarterly remittance outflows (DS2), 2014–2018
+SELECT
+    f.year, f.quarter, f.remit_musd
+FROM fact_remittance_us f
+JOIN dim_us_state u USING (us_state_id)
+WHERE u.name = 'Illinois'
+  AND f.year BETWEEN 2014 AND 2018
+ORDER BY f.year, f.quarter;
+
+
+-- Guadalajara's migrant share across US states in 2015
+SELECT
+    u.name          AS us_state,
+    f.n_matriculas,
+    f.pct_matriculas
+FROM fact_mcas f
+JOIN dim_mx_municipality m USING (mx_muni_id)
+JOIN dim_us_state        u USING (us_state_id)
+WHERE m.name = 'Guadalajara'
+  AND f.year = 2015
+ORDER BY f.n_matriculas DESC;
+
+
+================================================================================
+  MOST USEFUL PATTERNS
+================================================================================
+
+── FILTER by name (not ID) ──────────────────────────────────────────────────
+Always JOIN the dim table and filter on name:
+    WHERE u.name = 'Illinois'
+    WHERE m.name = 'Guadalajara'
+    WHERE s.name = 'Jalisco'
+
+
+── AGGREGATE over time ───────────────────────────────────────────────────────
+Use SUM() + GROUP BY to collapse quarterly/annual rows:
+    SELECT year, SUM(remit_musd) AS annual_remit
+    FROM fact_remittance_us f
+    JOIN dim_us_state u USING (us_state_id)
+    WHERE u.name = 'California'
+    GROUP BY year
+    ORDER BY year;
+
+
+── COMPUTE MIGRANT SHARES (the W matrix) ────────────────────────────────────
+The W[i,j] matrix used in the thesis — each US state's share going to each MX muni:
+    SELECT
+        m.name AS mx_muni,
+        u.name AS us_state,
+        f.year,
+        f.n_matriculas,
+        f.pct_matriculas    -- already pre-computed, = n_matriculas / state total
+    FROM fact_mcas f
+    JOIN dim_mx_municipality m USING (mx_muni_id)
+    JOIN dim_us_state        u USING (us_state_id)
+    WHERE f.year BETWEEN 2013 AND 2014;  -- pre-shock W_pre window
+
+
+── MULTIPLE STATES AT ONCE ──────────────────────────────────────────────────
+Use IN (...) instead of repeating WHERE clauses:
+    WHERE u.name IN ('Illinois', 'California', 'New York')
+
+
+── QUARTERLY -> DATE CONVERSION ──────────────────────────────────────────────
+DuckDB has no built-in quarter-to-date function; reconstruct manually:
+    SELECT
+        CAST(year AS VARCHAR) || '-' ||
+        LPAD(CAST((quarter - 1) * 3 + 1 AS VARCHAR), 2, '0') || '-01' AS quarter_start
+    FROM fact_remittance_us LIMIT 5;
+    -- or just do it in Python with pd.PeriodIndex
+
+
+── WINDOW FUNCTIONS (running totals, year-over-year) ────────────────────────
+    SELECT
+        year, quarter, remit_musd,
+        SUM(remit_musd) OVER (PARTITION BY us_state_id ORDER BY year, quarter)
+            AS cumulative_remit
+    FROM fact_remittance_us;
+
+
+── CHECK WHAT'S IN A TABLE ───────────────────────────────────────────────────
+    SELECT COUNT(*) FROM fact_mcas;
+    SELECT DISTINCT name FROM dim_mx_state ORDER BY name;
+    SELECT MIN(year), MAX(year) FROM fact_mcas;
+
+
+================================================================================
+  FULL WORKED EXAMPLE: Build the W_pre matrix in SQL
+================================================================================
+
+Goal: average migrant share for each (MX municipality, US state) pair
+      over the pre-shock years 2013–2014, for all 50 states.
+
+SELECT
+    m.mx_muni_id,
+    m.name          AS mx_muni,
+    s.name          AS mx_state,
+    u.us_state_id,
+    u.name          AS us_state,
+    AVG(f.pct_matriculas) AS avg_col_share   -- average across 2013 and 2014
+FROM fact_mcas f
+JOIN dim_mx_municipality m USING (mx_muni_id)
+JOIN dim_mx_state        s USING (mx_state_id)
+JOIN dim_us_state        u USING (us_state_id)
+WHERE f.year IN (2013, 2014)
+GROUP BY m.mx_muni_id, m.name, s.name, u.us_state_id, u.name
+ORDER BY mx_state, mx_muni, us_state;
+
+-- Pull into Python:
+W_pre_long = con.execute("""
+    SELECT ... (query above)
+""").df()
+
+-- Then pivot in pandas:
+W_pre = W_pre_long.pivot_table(
+    index=["mx_muni_id", "mx_muni", "mx_state"],
+    columns="us_state",
+    values="avg_col_share",
+    fill_value=0.0
+)
+
+
+================================================================================
+  QUICK REFERENCE
+================================================================================
+
+Table                     Key columns                         Period
+─────────────────────────────────────────────────────────────────────────────
+fact_mcas                 mx_muni_id, us_state_id, year       2010–2024
+                          n_matriculas, pct_matriculas
+
+fact_remittance_us        us_state_id, year, quarter          2013Q1–2025Q3
+                          remit_musd  (DS2 — US outflows)
+
+fact_remittance_mx_muni   mx_muni_id, year, quarter           2013Q1–2025Q3
+                          remit_musd  (DS1 — MX muni inflows)
+
+fact_remittance_mx_state  mx_state_id, year, quarter          2013Q1–2025Q3
+                          remit_musd  (DS1 — MX state inflows)
+
+dim_us_state              us_state_id, name, abbreviation
+dim_mx_state              mx_state_id, name
+dim_mx_municipality       mx_muni_id, name, mx_state_id
+
+All remittances in millions USD (remit_musd).
+All JOINs use USING (column_id) when column name matches on both sides,
+or ON table1.col = table2.col otherwise.
+================================================================================
