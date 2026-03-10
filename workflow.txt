@@ -1,0 +1,14 @@
+
+1. download MCAS, Remittance data
+2. run 1_network_estimation/1_data_cleaning/Scripts
+  2.1. 1_folder_cleaning.R:
+  2.2. 2_...: (...)
+  2.3. 3_...: (...)
+  2.4. 4_...: (...)
+  
+3. run 1_network_estimation/2_migration_matrix_estimation/Scripts
+  3.1. 1_migration_matrices.R: (...)
+  3.2. 2_weighting_matrices.R: (...)
+  
+4. run 2_SQL_database/database_generation.py
+  4.1. database_generation.py: (...)

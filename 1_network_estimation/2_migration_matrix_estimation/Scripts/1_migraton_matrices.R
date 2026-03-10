@@ -12,60 +12,6 @@ base_dir <- "2_SQL_database/Data_clean_updated/MCAS/Estados_US"
 output_dir  <- "1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2"
 years    <- 2010:2024
 
-# Lookup table of verified typos and duplicates to correct
-# All names are post-normalize_text (title case, no accents)
-name_corrections <- tribble(
-  ~mx_state,              ~wrong,                                        ~correct,
-  "Chiapas",              "Montecristo De Guerero",                      "Montecristo De Guerrero",
-  "Chihuahua",            "Praxedis G. Guerero",                         "Praxedis G. Guerrero",
-  "Chihuahua",            "Temosachi",                                   "Temosachic",
-  "Chihuahua",            "Guerero",                                     "Guerrero",
-  "Coahuila",             "Guerero",                                     "Guerrero",
-  "Coahuila De Zaragoza", "Cuatro Cienegas",                             "Cuatrocienegas",
-  "Durango",              "Gral. Simon Boivar",                          "Gral. Simon Bolivar",
-  "Durango",              "Vicente Guerero",                             "Vicente Guerrero",
-  "Durango",              "General Simon Bolivar",                       "Gral. Simon Bolivar",
-  "Estado De Mexico",     "San Simon De Guerero",                        "San Simon De Guerrero",
-  "Estado De Mexico",     "Villa Guerero",                               "Villa Guerrero",
-  "Hidalgo",              "Santiago Tulantepec De Lugo Guerero",         "Santiago Tulantepec De Lugo Guerrero",
-  "Hidalgo",              "Tepehuacan De Guerero",                       "Tepehuacan De Guerrero",
-  "Hidalgo",              "Huehuetl",                                    "Huehuetla",
-  "Hidalgo",              "Huichapa",                                    "Huichapan",
-  "Jalisco",              "Villa Guerero",                               "Villa Guerrero",
-  "Nuevo Leon",           "General Escobedo",                            "Gral. Escobedo",
-  "Nuevo Leon",           "General Zaragoza",                            "Gral. Zaragoza",
-  "Nuevo Leon",           "General Trevino",                             "Gral. Trevino",
-  "Oaxaca",               "Putla Villa De Guerero",                      "Putla Villa De Guerrero",
-  "Oaxaca",               "Yutanduchi De Guerero",                       "Yutanduchi De Guerrero",
-  "Oaxaca",               "San Bartolome Yucane",                        "San Bartolome Yucuane",
-  "Oaxaca",               "Santo Domingo Ingeni",                        "Santo Domingo Ingenio",
-  "Oaxaca",               "Cuilapam De Guerero",                         "Cuilapam De Guerrero",
-  "Oaxaca",               "Santa Ana Tlapacoya",                         "Santa Ana Tlapacoyan",
-  "Oaxaca",               "San Pedro Totolapa",                          "San Pedro Totolapam",
-  "Oaxaca",               "San Pedro Mixtepec - Distr. 22 -",            "San Pedro Mixtepec -Dto. 22 -",
-  "Oaxaca",               "San Pedro Mixtepec - Distr. 26 -",            "San Pedro Mixtepec -Dto. 26 -",
-  "Oaxaca",               "San Juan Mixtepec - Distr. 08 -",             "San Juan Mixtepec -Dto. 08 -",
-  "Oaxaca",               "San Juan Mixtepec - Distr. 26 -",             "San Juan Mixtepec -Dto. 26 -",
-  "Oaxaca",               "San Juan Mixtepec -Distrito 08-",             "San Juan Mixtepec -Dto. 08 -",
-  "Oaxaca",               "San Juan Mixtepec -Distrito 26-",             "San Juan Mixtepec -Dto. 26 -",
-  "Puebla",               "Totoltepec De Guerero",                       "Totoltepec De Guerrero",
-  "Puebla",               "Ixcamilpa De Guerero",                        "Ixcamilpa De Guerrero",
-  "Puebla",               "Ayotoxco De Guerero",                         "Ayotoxco De Guerrero",
-  "Puebla",               "Vicente Guerero",                             "Vicente Guerrero",
-  "Puebla",               "General Felipe _Ngeles",                      "General Felipe Angeles",
-  "Sonora",               "San Pedro De La Cuev",                        "San Pedro De La Cueva",
-  "Tamaulipas",           "Guerero",                                     "Guerrero",
-  "Tlaxcala",             "Ziltlaltepec De Trinidad Sanchez Santos",     "Zitlaltepec De Trinidad Sanchez Santos",
-  "Tlaxcala",             "Amaxac De Guerero",                           "Amaxac De Guerrero",
-  "Tlaxcala",             "Yauhquemecan",                                "Yauhquemehcan",
-  "Tlaxcala",             "Altzayanca",                                  "Atltzayanca",
-  "Veracruz",             "Tuxpam",                                      "Tuxpan",
-  "Oaxaca",               "Santo Domingo Tonaltepec",                    "Santo Domingo Tomaltepec",
-  "Guanajuato",           "Alcozauca De Guerero",                        "Alcozauca De Guerrero",
-  "Guerrero",             "Tixtla De Guerero",                           "Tixtla De Guerrero",
-  "Hidalgo",              "San Martin Hidalgo",                          "San Martin De Hidalgo"
-)
-
 # Helper: extracts the US State name from the file path
 parse_us_state <- function(path) {
   fname  <- tools::file_path_sans_ext(basename(path))
