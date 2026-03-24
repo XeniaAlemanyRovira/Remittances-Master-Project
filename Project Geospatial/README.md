@@ -14,7 +14,7 @@ The pipeline combines USGS ShakeMap raster products with municipal-level remitta
 
 ```
 .
-├── initial_geospatial.qmd          # Remittance data ingestion and cleaning
+├── geospatial.qmd          # Remittance data ingestion and cleaning
 ├── Raster_Earthquake.R             # ShakeMap raster processing and municipal exposure
 ├── data/
 │   ├── shake_result.hdf            # USGS ShakeMap raster (2018-02-16 Pinotepa event)
@@ -43,7 +43,7 @@ The pipeline combines USGS ShakeMap raster products with municipal-level remitta
 
 ### Completed
 
-1. **Remittance data preparation.** Raw Banxico remittance records cleaned and geocoded to the municipal level (`initial_geospatial.qmd`).
+1. **Remittance data preparation.** Raw Banxico remittance records cleaned and geocoded to the municipal level (`geospatial.qmd`).
 
 2. **Earthquake exposure measurement.** For the 2018-02-16 M7.2 Pinotepa de Don Luis event:
    - Constructed PGA and MMI rasters from the USGS ShakeMap HDF5 product.
@@ -56,7 +56,7 @@ The pipeline combines USGS ShakeMap raster products with municipal-level remitta
 
 ### Remaining Work
 
-- **Multi-event expansion.** Retrieve and process ShakeMap rasters for additional seismic events using the existing pipeline. Automate retrieval via the USGS ShakeMap API or bulk download.
+- **Multi-event expansion.** Retrieve and process ShakeMap rasters for additional seismic events using the existing pipeline.
 - **Urbanisation controls.** Construct or source a municipal-level urbanisation index (e.g., population density, built-up area share, night-light intensity) to serve as a heterogeneity dimension or control variable.
 - **Identification strategy.** Implement a difference-in-differences or comparable quasi-experimental estimator to quantify the causal effect of earthquake exposure on remittance inflows, exploiting cross-municipal variation in shake intensity and pre/post event timing.
 
