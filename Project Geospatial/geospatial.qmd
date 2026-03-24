@@ -1,6 +1,6 @@
 ---
 title: "Geospatial Project"
-author: "Francesco Zucca, Joan Costa Rodríguez, Xènia Alemany Rovira, Michael Fehl"
+author: "Joan Costa Rodríguez, Francesco Zucca, Xènia Alemany Rovira, Michael Fehl"
 date: today
 format:
   pdf:
@@ -8,21 +8,35 @@ format:
     number-sections: true
     geometry: margin=2.5cm
     fontsize: 12pt
-bibliography: references.bib
+bibliography: "references.bib"
 execute:
-  echo: false
+  echo: true
   warning: false
 ---
 
 ```{r}
+library(tidyverse)
 library(readxl)
-library(dplyr)
-library(lubridate)
 library(stringr)
 ```
 
+# Abstract
 
-# Cleaning the remittance dataset
+Does the severity of earthquakes determine how much additional remittance income a municipality receives after the disaster happened? Unlike existing macro-level studies that rely on state data, this paper exploits more granular municipal level data to evaluate the impact of earthquake severity on post-disaster remittances. At this local level spatial spillovers between neighboring municipalities may violate SUTVA, introducing attenuation bias and artificially dampening the observed regional differences.
+
+To investigate this, we construct a municipality-quarter panel of Mexican remittance inflows from Banco de México (2013 - 2025) [@banxico2025], merged with Peak Ground Acceleration (PGA) data from the USGS Earthquake Hazard Program [@usgs2026]. Using this dataset, we estimate a Two-Way Fixed Effects (TWFE) Difference-in-Differences model - **actually we probably need to use Callaway Sant' Anna :(** -, where treatment intensity is defined as the average PGA experienced by each municipality.
+
+# Introduction
+
+In 2024 alone, Mexico received more that 67 billion current US dollars in remittances, making it the second country in the world by nominal remittance inflows, behind India [@worldbank2026]. When a shock hits the family in the municipality of origin, remittances act as an insurance mechanism, increasing flows for the following months [@lucas_stark1985, @bettin_jallow_zazzaro2023]. Mexico is one of the most seismically active countries in the world because of its location over three of the major tectonic plates [@rhea2011]. Particularly, on 7 September 2017, a magnitude 8.2 earthquake struck the coast of Chiapas, followed after around two weeks by a magnitude 7.1 event near Puebla, the latter one causing the collapse of 44 buildings and severely damaging another 600 [@singh2018].
+
+[@mohapatra2012] use cross-country data and find that remittances increase after natural disasters, especially where there is a large stock of migrant population. [@bettin2025] use monthly bilateral remittance data from Italy to 81 countries and estimate an immediate 2% increase following these type of events, reverting back to the normal flow after around one year. While precise, these papers aggregate at the country level and rely on a binary treatment definition. Our approach, in contrast, utilizes more granular data and a continuous measure of treatment. This allows us to test two competing outcomes: either we will identify a stronger, localized response effect in the hardest-hit municipalities, or we will find that network effects completely absorb these granular differences.
+
+# Data
+
+## Remittance Data
+
+The outcome of our analysis is quarterly remittance inflows from Banco de México SIE table CE166 - *Ingresos por Remesas, distribución por municipio* -, covering all Mexican municipalities from Q1 2013 to Q4 2025.
 
 ```{r}
 # Read the excel skipping the metadata rows
@@ -32,6 +46,8 @@ remit_raw <- read_excel(
   col_types = "text"
 )
 ```
+
+We convert the dataset to long format and convert the date column in date format, adding columns for years and quarters to improve readability.
 
 ```{r}
 # Convert to long format
@@ -43,9 +59,7 @@ remit_long <- remit_raw %>%
     values_to = "remittances_musd"
   ) %>%
   mutate(remittances_musd = as.numeric(remittances_musd))
-```
 
-```{r}
 # Convert quarter column to date format
 remit_long <- remit_long %>%
   mutate(
@@ -55,6 +69,8 @@ remit_long <- remit_long %>%
   ) %>%
   select(-quarter_label) # drop the old quarter column
 ```
+
+Being interested only in municipality level data, we drop the State aggregate rows. Moreover, to improve readability once more, we add the corresponding state column to the left of the municipality one.
 
 ```{r}
 # Tidy up municipality names
@@ -66,12 +82,9 @@ remit_long <- remit_long %>%
     municipality = str_trim(str_extract(Title, "[^,]+$"))
   ) %>%
   select(-Title)  # drop the original Title column
-```
 
-```{r}
 # Drop unused columns and rearrange columns
 remit_long <- remit_long %>%
   select(-date, -Serie) %>%
   select(state, municipality, year, quarter, remittances_musd)
 ```
-
