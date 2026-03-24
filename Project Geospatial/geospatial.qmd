@@ -1,8 +1,77 @@
 ---
-title: "geospatial"
-description: "desc"
-author: ""
+title: "Geospatial Project"
+author: "Francesco Zucca, Joan Costa Rodríguez, Xènia Alemany Rovira, Michael Fehl"
+date: today
 format:
-  html:
-    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+    geometry: margin=2.5cm
+    fontsize: 12pt
+bibliography: references.bib
+execute:
+  echo: false
+  warning: false
 ---
+
+```{r}
+library(readxl)
+library(dplyr)
+library(lubridate)
+library(stringr)
+```
+
+
+# Cleaning the remittance dataset
+
+```{r}
+# Read the excel skipping the metadata rows
+remit_raw <- read_excel(
+  "data/remittances/remittances.xlsx",
+  skip = 8,
+  col_types = "text"
+)
+```
+
+```{r}
+# Convert to long format
+remit_long <- remit_raw %>%
+  select(-`Information type`) %>% # Drop levels columns
+  pivot_longer(
+    cols      = -c(Title, Serie),
+    names_to  = "quarter_label",
+    values_to = "remittances_musd"
+  ) %>%
+  mutate(remittances_musd = as.numeric(remittances_musd))
+```
+
+```{r}
+# Convert quarter column to date format
+remit_long <- remit_long %>%
+  mutate(
+    date    = as.Date(as.numeric(quarter_label), origin = "1899-12-30"),
+    year    = as.integer(format(date, "%Y")),
+    quarter = ceiling(as.integer(format(date, "%m")) / 3)
+  ) %>%
+  select(-quarter_label) # drop the old quarter column
+```
+
+```{r}
+# Tidy up municipality names
+remit_long <- remit_long %>%
+  # keep only remittances rows (drop state-level aggregates)
+  filter(str_detect(Title, "Distribution by municipality")) %>%
+  mutate(
+    state        = str_trim(str_extract(Title, "(?<=, )[^,]+(?=, [^,]+$)")),
+    municipality = str_trim(str_extract(Title, "[^,]+$"))
+  ) %>%
+  select(-Title)  # drop the original Title column
+```
+
+```{r}
+# Drop unused columns and rearrange columns
+remit_long <- remit_long %>%
+  select(-date, -Serie) %>%
+  select(state, municipality, year, quarter, remittances_musd)
+```
+
