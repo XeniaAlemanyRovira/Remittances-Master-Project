@@ -6,7 +6,7 @@
 
 ## Overview
 
-This project investigates whether seismic events affect remittance flows to Mexican municipalities. We exploit plausibly exogenous variation in earthquake exposure — measured by Peak Ground Acceleration (PGA) and Modified Mercalli Intensity (MMI) — across municipalities to identify the effect of natural disasters on international transfers.
+This project investigates whether seismic events affect remittance flows to Mexican municipalities. We exploit plausibly exogenous variation in earthquake exposure — measured by Peak Ground Acceleration (PGA) and Modified Mercalli Intensity (MMI), across municipalities to identify the effect of natural disasters on international transfers.
 
 The pipeline combines USGS ShakeMap raster products with municipal-level remittance records published by Banxico, linking geocoded shake intensity to administrative boundaries at the *municipio* level.
 
