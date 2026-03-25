@@ -14,10 +14,20 @@ execute:
   warning: false
 ---
 
-```{r}
-library(tidyverse)
-library(readxl)
-library(stringr)
+```{r libraries, results='hide'}
+rm(list=ls())
+library(readxl)        # read excel files
+library(stringr)       # string operations
+library(terra)         # raster operations
+library(exactextractr) # exact_extract() for distances
+library(gdistance)     # fast distance() formula for geo data
+library(sf)            # vector operations
+library(spData)        # geo data
+library(tidyverse)     # NOTE: Conflict -- tidyr::extract() masks terra::extract()
+library(spDataLarge)   # large geo data
+library(ggrepel)       # add labels to ggplot
+library(tidyterra)     # visualize geospatial using tidy syntax
+library(patchwork)     # patch tg ggplot objects
 ```
 
 # Abstract
@@ -38,7 +48,7 @@ In 2024 alone, Mexico received more that 67 billion current US dollars in remitt
 
 The outcome of our analysis is quarterly remittance inflows from Banco de México SIE table CE166 - *Ingresos por Remesas, distribución por municipio* -, covering all Mexican municipalities from Q1 2013 to Q4 2025.
 
-```{r}
+```{r remittance data}
 # Read the excel skipping the metadata rows
 remit_raw <- read_excel(
   "data/remittances/remittances.xlsx",
@@ -49,7 +59,7 @@ remit_raw <- read_excel(
 
 We convert the dataset to long format and convert the date column in date format, adding columns for years and quarters to improve readability.
 
-```{r}
+```{r remittance data long}
 # Convert to long format
 remit_long <- remit_raw %>%
   select(-`Information type`) %>% # Drop levels columns
@@ -72,7 +82,7 @@ remit_long <- remit_long %>%
 
 Being interested only in municipality level data, we drop the State aggregate rows. Moreover, to improve readability once more, we add the corresponding state column to the left of the municipality one.
 
-```{r}
+```{r remittance data cleaning}
 # Tidy up municipality names
 remit_long <- remit_long %>%
   # keep only remittances rows (drop state-level aggregates)
@@ -88,3 +98,86 @@ remit_long <- remit_long %>%
   select(-date, -Serie) %>%
   select(state, municipality, year, quarter, remittances_musd)
 ```
+
+
+## Earthquake Data
+
+```{r}
+
+
+```
+
+
+# Spillover Effects
+
+## Migration Networks
+
+To get a measure of potential spillover effects, we can use a manually constructed weighting matrix of mexican migration from a given Mexican municipality to each US state. We can then multiply this matrix by its transpose to get a municipality x municipality matrix to try and understand the connectedness of certain Mexican municipalities based on their shares US migration destinations. Theoretically, this means that certain Mexican municipalities that are not close in geographic distance can still propagate shocks through these migration networks.
+
+```{r import weighting matrix}
+M <- read_excel("C:/Users/T14/1BSE/8Thesis/1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2/AVG_WEIGHTING_MATRIX.xlsx") 
+muni_ids <- M[[2]]   # store IDs
+state_ids <- M[[1]]  
+muni_labels <- paste(state_ids, muni_ids, sep = "_") # generate unique label for each muni
+
+M <- as.matrix(M[c(-1, -2)]) # drop names, convert to matrix
+dim(M) # (2638 x 51) <==> (MX muni x US states) (District of Columbia gives us +1)
+
+# transpose matrix
+M_prime <- t(M)
+
+# MM' gives our (muni x muni) network
+W_network <- M %*% M_prime
+dim(W_network)
+
+# place muni names back in
+rownames(W_network) <- muni_labels
+colnames(W_network) <- muni_labels
+
+# municipality is not its own neighbor
+diag(W_network) <- 0
+
+# row normalize: add to one
+W_network <- W_network/rowSums(W_network)
+
+# sanity check
+as.data.frame(W_network) %>% 
+  slice(1:4) %>% 
+  select(1:2)
+
+# largest values in a row = strongest network neighbors
+# sort(W_network["Michoacan_Coeneo",], decreasing = TRUE)[1:5]
+```
+
+:::{.callout-note}
+Note that we row-normalize our final matrix here; what is important is that this final product is not a symmetric matrix. The interpretation is that for a given row $i$ (municipality), we get the probability distribution across all other municipalities ($\forall_{i \neq j}$. We must include it in this form in order to properly use it as a variable in our regression later on.
+:::
+
+```{r clean up environment, results='hide', echo=FALSE}
+rm(M, M_prime, muni_ids, state_ids)
+```
+
+This spillover matrix serves to approximately measure the "connectedness" between every pair of municipalities in Mexico, based on their historical migration patterns to the US. The idea is that if an earthquake hits Asientos in Aguascalientes, the migration community in (say) Texas that comes from this municipality will send more money home. But if that same community in Texas also has a large network of migrants from Coeneo in Michoacan, they might discuss the earthquake; consequently, migrants from Coeneo may send additional remittances back home as feel a heightened sense of their own family's vulnerability; in other words, they anticipate risk associated with disaster in another municipality. 
+
+
+## Geographic Distance
+
+Furthermore, we may suspect that neighboring municipalities in Mexico would contribute to this spillover effect. Theoretically, if an earthquake hits a municipality hard enough they might rely on aid from neighboring towns as local residents may be out of work and cannot afford to survive after such a disaster. Thus, we can create another matrix, this time using a simple weighting matrix based on geographic distance to the affected municipalit(ies). 
+
+To do so, we can simply use our previous weighting matrix and intialize the matrix by assigning zeros to all (municipality x municipality) pairs. 
+
+
+```{r geographic matrix}
+empty_network = W_network * 0 # init empty matrix
+
+```
+
+
+
+# Regression: Callaway Sant-Anna
+
+parallel trends ass
+
+what regressors we include in the model
+
+

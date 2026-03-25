@@ -39,18 +39,17 @@ if (requireNamespace("here", quietly = TRUE)) {
 }
 cat("Project root:", proj_root, "\n")
 
-# Directory layout
+# Directory layout: input
+
 data_dir   <- file.path(proj_root, "Project Geospatial","data", "earthquakes")
-output_dir <- file.path(proj_root, "Project Geospatial","output")
 
 if (!dir.exists(data_dir))   stop("Data folder not found: ", data_dir,
                                   "\nPlace ShakeMap HDF5 and shapefiles there.")
-if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # 1) Install / load packages ---------------------------------------------------
 
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-if (!requireNamespace("rhdf5",       quietly = TRUE)) BiocManager::install("rhdf5")
+if (!requireNamespace("rhdf5",       quietly = TRUE)) BiocManager::install("rhdf5", update = FALSE, ask = FALSE)
 if (!requireNamespace("terra",       quietly = TRUE)) install.packages("terra")
 if (!requireNamespace("jsonlite",    quietly = TRUE)) install.packages("jsonlite")
 
@@ -61,23 +60,30 @@ library(jsonlite)
 # 2) Earthquake event parameters -----------------------------------------------
 # Edit these for each earthquake you want to map.
 
-epicenter_lon <- -97.979
-epicenter_lat <-  16.386
-eq_magnitude  <-  7.2
-eq_depth_km   <-  22.0
-eq_date       <- "2018-02-16"
-eq_title      <- "M7.2 Pinotepa de Don Luis, Mexico"
+event_folder  <- "2019_M6.7_puerto_madero"   # change this when switching earthquakes
+epicenter_lon <- -92.453
+epicenter_lat <-  14.680
+eq_magnitude  <-  6.9
+eq_depth_km   <-  66.0
+eq_date       <- "2019-02-01"
+eq_title      <- "M6.7 Puerto Madero, Mexico"
 
 # 3) Input file paths (relative to project root) -------------------------------
 
-hdf_path        <- file.path(data_dir, "shake_result.hdf")
-admin0_path     <- file.path(data_dir, "mex_admin0.shp")
-admin1_path     <- file.path(data_dir, "mex_admin1.shp")
-municipios_path <- file.path(data_dir, "mex_admin2.shp")
+hdf_path        <- file.path(data_dir, event_folder, "shake_result.hdf")
+admin0_path     <- file.path(data_dir, "mex_admin0/mex_admin0.shp")
+admin1_path     <- file.path(data_dir, "mex_admin1/mex_admin1.shp")
+municipios_path <- file.path(data_dir, "mex_admin2/mex_admin2.shp")
 
 for (fp in c(hdf_path, admin0_path, admin1_path, municipios_path)) {
   if (!file.exists(fp)) stop("Required file not found: ", fp)
 }
+
+# Directory layout: output
+
+output_dir <- file.path(proj_root, "Project Geospatial", "output", event_folder)
+
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # 4) Utility helpers -----------------------------------------------------------
 
