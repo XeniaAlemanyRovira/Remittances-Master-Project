@@ -37,6 +37,7 @@ library(BMisc)
 library(DRDID)
 library(nprobust)   # Local polynomial regression for dose-response curve
 library(cobalt)     # Covariate balance (optional but recommended)
+library(stringi)
 ```
 
 # Abstract
@@ -400,7 +401,8 @@ nrow(panel_check)
 # applied to our data set
 panel_filtered <- panel %>%
   group_by(state, municipality, year, quarter, remittances_musd) %>%
-  summarise(mean_pga = max(mean_pga, na.rm = TRUE), .groups = "drop") 
+  slice_max(mean_pga, n = 1, with_ties = FALSE) %>%
+  ungroup()
 # use max() to select most relevant earthquake
 
 nrow(panel_filtered)
@@ -485,6 +487,7 @@ empty_network = W_network * 0 # init empty matrix
 Before estimating the model, we verify the parallel trends assumption visually by comparing average remittance trajectories between ever-treated and never-treated municipalities in the pre-treatment period.
 
 ```{r, echo=FALSE}
+rm(list=ls())
 panel <- read_csv("data/panel_remittances_pga.csv")
 
 # PARALLEL TRENDS ASSUMPTION
@@ -522,19 +525,13 @@ The pre-treatment trends appear broadly parallel, providing visual support for t
 
 ## Continuous treatment ATT estimation
 
-```{r}
+```{r, eval=FALSE}
 library(tidyverse)
 library(fixest)
 library(broom)
 
 # ── 0. Build panel ─────────────────────────────────────────────────────────────
-panel <- panel_filtered %>%          # use the deduplicated panel (max PGA)
-  left_join(                         # re-attach event name from pga_all
-    panel %>%                        # original panel still has event column
-      select(state, municipality, year, quarter, event) %>%
-      filter(!is.na(event)),
-    by = c("state", "municipality", "year", "quarter")
-  ) %>%
+panel <- panel %>%          # use the deduplicated panel (max PGA)
   rename(event_quarter = event) %>%
   mutate(
     muni_id    = paste(state, municipality, sep = "_"),
@@ -658,7 +655,7 @@ ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
   labs(
     title    = "Average ATT by PGA Partition",
     subtitle = "TWFE DiD | 4-quarter treatment window | weighted by treated municipalities",
-    x        = "PGA Partition (cm/s²)",
+    x        = "PGA Partition (%g)",
     y        = "Avg ATT (log remittances)"
   ) +
   theme_bw() +
@@ -672,6 +669,8 @@ ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
 library(did)
 library(tidyverse)
 library(fixest)
+
+
 
 # ── 0. Prepare CS-ready panel ─────────────────────────────────────────────────
 panel_cs <- panel %>%
