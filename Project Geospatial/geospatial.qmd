@@ -58,6 +58,7 @@ In 2024 alone, Mexico received more that 67 billion current US dollars in remitt
 
 The outcome of our analysis is quarterly remittance inflows from Banco de México SIE table CE166 - *Ingresos por Remesas, distribución por municipio* -, covering all Mexican municipalities from Q1 2013 to Q4 2025.
 
+
 ```{r remittance data}
 # Read the excel skipping the metadata rows
 remit_raw <- read_excel(
@@ -403,6 +404,9 @@ panel_filtered <- panel %>%
   group_by(state, municipality, year, quarter, remittances_musd) %>%
   slice_max(mean_pga, n = 1, with_ties = FALSE) %>%
   ungroup()
+
+panel_filtered<-panel_filtered %>% 
+  mutate(remittances_musd=remittances_musd*1000)
 # use max() to select most relevant earthquake
 
 nrow(panel_filtered)
@@ -523,12 +527,12 @@ panel %>%
 
 The pre-treatment trends appear broadly parallel, providing visual support for the parallel trends assumption, though we cannot rule out pre-existing differences between treated and control municipalities.
 
-## Continuous treatment ATT estimation
+## Panel Preparation (shared by TWFE and CS)
 
-```{r, eval=FALSE}
+```{r panel-prep}
 library(tidyverse)
 library(fixest)
-library(broom)
+library(did)
 
 # ── 0. Build panel ─────────────────────────────────────────────────────────────
 panel <- panel %>%          # use the deduplicated panel (max PGA)
@@ -550,10 +554,15 @@ partitions <- list(
 PGA_THRESHOLD <- 4   # municipalities below this are controls
 
 # ── 2. Municipality-level metadata ─────────────────────────────────────────────
+# FIX: use slice_max on mean_pga (strongest shock) instead of slice_min on
+# time_index (earliest shock). slice_min assigned dose and cohort G from the
+# first earthquake, even when a later, much stronger event was the real
+# treatment. This (a) misrouted municipalities across PGA partitions and
+# (b) set treatment timing G to the wrong earthquake for CS.
 muni_meta <- panel %>%
   filter(!is.na(event_quarter), mean_pga > PGA_THRESHOLD) %>%
   group_by(muni_id) %>%
-  slice_min(time_index, n = 1, with_ties = FALSE) %>%
+  slice_max(mean_pga, n = 1, with_ties = FALSE) %>%
   transmute(
     muni_id,
     event = event_quarter,
@@ -580,8 +589,11 @@ muni_meta %>% count(event, G, name = "n_treated") %>% arrange(G) %>% print()
 
 cat("\nNever-treated controls:", 
     panel %>% filter(is.na(event)) %>% distinct(muni_id) %>% nrow(), "\n")
+```
 
-# ── 5. Run all earthquake × partition cells ───────────────────────────────────
+## Continuous treatment ATT estimation
+
+```{r, eval=FALSE}
 results_raw <- map_dfr(seq_len(nrow(earthquake_cohorts)), function(i) {
   eq_event <- earthquake_cohorts$event[i]
   eq_G     <- earthquake_cohorts$G[i]
@@ -666,11 +678,9 @@ ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
 ## Callaway and Santana
 
 ```{r}
-library(did)
-library(tidyverse)
-library(fixest)
 
 
+# Libraries and partitions already loaded in panel-prep chunk above
 
 # ── 0. Prepare CS-ready panel ─────────────────────────────────────────────────
 panel_cs <- panel %>%
@@ -678,14 +688,6 @@ panel_cs <- panel %>%
     G_cs     = ifelse(is.na(event), 0L, as.integer(G)),
     muni_num = as.integer(factor(muni_id))
   )
-
-# ── 1. PGA partitions ─────────────────────────────────────────────────────────
-partitions <- list(
-  "4-10"  = c(4,  10),
-  "10-20" = c(10, 20),
-  "20-35" = c(20, 35),
-  "35+"   = c(35, Inf)
-)
 
 # ── 2. Partition coverage check (run this first to diagnose 35+ and 4-10) ─────
 cat("=== Municipality count per partition ===\n")
@@ -705,7 +707,7 @@ panel_cs %>%
 # ── 3. CS function: one PGA partition, ALL earthquakes at once ─────────────────
 run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
                               pre_window  = -4,   # pre-periods for event study
-                              post_window =  4) { # post-periods for event study
+                              post_window =  20) { # post-periods for event study
 
   # Treated in this partition across ALL earthquakes
   treated_in_partition <- data %>%
@@ -765,20 +767,11 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
   if (is.null(cs_out)) return(NULL)
 
   # ── Aggregate: restrict to post_window quarters after shock ───────────────
-  # min_e = 0 means "from the treatment quarter"
-  # max_e = post_window means "up to post_window quarters after"
-  agg <- tryCatch(
-    aggte(cs_out,
-          type  = "simple",
-          min_e = 0,
-          max_e = post_window,
-          na.rm = TRUE),
-    error = function(e) {
-      cat("  → ERROR in aggte(simple):", conditionMessage(e), "\n"); NULL
-    }
-  )
-
-  # ── Event study: symmetric window ─────────────────────────────────────────
+  # FIX: aggte(type="simple") silently ignores min_e/max_e in did < 2.1.2,
+  # averaging over ALL (g,t) cells including pre-treatment (≈0), which dilutes
+  # the post-treatment ATT toward zero. Instead, we use aggte(type="dynamic")
+  # which reliably respects the event-time window, then manually compute the
+  # overall post-treatment ATT from the event-study coefficients at e >= 0.
   es <- tryCatch(
     aggte(cs_out,
           type  = "dynamic",
@@ -789,6 +782,20 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
       cat("  → ERROR in aggte(dynamic):", conditionMessage(e), "\n"); NULL
     }
   )
+
+  # Compute post-treatment ATT manually from dynamic estimates at e >= 0
+  agg <- NULL
+  if (!is.null(es)) {
+    post_idx <- which(es$egt >= 0 & es$egt <= post_window)
+    if (length(post_idx) > 0) {
+      post_atts <- es$att.egt[post_idx]
+      # Simple average of post-treatment event-time coefficients
+      post_att  <- mean(post_atts, na.rm = TRUE)
+      # SE via delta method (conservative: assume independence across e)
+      post_se   <- sqrt(mean(es$se.egt[post_idx]^2, na.rm = TRUE) / length(post_idx))
+      agg <- list(overall.att = post_att, overall.se = post_se)
+    }
+  }
 
   list(
     partition  = partition_label,
@@ -810,7 +817,7 @@ cs_results <- map(names(partitions), function(part_name) {
     pga_hi         = bounds[2],
     partition_label = part_name,
     pre_window     = -4,
-    post_window    =  4
+    post_window    =  20
   )
 }) %>%
   setNames(names(partitions)) %>%
@@ -904,4 +911,3 @@ ggplot(att_table, aes(x = partition, y = att)) +
   theme(plot.title    = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5))
 ```
-
