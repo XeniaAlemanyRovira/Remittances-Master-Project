@@ -299,6 +299,7 @@ writeVector(mex_admin2,
             overwrite = TRUE)
 
 muni_df <- tryCatch(as.data.frame(mex_admin2), error = function(e) values(mex_admin2))
+muni_df$earthquake_id <- paste0(eq_date, "_M", eq_magnitude, "_", gsub(" ", "_", event_folder))
 write.csv(muni_df,
           file = file.path(output_dir, "municipality_mean_intensity.csv"),
           row.names = FALSE, na = "")
@@ -439,6 +440,7 @@ if ("PGA" %in% imt_names) {
       cat("Municipalities with avg PGA:", sum(is.finite(mex_admin2$mean_pga)), "\n")
 
       muni_df_all <- tryCatch(as.data.frame(mex_admin2), error = function(e) values(mex_admin2))
+      muni_df_all$earthquake_id <- paste0(eq_date, "_M", eq_magnitude, "_", gsub(" ", "_", event_folder))
       write.csv(muni_df_all,
                 file = file.path(output_dir, "municipality_mean_intensity_pga.csv"),
                 row.names = FALSE, na = "")

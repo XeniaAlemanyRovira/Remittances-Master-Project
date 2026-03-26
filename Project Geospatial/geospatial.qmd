@@ -32,6 +32,11 @@ library(spDataLarge)   # large geo data
 library(ggrepel)       # add labels to ggplot
 library(tidyterra)     # visualize geospatial using tidy syntax
 library(patchwork)     # patch tg ggplot objects
+library(did2s)
+library(BMisc)
+library(DRDID)
+library(nprobust)   # Local polynomial regression for dose-response curve
+library(cobalt)     # Covariate balance (optional but recommended)
 ```
 
 # Abstract
@@ -487,7 +492,7 @@ panel <- read_csv("data/panel_remittances_pga.csv")
 # define 'ever-treated' municipalities
 ever_treated <- panel %>%
   group_by(state, municipality) %>%
-  summarise(ever_treated = max(mean_pga, na.rm = TRUE) > 5, 
+  summarise(ever_treated = max(mean_pga, na.rm = TRUE) > 2, 
             .groups = "drop")
 
 # plot
@@ -514,3 +519,390 @@ panel %>%
 ```
 
 The pre-treatment trends appear broadly parallel, providing visual support for the parallel trends assumption, though we cannot rule out pre-existing differences between treated and control municipalities.
+
+## Continuous treatment ATT estimation
+
+```{r}
+library(tidyverse)
+library(fixest)
+library(broom)
+
+# ── 0. Build panel ─────────────────────────────────────────────────────────────
+panel <- panel_filtered %>%          # use the deduplicated panel (max PGA)
+  left_join(                         # re-attach event name from pga_all
+    panel %>%                        # original panel still has event column
+      select(state, municipality, year, quarter, event) %>%
+      filter(!is.na(event)),
+    by = c("state", "municipality", "year", "quarter")
+  ) %>%
+  rename(event_quarter = event) %>%
+  mutate(
+    muni_id    = paste(state, municipality, sep = "_"),
+    time_index = (year - min(year)) * 4 + quarter,
+    log_remit  = log(remittances_musd + 1)
+  )
+
+# ── 1. PGA partitions ──────────────────────────────────────────────────────────
+partitions <- list(
+  "4-10"  = c(4,  10),
+  "10-20" = c(10, 20),
+  "20-35" = c(20, 35),
+  "35+"   = c(35, Inf)
+)
+
+PGA_THRESHOLD <- 4   # municipalities below this are controls
+
+# ── 2. Municipality-level metadata ─────────────────────────────────────────────
+muni_meta <- panel %>%
+  filter(!is.na(event_quarter), mean_pga > PGA_THRESHOLD) %>%
+  group_by(muni_id) %>%
+  slice_min(time_index, n = 1, with_ties = FALSE) %>%
+  transmute(
+    muni_id,
+    event = event_quarter,
+    dose  = mean_pga,
+    G     = time_index
+  ) %>%
+  ungroup()
+
+# ── 3. Merge back ──────────────────────────────────────────────────────────────
+panel <- panel %>%
+  left_join(muni_meta, by = "muni_id")
+# event=NA after join  →  clean never-treated control
+
+# ── 4. Sanity check — should show ~10 cohorts ─────────────────────────────────
+earthquake_cohorts <- muni_meta %>%
+  distinct(event, G) %>%
+  arrange(G)
+
+cat("Earthquake cohorts:\n")
+print(earthquake_cohorts)
+
+cat("\nTreated municipalities per cohort:\n")
+muni_meta %>% count(event, G, name = "n_treated") %>% arrange(G) %>% print()
+
+cat("\nNever-treated controls:", 
+    panel %>% filter(is.na(event)) %>% distinct(muni_id) %>% nrow(), "\n")
+
+# ── 5. Run all earthquake × partition cells ───────────────────────────────────
+results_raw <- map_dfr(seq_len(nrow(earthquake_cohorts)), function(i) {
+  eq_event <- earthquake_cohorts$event[i]
+  eq_G     <- earthquake_cohorts$G[i]
+
+  map_dfr(names(partitions), function(part_name) {
+    bounds <- partitions[[part_name]]
+    run_twfe_cell(
+      data            = panel,
+      eq_event        = eq_event,
+      eq_G            = eq_G,
+      pga_lo          = bounds[1],
+      pga_hi          = bounds[2],
+      partition_label = part_name,
+      window          = 3
+    )
+  })
+})
+
+glimpse(results_raw)
+
+# ── 6. Weighted average ATT by partition ──────────────────────────────────────
+att_by_partition <- results_raw %>%
+  group_by(partition) %>%
+  summarise(
+    n_earthquakes = n(),
+    avg_att       = weighted.mean(att, w = n_treated_munis, na.rm = TRUE),
+    avg_se        = sqrt(sum(se^2 * n_treated_munis^2) / sum(n_treated_munis)^2),
+    total_treated = sum(n_treated_munis),
+    .groups       = "drop"
+  ) %>%
+  mutate(
+    ci_lo     = avg_att - 1.96 * avg_se,
+    ci_hi     = avg_att + 1.96 * avg_se,
+    p_val     = 2 * pnorm(-abs(avg_att / avg_se)),
+    sig       = case_when(
+      p_val < 0.01 ~ "***",
+      p_val < 0.05 ~ "**",
+      p_val < 0.10 ~ "*",
+      TRUE         ~ ""
+    ),
+    partition = factor(partition, levels = c("4-10", "10-20", "20-35", "35+"))
+  ) %>%
+  arrange(partition)
+
+print(att_by_partition)
+
+# ── 7. Table ──────────────────────────────────────────────────────────────────
+att_by_partition %>%
+  transmute(
+    `PGA Partition` = partition,
+    `Earthquakes`   = n_earthquakes,
+    `Treated Munis` = total_treated,
+    `Avg ATT`       = round(avg_att, 4),
+    `Std. Error`    = round(avg_se,  4),
+    `95% CI`        = paste0("[", round(ci_lo, 4), ", ", round(ci_hi, 4), "]"),
+    `p-value`       = round(p_val, 3),
+    ` `             = sig
+  ) %>%
+  knitr::kable(
+    booktabs = TRUE,
+    align    = c("l","c","c","r","r","c","r","l"),
+    caption  = "Average ATT by PGA Partition (TWFE, 4-quarter window)"
+  )
+
+# ── 8. Plot ───────────────────────────────────────────────────────────────────
+ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi),
+                width = 0.15, color = "steelblue", linewidth = 0.8) +
+  geom_point(color = "steelblue", size = 3) +
+  labs(
+    title    = "Average ATT by PGA Partition",
+    subtitle = "TWFE DiD | 4-quarter treatment window | weighted by treated municipalities",
+    x        = "PGA Partition (cm/s²)",
+    y        = "Avg ATT (log remittances)"
+  ) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+## Callaway and Santana
+
+```{r}
+library(did)
+library(tidyverse)
+library(fixest)
+
+# ── 0. Prepare CS-ready panel ─────────────────────────────────────────────────
+panel_cs <- panel %>%
+  mutate(
+    G_cs     = ifelse(is.na(event), 0L, as.integer(G)),
+    muni_num = as.integer(factor(muni_id))
+  )
+
+# ── 1. PGA partitions ─────────────────────────────────────────────────────────
+partitions <- list(
+  "4-10"  = c(4,  10),
+  "10-20" = c(10, 20),
+  "20-35" = c(20, 35),
+  "35+"   = c(35, Inf)
+)
+
+# ── 2. Partition coverage check (run this first to diagnose 35+ and 4-10) ─────
+cat("=== Municipality count per partition ===\n")
+panel_cs %>%
+  filter(!is.na(event)) %>%
+  distinct(muni_id, dose) %>%
+  mutate(partition = case_when(
+    dose >  4  & dose <= 10 ~ "4-10",
+    dose > 10  & dose <= 20 ~ "10-20",
+    dose > 20  & dose <= 35 ~ "20-35",
+    dose > 35              ~ "35+",
+    TRUE                   ~ "below 4 (excluded)"
+  )) %>%
+  count(partition, sort = FALSE) %>%
+  print()
+
+# ── 3. CS function: one PGA partition, ALL earthquakes at once ─────────────────
+run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
+                              pre_window  = -4,   # pre-periods for event study
+                              post_window =  4) { # post-periods for event study
+
+  # Treated in this partition across ALL earthquakes
+  treated_in_partition <- data %>%
+    filter(!is.na(event), dose > pga_lo, dose <= pga_hi) %>%
+    distinct(muni_id)
+
+  if (nrow(treated_in_partition) == 0) {
+    cat("\nPartition", partition_label, "→ SKIPPED: no treated municipalities\n")
+    return(NULL)
+  }
+
+  # Sample: this partition's treated + never-treated controls
+  # Municipalities treated in OTHER partitions are dropped (clean comparison)
+  sample_df <- data %>%
+    filter(
+      muni_id %in% treated_in_partition$muni_id |
+      G_cs == 0
+    ) %>%
+    mutate(
+      G_cs = ifelse(muni_id %in% treated_in_partition$muni_id, G_cs, 0L)
+    )
+
+  n_treated  <- n_distinct(sample_df$muni_id[sample_df$G_cs > 0])
+  n_controls <- n_distinct(sample_df$muni_id[sample_df$G_cs == 0])
+  n_cohorts  <- n_distinct(sample_df$G_cs[sample_df$G_cs > 0])
+
+  cat("\nPartition:", partition_label,
+      "| cohorts:", n_cohorts,
+      "| treated munis:", n_treated,
+      "| controls:", n_controls, "\n")
+
+  # Need at least 2 treated units to estimate anything
+  if (n_treated < 2) {
+    cat("  → SKIPPED: fewer than 2 treated municipalities\n")
+    return(NULL)
+  }
+
+  # ── att_gt: clean 2x2 DiDs for every (g, t) cell ──────────────────────────
+  cs_out <- tryCatch(
+    att_gt(
+      yname         = "log_remit",
+      tname         = "time_index",
+      idname        = "muni_num",
+      gname         = "G_cs",
+      data          = sample_df,
+      control_group = "nevertreated",
+      est_method    = "dr",            # doubly robust
+      clustervars   = "muni_num",
+      print_details = FALSE
+    ),
+    error = function(e) {
+      cat("  → ERROR in att_gt:", conditionMessage(e), "\n")
+      NULL
+    }
+  )
+
+  if (is.null(cs_out)) return(NULL)
+
+  # ── Aggregate: restrict to post_window quarters after shock ───────────────
+  # min_e = 0 means "from the treatment quarter"
+  # max_e = post_window means "up to post_window quarters after"
+  agg <- tryCatch(
+    aggte(cs_out,
+          type  = "simple",
+          min_e = 0,
+          max_e = post_window,
+          na.rm = TRUE),
+    error = function(e) {
+      cat("  → ERROR in aggte(simple):", conditionMessage(e), "\n"); NULL
+    }
+  )
+
+  # ── Event study: symmetric window ─────────────────────────────────────────
+  es <- tryCatch(
+    aggte(cs_out,
+          type  = "dynamic",
+          min_e = pre_window,
+          max_e = post_window,
+          na.rm = TRUE),
+    error = function(e) {
+      cat("  → ERROR in aggte(dynamic):", conditionMessage(e), "\n"); NULL
+    }
+  )
+
+  list(
+    partition  = partition_label,
+    n_treated  = n_treated,
+    n_controls = n_controls,
+    n_cohorts  = n_cohorts,
+    cs_out     = cs_out,
+    agg        = agg,
+    es         = es
+  )
+}
+
+# ── 4. Run once per partition ──────────────────────────────────────────────────
+cs_results <- map(names(partitions), function(part_name) {
+  bounds <- partitions[[part_name]]
+  run_cs_partition(
+    data           = panel_cs,
+    pga_lo         = bounds[1],
+    pga_hi         = bounds[2],
+    partition_label = part_name,
+    pre_window     = -4,
+    post_window    =  4
+  )
+}) %>%
+  setNames(names(partitions)) %>%
+  compact()   # silently drops NULLs
+
+cat("\n=== Partitions estimated successfully:", paste(names(cs_results), collapse = ", "), "===\n")
+
+# ── 5. Summary table ───────────────────────────────────────────────────────────
+att_table <- map_dfr(cs_results, function(res) {
+  if (is.null(res$agg)) return(NULL)
+  tibble(
+    partition  = res$partition,
+    n_cohorts  = res$n_cohorts,
+    n_treated  = res$n_treated,
+    n_controls = res$n_controls,
+    att        = res$agg$overall.att,
+    se         = res$agg$overall.se,
+    ci_lo      = res$agg$overall.att - 1.96 * res$agg$overall.se,
+    ci_hi      = res$agg$overall.att + 1.96 * res$agg$overall.se,
+    p_val      = 2 * pnorm(-abs(res$agg$overall.att / res$agg$overall.se))
+  )
+}) %>%
+  mutate(
+    sig       = case_when(
+      p_val < 0.01 ~ "***",
+      p_val < 0.05 ~ "**",
+      p_val < 0.10 ~ "*",
+      TRUE         ~ ""
+    ),
+    partition = factor(partition, levels = c("4-10","10-20","20-35","35+"))
+  ) %>%
+  arrange(partition)
+
+print(att_table)
+
+# ── 6. Formatted table ─────────────────────────────────────────────────────────
+att_table %>%
+  transmute(
+    `PGA Partition`  = partition,
+    `Cohorts`        = n_cohorts,
+    `Treated Munis`  = n_treated,
+    `Control Munis`  = n_controls,
+    `ATT (0 to +4)`  = round(att,  4),
+    `Std. Error`     = round(se,   4),
+    `95% CI`         = paste0("[", round(ci_lo,4), ", ", round(ci_hi,4), "]"),
+    `p-value`        = round(p_val, 3),
+    ` `              = sig
+  ) %>%
+  knitr::kable(
+    booktabs = TRUE,
+    align    = c("l","c","c","c","r","r","c","r","l"),
+    caption  = "CS ATT by PGA Partition | quarters 0 to +4 | doubly robust | never-treated controls"
+  )
+
+# ── 7. Event-study plots (one per partition) ───────────────────────────────────
+es_plots <- map(cs_results, function(res) {
+  if (is.null(res$es)) return(NULL)
+
+  ggdid(res$es) +
+    labs(
+      title    = paste("Event Study — PGA Partition:", res$partition),
+      subtitle = paste0("CS (2021) | never-treated controls | ",
+                        res$n_treated, " treated, ",
+                        res$n_controls, " control munis"),
+      x        = "Quarters relative to earthquake",
+      y        = "ATT (log remittances)"
+    ) +
+    theme_bw() +
+    theme(plot.title    = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5))
+}) %>%
+  compact()
+
+walk(es_plots, print)
+
+# ── 8. Combined ATT plot ───────────────────────────────────────────────────────
+ggplot(att_table, aes(x = partition, y = att)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi),
+                width = 0.15, color = "steelblue", linewidth = 0.8) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_text(aes(label = sig, y = ci_hi + 0.01),
+            size = 5, color = "steelblue") +
+  labs(
+    title    = "CS ATT by PGA Partition",
+    subtitle = "Callaway & Sant'Anna (2021) | quarters 0 to +4 | doubly robust | never-treated controls",
+    x        = "PGA Partition (cm/s²)",
+    y        = "ATT (log remittances)"
+  ) +
+  theme_bw() +
+  theme(plot.title    = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
