@@ -8,10 +8,14 @@ format:
     number-sections: true
     geometry: margin=2.5cm
     fontsize: 12pt
+    code-overflow: wrap
+    syntax-highlighting: github
+    
 bibliography: "references.bib"
 execute:
   echo: true
   warning: false
+  
 ---
 
 ```{r libraries, results='hide'}
@@ -102,11 +106,303 @@ remit_long <- remit_long %>%
 
 ## Earthquake Data
 
-```{r}
+We source ShakeMap raster data from the [USGS Earthquake Hazard Program](https://www.usgs.gov/programs/earthquake-hazards/earthquakes) for 10 significant seismic events (M6.7–M8.2) affecting Mexican territory between 2014 and 2022. For each event, we read the `HDF5` ShakeMap file, construct a georeferenced PGA raster, and compute municipality-level mean PGA via zonal statistics over INEGI municipal boundaries. We prefer PGA over earthquake magnitude, as PGA better captures actual ground motion experienced at each location, accounting for depth, distance, and local geology, making it comparable across events.
 
+Our sample includes all events of Mw ≥ 6.7 affecting Mexican territory 
+between 2014 and 2022 for which USGS ShakeMap raster data are available.
 
+| Event | Date | Magnitude | Location |
+|---|---|---|---|
+| 2014 Coyuquilla Norte | April 18, 2014 | M7.2 | Guerrero |
+| 2014 Puerto Madero | July 7, 2014 | M6.9 | Chiapas–Guatemala border |
+| 2017 Chiapas | September 7, 2017 | M8.2 | Off coast of Chiapas |
+| 2017 Matzaco (Puebla) | September 19, 2017 | M7.1 | Puebla/Morelos |
+| 2018 Pinotepa | February 16, 2018 | M7.2 | Oaxaca |
+| 2019 Puerto Madero | February 1, 2019 | M6.6–6.7 | Chiapas |
+| 2020 Santa María Xadani | June 23, 2020 | M7.4 | Oaxaca |
+| 2021 Acapulco | September 7, 2021 | M7.0 | Guerrero |
+| 2022 Aguililla | September 19, 2022 | M7.6 | Michoacán |
+| 2022 Aguililla (aftershock) | September 22, 2022 | M6.8 | Michoacán |
+: >6.5Mw Seismic events in Mexico, 2014–2022 {#tbl-earthquakes}
+
+```{r, eval=FALSE}
+# run script thru all earthquake data, manually updating script
+source("Raster_Earthquake.R")
 ```
 
+
+```{r}
+# check output data
+df <- read.csv("output/2017_M8.2_chiapas/municipality_mean_intensity_pga.csv")
+colnames(df)
+# head(df)
+
+# compare to remittance data to merge
+colnames(remit_long)
+# head(remit_long)
+```
+
+## Merging Datasets
+
+We merge the remittance panel with the PGA exposure data on state x municipality x year x quarter. A direct string match yields 82% of municipalities matched. The remaining mismatches stem from systematic naming differences between Banxico remittance data and the INEGI earthquake shapefile. After manual renaming, 2,427 of 2,431 municipalities are matched, with 4 remaining unmatched due to shapefile version discrepancies. For municipality-quarters with no earthquake, PGA is set to zero. 
+
+### Data Cleaning: Name Mismatches
+
+First, we try just a direct string join between the two datasets based on corresponding state & municipality name matches.
+
+```{r}
+## test matching muni names
+
+# load one PGA file
+pga <- read.csv("output/2017_M8.2_chiapas/municipality_mean_intensity_pga.csv") %>%
+  select(adm1_name, adm2_name, adm2_pcode, mean_pga)
+
+# attempt a direct join
+test_join <- remit_long %>%
+  distinct(state, municipality) %>%
+  left_join(pga, by = c("state" = "adm1_name", "municipality" = "adm2_name"))
+
+# How many matched vs failed?
+cat("Total municipalities in remittances:", nrow(test_join), "\n")
+cat("Matched:", sum(!is.na(test_join$adm2_pcode)), "\n")
+cat("Unmatched:", sum(is.na(test_join$adm2_pcode)), "\n")  # 450 mismatches
+```
+
+We return a mismatch of 450 total municipalities, meaning ~20% of our data is not aligned. We suspect this has to do with a divergence in how the names of certain Mexican states and municipalities are recorded by different administrations.
+
+```{r, eval=FALSE, echo=FALSE}
+# check and see what munis are missing from merge
+unmatched <- test_join %>% filter(is.na(adm2_pcode))
+
+unmatched %>% 
+  select(state, municipality) %>% 
+  arrange(state) %>% 
+  print(n = 25)
+
+# different names: accents, etc
+pga %>% 
+  filter(grepl("Coahuila", adm1_name)) %>% 
+  distinct(adm1_name)
+
+pga %>% filter(grepl("México|Ciudad|Distrito", 
+                     adm1_name, 
+                     ignore.case = TRUE)) %>% 
+  distinct(adm1_name)
+
+# how many are "Unidentified"
+unmatched %>% 
+  filter(municipality == "Unidentified") %>% 
+  nrow()
+
+# how many are real municipalities
+unmatched %>% 
+  filter(municipality != "Unidentified") %>% 
+  nrow()
+
+# what munis are not aligning, sorted by state
+unmatched %>% 
+  filter(municipality != "Unidentified") %>%
+  count(state, sort = TRUE) %>% 
+  print(n = 32)
+
+# state name mismatch: Veracruz & michoacan
+pga %>% 
+  filter(grepl("Veracruz|Michoacán", adm1_name)) %>% 
+  distinct(adm1_name)
+
+# state name mismatch: Queretaro
+pga %>% filter(grepl("Quer", adm1_name)) %>% 
+  distinct(adm1_name)
+
+
+# check Nuevo Leon spellings
+pga %>% filter(adm1_name == "Nuevo León", 
+               grepl("General|Doctor|Carmen", adm2_name)) %>% 
+  select(adm1_name, adm2_name)
+
+# check the others edge cases
+pga %>% filter(adm1_name %in% c("Guanajuato","Jalisco","Morelos","México",
+                                "Oaxaca","Tlaxcala","Chiapas"),
+               grepl("Silao|Tlaquepaque|Tlaltizapán|Acambay|Teoloyucán|Mixtepec|
+                     Texmelucan|Tezoatlán|Zapotitlán|Altzayanca|Nicolás|Dolores", 
+                     adm2_name, ignore.case = TRUE)) %>%
+  select(adm1_name, adm2_name)
+
+
+pga %>% filter(grepl("Teoloyucán|Texmelucan|Zapotitlán del|Altzayanca", 
+                      adm2_name, ignore.case = TRUE)) %>%
+  select(adm1_name, adm2_name)
+```
+
+
+```{r, echo=FALSE}
+# fix spellings in remittance municipalities
+remit_long <- remit_long %>%
+  mutate(municipality = case_when(
+    # Nuevo Leon abbreviations
+    state == "Nuevo León" & municipality == "Dr. Arroyo"      ~ "Doctor Arroyo",
+    state == "Nuevo León" & municipality == "Dr. Coss"        ~ "Doctor Coss",
+    state == "Nuevo León" & municipality == "Dr. González"    ~ "Doctor González",
+    state == "Nuevo León" & municipality == "Carmen"          ~ "El Carmen",
+    state == "Nuevo León" & municipality == "Gral. Bravo"     ~ "General Bravo",
+    state == "Nuevo León" & municipality == "Gral. Escobedo"  ~ "General Escobedo",
+    state == "Nuevo León" & municipality == "Gral. Terán"     ~ "General Terán",
+    state == "Nuevo León" & municipality == "Gral. Treviño"   ~ "General Treviño",
+    state == "Nuevo León" & municipality == "Gral. Zaragoza"  ~ "General Zaragoza",
+    state == "Nuevo León" & municipality == "Gral. Zuazua"    ~ "General Zuazua",
+    # Others
+    state == "México"     & municipality == "Acambay"         ~ "Acambay de Ruíz Castañeda",
+    state == "Oaxaca"     & municipality == "Tezoatlán de Segura y Luna" ~ "Heroica Villa Tezoatlán de Segura y Luna",
+    state == "Jalisco"    & municipality == "Tlaquepaque"     ~ "San Pedro Tlaquepaque",
+    state == "Guanajuato" & municipality == "Silao"           ~ "Silao de la Victoria",
+    state == "Morelos"    & municipality == "Tlaltizapán"     ~ "Tlaltizapán de Zapata",
+    state == "Chiapas"    & municipality == "Nicolás Ruiz"    ~ "Nicolás Ruíz",
+    state == "Guanajuato" & municipality == "Dolores Hidalgo Cuna de la Independencia Nal." ~ "Dolores Hidalgo Cuna de la Independencia Nacional",
+    state == "Oaxaca" & municipality == "San Juan Mixtepec - Distr. 08 -"  ~ "San Juan Mixtepec -Dto. 08 -",
+    state == "Oaxaca" & municipality == "San Juan Mixtepec - Distr. 26 -"  ~ "San Juan Mixtepec -Dto. 26 -",
+    state == "Oaxaca" & municipality == "San Pedro Mixtepec - Distr. 22 -" ~ "San Pedro Mixtepec -Dto. 22 -",
+    state == "Oaxaca" & municipality == "San Pedro Mixtepec - Distr. 26 -" ~ "San Pedro Mixtepec -Dto. 26 -",
+    TRUE ~ municipality
+  ))
+
+# Drop unidentified rows
+remit_long <- remit_long %>% filter(municipality != "Unidentified")
+
+
+# Fix state names in PGA data to match remittance data
+pga <- pga %>%
+  mutate(adm1_name = case_when(
+    adm1_name == "Coahuila de Zaragoza"            ~ "Coahuila",
+    adm1_name == "Distrito Federal"                ~ "Ciudad de México",
+    adm1_name == "Veracruz de Ignacio de la Llave" ~ "Veracruz",
+    adm1_name == "Michoacán de Ocampo"             ~ "Michoacán",
+    adm1_name == "Querétaro de Arteaga"            ~ "Querétaro",
+    TRUE                                            ~ adm1_name
+  ))
+
+# merge with remittances
+test_join <- remit_long %>%
+  distinct(state, municipality) %>%
+  left_join(pga, by = c("state" = "adm1_name", "municipality" = "adm2_name"))
+
+# How many matched vs failed?
+cat("Matched:", sum(!is.na(test_join$adm2_pcode)), "\n")
+cat("Unmatched:", sum(is.na(test_join$adm2_pcode)), "\n") # 4 mismatches (can leave NA)
+```
+
+After identifying divergent spellings and correcting them in order to match properly, we return a final merged dataset consisting of only four mismatched municipalities, meaning only a 0.16% mismatch in names.
+
+### Data Pipeline
+
+Finally, we implement this data cleaning pipeline for all ten of our recorded earthquakes, stacking the resulting municipality-level PGA estimates into a single exposure dataset and merging it with the remittance panel on state, municipality, year, and quarter. For quarters in which no earthquake occurred, the PGA value is set to zero. Where two earthquakes share the same quarter, we retain the maximum PGA value across events, as the two 2017 events and two 2022 events affect geographically distinct regions of Mexico with negligible overlap at damage-relevant thresholds.
+
+```{r}
+# step 1: store all earthquake folders in an object
+events <- c(
+  "2014_M6.9_puerto_madero",
+  "2014_M7.2_coyuquilla_norte",
+  "2017_M7.1_matzaco",
+  "2017_M8.2_chiapas",
+  "2018_M7.2_pinotepa",
+  "2019_M6.7_puerto_madero",
+  "2020_M7.4_Santa_Maria_Xadani",
+  "2021_M7.0_acapulco",
+  "2022_M6.8_aguililla",
+  "2022_M7.6_aguililla"
+)
+
+# step 2: read PGA csv files from each folder
+pga_all <- map_dfr(events, function(ev) { 
+  read.csv(paste0("output/", ev, "/municipality_mean_intensity_pga.csv")) %>%
+    mutate(event = ev) %>%
+    select(adm1_name, adm2_name, mean_pga, event)
+})
+
+# apply state name fixes
+pga_all <- pga_all %>%
+  mutate(adm1_name = case_when(
+    adm1_name == "Coahuila de Zaragoza"            ~ "Coahuila",
+    adm1_name == "Distrito Federal"                ~ "Ciudad de México",
+    adm1_name == "Veracruz de Ignacio de la Llave" ~ "Veracruz",
+    adm1_name == "Michoacán de Ocampo"             ~ "Michoacán",
+    adm1_name == "Querétaro de Arteaga"            ~ "Querétaro",
+    TRUE                                            ~ adm1_name
+  ))
+
+# step 3: store event date/quarter info, matching remittance data structure
+event_dates <- tribble(
+  ~event,                        ~year, ~quarter,
+  "2014_M6.9_puerto_madero",     2014,  3,
+  "2014_M7.2_coyuquilla_norte",  2014,  2,
+  "2017_M7.1_matzaco",           2017,  3,
+  "2017_M8.2_chiapas",           2017,  3,
+  "2018_M7.2_pinotepa",          2018,  1,
+  "2019_M6.7_puerto_madero",     2019,  1,
+  "2020_M7.4_Santa_Maria_Xadani",2020,  2,
+  "2021_M7.0_acapulco",          2021,  3,
+  "2022_M6.8_aguililla",         2022,  3,
+  "2022_M7.6_aguililla",         2022,  3
+)
+
+# step 4: merge in YQ info into PGA data
+pga_all <- pga_all %>% 
+  left_join(event_dates, by = "event")
+
+# step 5: merge PGA with remittance panel
+panel <- remit_long %>%
+  left_join(
+    pga_all,
+    by = c("state" = "adm1_name", 
+           "municipality" = "adm2_name",
+           "year", "quarter")
+  ) %>%
+  mutate(mean_pga = replace_na(mean_pga, 0))
+```
+
+
+```{r}
+# sanity check
+head(panel, n=5) # should be returning us ~126,412 rows (# of remit. rows)
+
+## issue: both 2017 earthquakes in Q3, and both 2022 earthquakes in Q3
+panel %>% 
+  slice(19:20)
+
+# gives us duplicate rows with same values
+panel %>% 
+  filter(year == 2017, quarter == 3) %>%
+  count(state, municipality, sort = TRUE) %>%
+  filter(n > 1)
+```
+
+Note that after the final merging of remittance data to the PGA data, we find after careful investigation duplicate rows for each municipality where there is two different earthquakes within the same quarter (2017Q3 and 2022Q3).
+
+```{r}
+# solution: filter only the most relevant (geographically) earthquake for a muni
+panel_check <- panel %>%
+  filter(year == 2017, quarter == 3) %>%
+  group_by(state, municipality) %>%
+  summarise(
+    pga_M8.2 = mean_pga[event == "2017_M8.2_chiapas"],
+    pga_M7.1 = mean_pga[event == "2017_M7.1_matzaco"],
+    .groups = "drop"
+  ) %>%
+  filter(pga_M8.2 > 5 & pga_M7.1 > 5)  
+# municipalities hit by both earthquakes (PGA > 5%g)
+
+nrow(panel_check)
+
+# applied to our data set
+panel_filtered <- panel %>%
+  group_by(state, municipality, year, quarter, remittances_musd) %>%
+  summarise(mean_pga = max(mean_pga, na.rm = TRUE), .groups = "drop") 
+# use max() to select most relevant earthquake
+
+nrow(panel_filtered)
+
+# store as CSV file
+write.csv(panel_filtered, "data/panel_remittances_pga.csv", row.names = FALSE)
+```
 
 # Spillover Effects
 
@@ -115,10 +411,11 @@ remit_long <- remit_long %>%
 To get a measure of potential spillover effects, we can use a manually constructed weighting matrix of mexican migration from a given Mexican municipality to each US state. We can then multiply this matrix by its transpose to get a municipality x municipality matrix to try and understand the connectedness of certain Mexican municipalities based on their shares US migration destinations. Theoretically, this means that certain Mexican municipalities that are not close in geographic distance can still propagate shocks through these migration networks.
 
 ```{r import weighting matrix}
-M <- read_excel("C:/Users/T14/1BSE/8Thesis/1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2/AVG_WEIGHTING_MATRIX.xlsx") 
+M <- read_excel("data/AVG_WEIGHTING_MATRIX.xlsx") 
 muni_ids <- M[[2]]   # store IDs
 state_ids <- M[[1]]  
-muni_labels <- paste(state_ids, muni_ids, sep = "_") # generate unique label for each muni
+muni_labels <- paste(state_ids, muni_ids, sep = "_") 
+# generate unique label for each muni
 
 M <- as.matrix(M[c(-1, -2)]) # drop names, convert to matrix
 dim(M) # (2638 x 51) <==> (MX muni x US states) (District of Columbia gives us +1)
@@ -150,14 +447,16 @@ as.data.frame(W_network) %>%
 ```
 
 :::{.callout-note}
-Note that we row-normalize our final matrix here; what is important is that this final product is not a symmetric matrix. The interpretation is that for a given row $i$ (municipality), we get the probability distribution across all other municipalities ($\forall_{i \neq j}$. We must include it in this form in order to properly use it as a variable in our regression later on.
+Note that we row-normalize our final matrix here; what is important is that this final product is not a symmetric matrix. The interpretation is that for a given row $i$ (municipality), we get the probability distribution across all other municipalities ($\forall_{i \neq j}$). We must include it in this form in order to properly use it as a variable in our regression later on.
 :::
 
 ```{r clean up environment, results='hide', echo=FALSE}
 rm(M, M_prime, muni_ids, state_ids)
 ```
 
-This spillover matrix serves to approximately measure the "connectedness" between every pair of municipalities in Mexico, based on their historical migration patterns to the US. The idea is that if an earthquake hits Asientos in Aguascalientes, the migration community in (say) Texas that comes from this municipality will send more money home. But if that same community in Texas also has a large network of migrants from Coeneo in Michoacan, they might discuss the earthquake; consequently, migrants from Coeneo may send additional remittances back home as feel a heightened sense of their own family's vulnerability; in other words, they anticipate risk associated with disaster in another municipality. 
+This spillover matrix serves to approximately measure the "connectedness" between every pair of municipalities in Mexico, based on their historical migration patterns to the US. The idea is that if an earthquake hits Asientos in Aguascalientes, the migration community in (say) Texas that comes from this municipality will send more money home. But if that same community in Texas also has a large network of migrants from Coeneo in Michoacan, they might discuss the earthquake; consequently, migrants from Coeneo may send additional remittances back home as feel a heightened sense of their own family's vulnerability.
+
+We suspect this effect, if present, would be stronger among municipalities sharing the same US migration destinations, as information travels through co-ethnic social networks rather than purely along geographic borders. We test this by including the network-weighted average PGA of connected municipalities as an additional regressor.
 
 
 ## Geographic Distance
@@ -176,8 +475,42 @@ empty_network = W_network * 0 # init empty matrix
 
 # Regression: Callaway Sant-Anna
 
-parallel trends ass
+## Parallel Trends Assumption
 
-what regressors we include in the model
+Before estimating the model, we verify the parallel trends assumption visually by comparing average remittance trajectories between ever-treated and never-treated municipalities in the pre-treatment period.
 
+```{r, echo=FALSE}
+panel <- read_csv("data/panel_remittances_pga.csv")
 
+# PARALLEL TRENDS ASSUMPTION
+
+# define 'ever-treated' municipalities
+ever_treated <- panel %>%
+  group_by(state, municipality) %>%
+  summarise(ever_treated = max(mean_pga, na.rm = TRUE) > 5, 
+            .groups = "drop")
+
+# plot
+panel %>%
+  left_join(ever_treated, by = c("state", "municipality")) %>%
+  mutate(treated = ifelse(ever_treated, "Ever Treated", "Never Treated")) %>%
+  group_by(year, quarter, treated) %>%
+  summarise(avg_remit = mean(remittances_musd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(time = year + (quarter - 1) / 4) %>%
+  ggplot(aes(x = time, y = avg_remit, color = treated)) +
+  geom_line() +
+  geom_vline(xintercept = 2017.5, color = "red", linetype = "dashed") +
+  labs(title = "Remittances: ever-treated vs never-treated municipalities",
+       x = "Year", y = "Avg remittances (M USD)")+
+  theme_bw()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# notes: 
+# - parallel trends seems to hold
+# - but no obvious divergence; makes sense as we are looking at the whole picture; at the aggregate level
+#     - i.e. this averages across all treated municipalities regardless of PGA intensity
+# - would expect DiD regression to be much more precise; PGA will be used as a continuous variable
+
+```
+
+The pre-treatment trends appear broadly parallel, providing visual support for the parallel trends assumption, though we cannot rule out pre-existing differences between treated and control municipalities.

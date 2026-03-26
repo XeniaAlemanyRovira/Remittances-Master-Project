@@ -60,13 +60,13 @@ library(jsonlite)
 # 2) Earthquake event parameters -----------------------------------------------
 # Edit these for each earthquake you want to map.
 
-event_folder  <- "2019_M6.7_puerto_madero"   # change this when switching earthquakes
-epicenter_lon <- -92.453
-epicenter_lat <-  14.680
-eq_magnitude  <-  6.9
-eq_depth_km   <-  66.0
-eq_date       <- "2019-02-01"
-eq_title      <- "M6.7 Puerto Madero, Mexico"
+event_folder  <- "2014_M7.2_coyuquilla_norte"   # change this when switching earthquakes
+epicenter_lon <- -100.972
+epicenter_lat <-  17.397
+eq_magnitude  <-  7.2
+eq_depth_km   <-  24.0
+eq_date       <- "2014-04-18"
+eq_title      <- "M7.2 Coyuquilla Norte, Mexico"
 
 # 3) Input file paths (relative to project root) -------------------------------
 
@@ -221,9 +221,16 @@ if ("MMI" %in% imt_names) {
 if (is.null(intensity)) stop("Could not read main intensity layer (MMI/PGA).")
 
 # Build multi-layer stack
-all_layers     <- Filter(Negate(is.null), lapply(imt_names, read_imt_layer))
-if (length(all_layers) == 0) stop("Could not read any IMT layers.")
-shakemap_stack <- do.call(c, all_layers)
+
+# all_layers     <- Filter(Negate(is.null), lapply(imt_names, read_imt_layer))
+# if (length(all_layers) == 0) stop("Could not read any IMT layers.")
+# shakemap_stack <- do.call(c, all_layers) # full stack
+
+# PGA + MMI only
+pga_layer      <- read_imt_layer("PGA")
+pga_layer      <- resample(pga_layer, intensity)  # align to MMI grid
+shakemap_stack <- c(intensity, pga_layer)
+
 
 h5closeAll()
 
