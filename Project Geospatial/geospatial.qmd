@@ -1,6 +1,7 @@
 ---
 title: "Geospatial Project"
-author: "Joan Costa Rodríguez, Francesco Zucca, Xènia Alemany Rovira, Michael Fehl"
+author: "Joan Costa Rodríguez, Francesco Zucca,
+Xènia Alemany Rovira, Michael Fehl"
 date: today
 format:
   pdf:
@@ -15,7 +16,6 @@ bibliography: "references.bib"
 execute:
   echo: true
   warning: false
-  
 ---
 
 ```{r libraries, results='hide'}
@@ -28,7 +28,6 @@ library(gdistance)     # fast distance() formula for geo data
 library(sf)            # vector operations
 library(spData)        # geo data
 library(tidyverse)     # NOTE: Conflict -- tidyr::extract() masks terra::extract()
-library(spDataLarge)   # large geo data
 library(ggrepel)       # add labels to ggplot
 library(tidyterra)     # visualize geospatial using tidy syntax
 library(patchwork)     # patch tg ggplot objects
@@ -57,7 +56,6 @@ In 2024 alone, Mexico received more that 67 billion current US dollars in remitt
 ## Remittance Data
 
 The outcome of our analysis is quarterly remittance inflows from Banco de México SIE table CE166 - *Ingresos por Remesas, distribución por municipio* -, covering all Mexican municipalities from Q1 2013 to Q4 2025.
-
 
 ```{r remittance data}
 # Read the excel skipping the metadata rows
@@ -110,16 +108,14 @@ remit_long <- remit_long %>%
   select(state, municipality, year, quarter, remittances_musd)
 ```
 
-
 ## Earthquake Data
 
 We source ShakeMap raster data from the [USGS Earthquake Hazard Program](https://www.usgs.gov/programs/earthquake-hazards/earthquakes) for 10 significant seismic events (M6.7–M8.2) affecting Mexican territory between 2014 and 2022. For each event, we read the `HDF5` ShakeMap file, construct a georeferenced PGA raster, and compute municipality-level mean PGA via zonal statistics over INEGI municipal boundaries. We prefer PGA over earthquake magnitude, as PGA better captures actual ground motion experienced at each location, accounting for depth, distance, and local geology, making it comparable across events.
 
-Our sample includes all events of Mw ≥ 6.7 affecting Mexican territory 
-between 2014 and 2022 for which USGS ShakeMap raster data are available.
+Our sample includes all events of Mw ≥ 6.7 affecting Mexican territory between 2014 and 2022 for which USGS ShakeMap raster data are available.
 
 | Event | Date | Magnitude | Location |
-|---|---|---|---|
+|----|----|----|----|
 | 2014 Coyuquilla Norte | April 18, 2014 | M7.2 | Guerrero |
 | 2014 Puerto Madero | July 7, 2014 | M6.9 | Chiapas–Guatemala border |
 | 2017 Chiapas | September 7, 2017 | M8.2 | Off coast of Chiapas |
@@ -130,13 +126,13 @@ between 2014 and 2022 for which USGS ShakeMap raster data are available.
 | 2021 Acapulco | September 7, 2021 | M7.0 | Guerrero |
 | 2022 Aguililla | September 19, 2022 | M7.6 | Michoacán |
 | 2022 Aguililla (aftershock) | September 22, 2022 | M6.8 | Michoacán |
-: >6.5Mw Seismic events in Mexico, 2014–2022 {#tbl-earthquakes}
+
+: \>6.5Mw Seismic events in Mexico, 2014–2022 {#tbl-earthquakes}
 
 ```{r, eval=FALSE}
 # run script thru all earthquake data, manually updating script
-source("Raster_Earthquake.R")
-```
 
+```
 
 ```{r}
 # check output data
@@ -151,7 +147,7 @@ colnames(remit_long)
 
 ## Merging Datasets
 
-We merge the remittance panel with the PGA exposure data on state x municipality x year x quarter. A direct string match yields 82% of municipalities matched. The remaining mismatches stem from systematic naming differences between Banxico remittance data and the INEGI earthquake shapefile. After manual renaming, 2,427 of 2,431 municipalities are matched, with 4 remaining unmatched due to shapefile version discrepancies. For municipality-quarters with no earthquake, PGA is set to zero. 
+We merge the remittance panel with the PGA exposure data on state x municipality x year x quarter. A direct string match yields 82% of municipalities matched. The remaining mismatches stem from systematic naming differences between Banxico remittance data and the INEGI earthquake shapefile. After manual renaming, 2,427 of 2,431 municipalities are matched, with 4 remaining unmatched due to shapefile version discrepancies. For municipality-quarters with no earthquake, PGA is set to zero.
 
 ### Data Cleaning: Name Mismatches
 
@@ -175,7 +171,7 @@ cat("Matched:", sum(!is.na(test_join$adm2_pcode)), "\n")
 cat("Unmatched:", sum(is.na(test_join$adm2_pcode)), "\n")  # 450 mismatches
 ```
 
-We return a mismatch of 450 total municipalities, meaning ~20% of our data is not aligned. We suspect this has to do with a divergence in how the names of certain Mexican states and municipalities are recorded by different administrations.
+We return a mismatch of 450 total municipalities, meaning \~20% of our data is not aligned. We suspect this has to do with a divergence in how the names of certain Mexican states and municipalities are recorded by different administrations.
 
 ```{r, eval=FALSE, echo=FALSE}
 # check and see what munis are missing from merge
@@ -240,7 +236,6 @@ pga %>% filter(grepl("Teoloyucán|Texmelucan|Zapotitlán del|Altzayanca",
                       adm2_name, ignore.case = TRUE)) %>%
   select(adm1_name, adm2_name)
 ```
-
 
 ```{r, echo=FALSE}
 # fix spellings in remittance municipalities
@@ -366,7 +361,6 @@ panel <- remit_long %>%
   mutate(mean_pga = replace_na(mean_pga, 0))
 ```
 
-
 ```{r}
 # sanity check
 head(panel, n=5) # should be returning us ~126,412 rows (# of remit. rows)
@@ -403,10 +397,11 @@ nrow(panel_check)
 panel_filtered <- panel %>%
   group_by(state, municipality, year, quarter, remittances_musd) %>%
   slice_max(mean_pga, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-panel_filtered<-panel_filtered %>% 
+  ungroup() %>% 
   mutate(remittances_musd=remittances_musd*1000)
+
+
+
 # use max() to select most relevant earthquake
 
 nrow(panel_filtered)
@@ -457,7 +452,7 @@ as.data.frame(W_network) %>%
 # sort(W_network["Michoacan_Coeneo",], decreasing = TRUE)[1:5]
 ```
 
-:::{.callout-note}
+::: callout-note
 Note that we row-normalize our final matrix here; what is important is that this final product is not a symmetric matrix. The interpretation is that for a given row $i$ (municipality), we get the probability distribution across all other municipalities ($\forall_{i \neq j}$). We must include it in this form in order to properly use it as a variable in our regression later on.
 :::
 
@@ -469,20 +464,16 @@ This spillover matrix serves to approximately measure the "connectedness" betwee
 
 We suspect this effect, if present, would be stronger among municipalities sharing the same US migration destinations, as information travels through co-ethnic social networks rather than purely along geographic borders. We test this by including the network-weighted average PGA of connected municipalities as an additional regressor.
 
-
 ## Geographic Distance
 
-Furthermore, we may suspect that neighboring municipalities in Mexico would contribute to this spillover effect. Theoretically, if an earthquake hits a municipality hard enough they might rely on aid from neighboring towns as local residents may be out of work and cannot afford to survive after such a disaster. Thus, we can create another matrix, this time using a simple weighting matrix based on geographic distance to the affected municipalit(ies). 
+Furthermore, we may suspect that neighboring municipalities in Mexico would contribute to this spillover effect. Theoretically, if an earthquake hits a municipality hard enough they might rely on aid from neighboring towns as local residents may be out of work and cannot afford to survive after such a disaster. Thus, we can create another matrix, this time using a simple weighting matrix based on geographic distance to the affected municipalit(ies).
 
-To do so, we can simply use our previous weighting matrix and intialize the matrix by assigning zeros to all (municipality x municipality) pairs. 
-
+To do so, we can simply use our previous weighting matrix and intialize the matrix by assigning zeros to all (municipality x municipality) pairs.
 
 ```{r geographic matrix}
 empty_network = W_network * 0 # init empty matrix
 
 ```
-
-
 
 # Regression: Callaway Sant-Anna
 
@@ -540,15 +531,14 @@ panel <- panel %>%          # use the deduplicated panel (max PGA)
   mutate(
     muni_id    = paste(state, municipality, sep = "_"),
     time_index = (year - min(year)) * 4 + quarter,
-    log_remit  = log(remittances_musd + 1)
+    asinhremit  = asinh(remittances_musd)
   )
 
 # ── 1. PGA partitions ──────────────────────────────────────────────────────────
 partitions <- list(
-  "4-10"  = c(4,  10),
+  "4-10"  = c(4, 10),
   "10-20" = c(10, 20),
-  "20-35" = c(20, 35),
-  "35+"   = c(35, Inf)
+  "20+"   = c(20, Inf)
 )
 
 PGA_THRESHOLD <- 4   # municipalities below this are controls
@@ -668,7 +658,7 @@ ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
     title    = "Average ATT by PGA Partition",
     subtitle = "TWFE DiD | 4-quarter treatment window | weighted by treated municipalities",
     x        = "PGA Partition (%g)",
-    y        = "Avg ATT (log remittances)"
+    y        = "Avg ATT (Inverse hyperbolic sine remittances)"
   ) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5))
@@ -677,50 +667,41 @@ ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
 
 ## Callaway and Santana
 
+We prepare the panel and partition the sample into three categories. For each partition, we compute the Callaway and Sant'Anna estimand and examine whether the estimated effect differs according to the level of PGA received by the municipality.
+
 ```{r}
 
-
-# Libraries and partitions already loaded in panel-prep chunk above
-
-# ── 0. Prepare CS-ready panel ─────────────────────────────────────────────────
 panel_cs <- panel %>%
   mutate(
     G_cs     = ifelse(is.na(event), 0L, as.integer(G)),
     muni_num = as.integer(factor(muni_id))
   )
+ 
+# Override partitions: merge 20-35 and 35+ into a single 20+ bin
+partitions <- list(
+  "4-10"  = c(4, 10),
+  "10-20" = c(10, 20),
+  "20+"   = c(20, Inf)
+)
+```
 
-# ── 2. Partition coverage check (run this first to diagnose 35+ and 4-10) ─────
-cat("=== Municipality count per partition ===\n")
-panel_cs %>%
-  filter(!is.na(event)) %>%
-  distinct(muni_id, dose) %>%
-  mutate(partition = case_when(
-    dose >  4  & dose <= 10 ~ "4-10",
-    dose > 10  & dose <= 20 ~ "10-20",
-    dose > 20  & dose <= 35 ~ "20-35",
-    dose > 35              ~ "35+",
-    TRUE                   ~ "below 4 (excluded)"
-  )) %>%
-  count(partition, sort = FALSE) %>%
-  print()
+We select a pre-window of −10 periods to test whether the parallel trends assumption holds, and a post-window of 10 periods to examine whether the effects on remittances are not immediate but instead materialize with a lag that may not be apparent at first glance.
 
-# ── 3. CS function: one PGA partition, ALL earthquakes at once ─────────────────
+```{r}
+
 run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
-                              pre_window  = -4,   # pre-periods for event study
-                              post_window =  20) { # post-periods for event study
-
-  # Treated in this partition across ALL earthquakes
+                              pre_window  = -10,
+                              post_window =  10) {
+ 
   treated_in_partition <- data %>%
     filter(!is.na(event), dose > pga_lo, dose <= pga_hi) %>%
     distinct(muni_id)
-
+ 
   if (nrow(treated_in_partition) == 0) {
     cat("\nPartition", partition_label, "→ SKIPPED: no treated municipalities\n")
     return(NULL)
   }
-
-  # Sample: this partition's treated + never-treated controls
-  # Municipalities treated in OTHER partitions are dropped (clean comparison)
+ 
   sample_df <- data %>%
     filter(
       muni_id %in% treated_in_partition$muni_id |
@@ -729,32 +710,25 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
     mutate(
       G_cs = ifelse(muni_id %in% treated_in_partition$muni_id, G_cs, 0L)
     )
-
+ 
   n_treated  <- n_distinct(sample_df$muni_id[sample_df$G_cs > 0])
   n_controls <- n_distinct(sample_df$muni_id[sample_df$G_cs == 0])
   n_cohorts  <- n_distinct(sample_df$G_cs[sample_df$G_cs > 0])
-
-  cat("\nPartition:", partition_label,
-      "| cohorts:", n_cohorts,
-      "| treated munis:", n_treated,
-      "| controls:", n_controls, "\n")
-
-  # Need at least 2 treated units to estimate anything
+ 
   if (n_treated < 2) {
     cat("  → SKIPPED: fewer than 2 treated municipalities\n")
     return(NULL)
   }
-
-  # ── att_gt: clean 2x2 DiDs for every (g, t) cell ──────────────────────────
+ 
   cs_out <- tryCatch(
     att_gt(
-      yname         = "log_remit",
+      yname         = "asinhremit",
       tname         = "time_index",
       idname        = "muni_num",
       gname         = "G_cs",
       data          = sample_df,
       control_group = "nevertreated",
-      est_method    = "dr",            # doubly robust
+      est_method    = "dr",
       clustervars   = "muni_num",
       print_details = FALSE
     ),
@@ -763,15 +737,9 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
       NULL
     }
   )
-
+ 
   if (is.null(cs_out)) return(NULL)
-
-  # ── Aggregate: restrict to post_window quarters after shock ───────────────
-  # FIX: aggte(type="simple") silently ignores min_e/max_e in did < 2.1.2,
-  # averaging over ALL (g,t) cells including pre-treatment (≈0), which dilutes
-  # the post-treatment ATT toward zero. Instead, we use aggte(type="dynamic")
-  # which reliably respects the event-time window, then manually compute the
-  # overall post-treatment ATT from the event-study coefficients at e >= 0.
+ 
   es <- tryCatch(
     aggte(cs_out,
           type  = "dynamic",
@@ -782,21 +750,18 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
       cat("  → ERROR in aggte(dynamic):", conditionMessage(e), "\n"); NULL
     }
   )
-
-  # Compute post-treatment ATT manually from dynamic estimates at e >= 0
+ 
   agg <- NULL
   if (!is.null(es)) {
     post_idx <- which(es$egt >= 0 & es$egt <= post_window)
     if (length(post_idx) > 0) {
       post_atts <- es$att.egt[post_idx]
-      # Simple average of post-treatment event-time coefficients
       post_att  <- mean(post_atts, na.rm = TRUE)
-      # SE via delta method (conservative: assume independence across e)
       post_se   <- sqrt(mean(es$se.egt[post_idx]^2, na.rm = TRUE) / length(post_idx))
       agg <- list(overall.att = post_att, overall.se = post_se)
     }
   }
-
+ 
   list(
     partition  = partition_label,
     n_treated  = n_treated,
@@ -807,8 +772,12 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
     es         = es
   )
 }
+```
 
-# ── 4. Run once per partition ──────────────────────────────────────────────────
+We run the Callaway & Sant'Anna estimator for each PGA partition. The "map()" call iterates over the three partitions defined earlier, invoking run_cs_partition() for each one with the corresponding PGA bounds and the pre/post windows specified above
+
+```{r}
+
 cs_results <- map(names(partitions), function(part_name) {
   bounds <- partitions[[part_name]]
   run_cs_partition(
@@ -816,16 +785,18 @@ cs_results <- map(names(partitions), function(part_name) {
     pga_lo         = bounds[1],
     pga_hi         = bounds[2],
     partition_label = part_name,
-    pre_window     = -4,
-    post_window    =  20
+    pre_window     = -10,
+    post_window    =  10
   )
 }) %>%
   setNames(names(partitions)) %>%
-  compact()   # silently drops NULLs
+  compact()
+```
 
-cat("\n=== Partitions estimated successfully:", paste(names(cs_results), collapse = ", "), "===\n")
+We then collect the aggregate ATT estimates into a single tidy dataframe. For each partition, we extract the overall ATT, its standard error, the implied 95% confidence interval, and a two-sided p-value derived from the normal approximation. Significance stars are appended following conventional thresholds (10%, 5%, 1%), and partitions are recast as an ordered factor to ensure correct sorting in downstream tables and plots.
 
-# ── 5. Summary table ───────────────────────────────────────────────────────────
+```{r}
+
 att_table <- map_dfr(cs_results, function(res) {
   if (is.null(res$agg)) return(NULL)
   tibble(
@@ -847,13 +818,16 @@ att_table <- map_dfr(cs_results, function(res) {
       p_val < 0.10 ~ "*",
       TRUE         ~ ""
     ),
-    partition = factor(partition, levels = c("4-10","10-20","20-35","35+"))
+    partition = factor(partition, levels = c("4-10", "10-20", "20+"))
   ) %>%
   arrange(partition)
-
+ 
 print(att_table)
+```
 
-# ── 6. Formatted table ─────────────────────────────────────────────────────────
+For a cleaner presentation, we can reshape the att_table:
+
+```{r}
 att_table %>%
   transmute(
     `PGA Partition`  = partition,
@@ -871,29 +845,51 @@ att_table %>%
     align    = c("l","c","c","c","r","r","c","r","l"),
     caption  = "CS ATT by PGA Partition | quarters 0 to +4 | doubly robust | never-treated controls"
   )
+```
 
-# ── 7. Event-study plots (one per partition) ───────────────────────────────────
+The results reveal a striking and economically meaningful pattern of heterogeneity across PGA partitions. For municipalities exposed to low- and moderate-intensity seismic shocks (PGA 4–10 and 10–20 cm/s²), we estimate large, positive, and precisely estimated average treatment effects on remittances, ATTs of 0.513 and 0.496 log points, respectively, both significant at the 1% level. This finding is consistent with the consumption-smoothing motive for remittances: when a household in the origin municipality is struck by a moderate earthquake, migrants abroad respond by increasing transfers, effectively acting as informal insurers against idiosyncratic shocks and dampening the impact on consumption.
+
+The picture changes heavyly for municipalities in the highest PGA partition (above 20 cm/s²). Here, the estimated ATT turns negative (−0.506 log points) and remains statistically significant at the 5% level, also with a substantially larger standard error, reflecting the reduced sample of treated units in this category. This reversal is consistent with the migration-response mechanism documented by Uriel (2022), when a disaster is severe enough, affected households may themselves migrate to smooth consumption, thereby disrupting the pre-existing remittance relationship and potentially reversing the direction of transfers or reducing the stock of recipients in the origin municipality altogether.
+
+Taken together, these results suggest that the remittance response to seismic shocks is non-monotonic in shock severity, with consumption smoothing via inflows dominating at moderate intensities and outmigration effects dominating at the upper tail of the shock distribution.
+
+We can also complement the results with plots
+```{r}
+#| fig.width: 6
+#| fig.height: 4
+#| fig.align: "center"
+#| out.width: "90%"
+
 es_plots <- map(cs_results, function(res) {
   if (is.null(res$es)) return(NULL)
 
   ggdid(res$es) +
     labs(
-      title    = paste("Event Study — PGA Partition:", res$partition),
+      title    = paste("Event Study - PGA Partition:", res$partition),  # plain dash, safer for LaTeX
       subtitle = paste0("CS (2021) | never-treated controls | ",
                         res$n_treated, " treated, ",
                         res$n_controls, " control munis"),
       x        = "Quarters relative to earthquake",
-      y        = "ATT (log remittances)"
+      y        = "ATT (Inverse hyperbolic sine remittances)"
     ) +
-    theme_bw() +
+    theme_bw(base_size = 11) +                        # base_size prevents tiny text in PDF
     theme(plot.title    = element_text(hjust = 0.5),
-          plot.subtitle = element_text(hjust = 0.5))
+          plot.subtitle = element_text(hjust = 0.5, size = 8),
+          legend.position = "bottom")                 # avoids legend clipping on narrow pages
 }) %>%
   compact()
 
 walk(es_plots, print)
+```
+The event-study plots indicate that the parallel trends assumption is satisfied across all three partitions, with only  minor deviations observed in the lowest PGA group during the pre-treatment window, a reassuring diagnostic given the heterogeneity in seismic exposure across municipalities.
 
-# ── 8. Combined ATT plot ───────────────────────────────────────────────────────
+Beyond the pre-trends check, the plots reveal that the remittance response is not immediate but instead builds gradually over time. For municipalities in the low- and moderate-intensity partitions, the ATT follows a positive and increasing trajectory in the post-treatment periods, suggesting that migrant senders adjust their transfer behavior with a lag, consistent with the time it takes for information about the severity of the shock to reach the senders and for the corresponding financial response to materialize.
+
+The pattern for the high-intensity partition tells a different story. While the point estimates turn negative in the first periods following the shock, in line with the aggregate ATT discussed above, the confidence intervals widen considerably as the horizon extends, reflecting a loss of precision rather than a reversal of the effect per se.
+
+We also produce a combined dot-and-whisker plot that places the three aggregate ATT estimates side by side, allowing direct visual comparison across PGA partitions
+
+```{r}
 ggplot(att_table, aes(x = partition, y = att)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
   geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi),
@@ -905,9 +901,268 @@ ggplot(att_table, aes(x = partition, y = att)) +
     title    = "CS ATT by PGA Partition",
     subtitle = "Callaway & Sant'Anna (2021) | quarters 0 to +4 | doubly robust | never-treated controls",
     x        = "PGA Partition (cm/s²)",
-    y        = "ATT (log remittances)"
+    y        = "ATT (Inverse hyperbolic sine remittances)"
   ) +
   theme_bw() +
   theme(plot.title    = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5))
 ```
+
+
+### Callaway and Santanna: Robustness check
+
+The following specification replaces the never-treated municipalities with the lowest-dose treated group (PGA 4–10 cm/s²) as the control group. The motivation is to restrict the comparison to municipalities that lie within the vicinity of an earthquake, and therefore share similar geographic and structural characteristics.
+
+Using never-treated municipalities as controls risks confounding the earthquake effect with pre-existing differences between seismically active regions and the rest of the country, differences that could manifest as divergent trends in remittance inflows unrelated to the shock itself. By benchmarking higher-dose municipalities against those that experienced only a mild ground shaking, we hold constant the broad exposure to a seismic event and isolate the incremental effect of stronger shaking intensity on remittance inflows.
+
+We follow a similar code structure as before but changing the status of the lower PGA group:
+
+```{r}
+panel_cs_ld <- panel %>%
+  mutate(
+    # Low-dose treated (4,10] → control group (G = 0)
+    G_cs = case_when(
+      is.na(event)                      ~ 0L,
+      dose >  4 & dose <= 10            ~ 0L,   # ← low-dose = control
+      TRUE                              ~ as.integer(G)
+    ),
+    muni_num = as.integer(factor(muni_id))
+  )
+ 
+# New partitions: only two treatment bins, both benchmarked against 4-10
+partitions_ld <- list(
+  "10-20" = c(10, 20),
+  "20+"   = c(20, Inf)
+)
+ 
+
+panel_cs_ld %>%
+  filter(!is.na(event)) %>%
+  distinct(muni_id, dose) %>%
+  mutate(group = case_when(
+    dose >  4  & dose <= 10 ~ "4-10 (CONTROL)",
+    dose > 10  & dose <= 20 ~ "10-20 (treated)",
+    dose > 20               ~ "20+   (treated)",
+    TRUE                    ~ "below 4 (excluded)"
+  )) %>%
+  count(group, sort = FALSE) %>%
+  print()
+
+run_cs_partition_ld <- function(data, pga_lo, pga_hi, partition_label,
+                                 pre_window  = -10,
+                                 post_window =  10) {
+ 
+  # Treated municipalities in this partition
+ 
+  treated_in_partition <- data %>%
+    filter(!is.na(event), dose > pga_lo, dose <= pga_hi) %>%
+    distinct(muni_id)
+ 
+  if (nrow(treated_in_partition) == 0) {
+    cat("\nPartition", partition_label, "→ SKIPPED: no treated municipalities\n")
+    return(NULL)
+  }
+ 
+  # Controls = never-treated (no earthquake) + low-dose (4,10] — all have G_cs == 0
+  # Drop municipalities treated in OTHER high-dose partitions (clean comparison)
+  other_high_dose <- data %>%
+    filter(!is.na(event), dose > 10,                       # high-dose treated
+           !(muni_id %in% treated_in_partition$muni_id)) %>%  # but not in THIS partition
+    distinct(muni_id)
+ 
+  sample_df <- data %>%
+    filter(
+      muni_id %in% treated_in_partition$muni_id |   # this partition's treated
+      G_cs == 0                                      # never-treated + low-dose controls
+    ) %>%
+    filter(!(muni_id %in% other_high_dose$muni_id)) %>%   # drop other partitions
+    mutate(
+      G_cs = ifelse(muni_id %in% treated_in_partition$muni_id, G_cs, 0L)
+    )
+ 
+  n_treated  <- n_distinct(sample_df$muni_id[sample_df$G_cs > 0])
+  n_controls <- n_distinct(sample_df$muni_id[sample_df$G_cs == 0])
+  n_cohorts  <- n_distinct(sample_df$G_cs[sample_df$G_cs > 0])
+ 
+
+  if (n_treated < 2) {
+    cat("  → SKIPPED: fewer than 2 treated municipalities\n")
+    return(NULL)
+  }
+
+cs_out <- tryCatch(
+    att_gt(
+      yname         = "asinhremit",
+      tname         = "time_index",
+      idname        = "muni_num",
+      gname         = "G_cs",
+      data          = sample_df,
+      control_group = "nevertreated",   # "nevertreated" now includes low-dose!
+      est_method    = "dr",
+      clustervars   = "muni_num",
+      print_details = FALSE
+    ),
+    error = function(e) {
+      cat("  → ERROR in att_gt:", conditionMessage(e), "\n"); NULL
+    }
+  )
+ 
+  if (is.null(cs_out)) return(NULL)
+ 
+  es <- tryCatch(
+    aggte(cs_out,
+          type  = "dynamic",
+          min_e = pre_window,
+          max_e = post_window,
+          na.rm = TRUE),
+    error = function(e) {
+      cat("  → ERROR in aggte(dynamic):", conditionMessage(e), "\n"); NULL
+    }
+  )
+ 
+  agg <- NULL
+  if (!is.null(es)) {
+    post_idx <- which(es$egt >= 0 & es$egt <= post_window)
+    if (length(post_idx) > 0) {
+      post_atts <- es$att.egt[post_idx]
+      post_att  <- mean(post_atts, na.rm = TRUE)
+      post_se   <- sqrt(mean(es$se.egt[post_idx]^2, na.rm = TRUE) / length(post_idx))
+      agg <- list(overall.att = post_att, overall.se = post_se)
+    }
+  }
+ 
+  list(
+    partition  = partition_label,
+    n_treated  = n_treated,
+    n_controls = n_controls,
+    n_cohorts  = n_cohorts,
+    cs_out     = cs_out,
+    agg        = agg,
+    es         = es
+  )
+}
+```
+
+Run the function for every PGA partition:
+
+
+```{r, warning=False}
+cs_results_ld <- map(names(partitions_ld), function(part_name) {
+  bounds <- partitions_ld[[part_name]]
+  run_cs_partition_ld(
+    data            = panel_cs_ld,
+    pga_lo          = bounds[1],
+    pga_hi          = bounds[2],
+    partition_label = part_name,
+    pre_window      = -10,
+    post_window     =  10
+  )
+}) %>%
+  setNames(names(partitions_ld)) %>%
+  compact()
+ 
+cat("\n=== Partitions estimated successfully:",
+    paste(names(cs_results_ld), collapse = ", "), "===\n")
+```
+
+As before, we construct a summary table with the results of the CS estimand:
+
+```{r}
+att_table_ld <- map_dfr(cs_results_ld, function(res) {
+  if (is.null(res$agg)) return(NULL)
+  tibble(
+    partition  = res$partition,
+    n_cohorts  = res$n_cohorts,
+    n_treated  = res$n_treated,
+    n_controls = res$n_controls,
+    att        = res$agg$overall.att,
+    se         = res$agg$overall.se,
+    ci_lo      = res$agg$overall.att - 1.96 * res$agg$overall.se,
+    ci_hi      = res$agg$overall.att + 1.96 * res$agg$overall.se,
+    p_val      = 2 * pnorm(-abs(res$agg$overall.att / res$agg$overall.se))
+  )
+}) %>%
+  mutate(
+    sig       = case_when(
+      p_val < 0.01 ~ "***",
+      p_val < 0.05 ~ "**",
+      p_val < 0.10 ~ "*",
+      TRUE         ~ ""
+    ),
+    partition = factor(partition, levels = c("10-20", "20+"))
+  ) %>%
+  arrange(partition)
+ 
+
+att_table_ld %>%
+  transmute(
+    `PGA Partition`  = partition,
+    `Cohorts`        = n_cohorts,
+    `Treated Munis`  = n_treated,
+    `Control Munis`  = n_controls,
+    `ATT`            = round(att,  4),
+    `Std. Error`     = round(se,   4),
+    `95% CI`         = paste0("[", round(ci_lo, 4), ", ", round(ci_hi, 4), "]"),
+    `p-value`        = round(p_val, 3),
+    ` `              = sig
+  ) %>%
+  knitr::kable(
+    booktabs = TRUE,
+    align    = c("l","c","c","c","r","r","c","r","l"),
+    caption  = "CS ATT by PGA Partition | low-dose (4–10) as controls | doubly robust"
+  )
+```
+
+
+As a robustness check, we re-estimate the model replacing the never-treated municipalities with those in the lowest PGA partition (4–10 cm/s²) as the control group. The results, are consistnet. Both ATT estimates remain statistically significant and retain their respective signs: the moderate-intensity partition (10–20 cm/s²) yields a positive and precisely estimated effect of 0.496 log points, while the high-intensity partition (above 20 cm/s²) continues to exhibit a negative effect of −0.506 log points, significant at the 5% level. The standard errors are virtually unchanged relative to the baseline specification, and the confidence intervals overlap closely with those reported in the table above.
+
+This stability is reassuring on two fronts. First, it suggests that the never-treated control group was not driving the results through some idiosyncratic feature of municipalities that experienced no seismic activity during the sample period. Second, it lends further credibility to the identifying assumption: municipalities exposed to low-intensity shocks appear to provide a valid counterfactual for more severely affected units, implying that the parallel trends assumption extends across treatment intensities and is not an artifact of the choice of control group which we can observe in the following plots.
+
+```{r}
+#| fig.width: 6
+#| fig.height: 4
+#| fig.align: "center"
+#| out.width: "90%"
+
+es_plots_ld <- map(cs_results_ld, function(res) {
+  if (is.null(res$es)) return(NULL)
+ 
+  ggdid(res$es) +
+    labs(
+      title    = paste("Event Study — PGA Partition:", res$partition),
+      subtitle = paste0("CS (2021) | low-dose (4–10) as controls | ",
+                        res$n_treated, " treated, ",
+                        res$n_controls, " control munis"),
+      x        = "Quarters relative to earthquake",
+      y        = "ATT (Inverse hyperbolic sine remittances)"
+    ) +
+    theme_bw() +
+    theme(plot.title    = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5))
+}) %>%
+  compact()
+ 
+walk(es_plots_ld, print)
+```
+
+The event-study plots for this alternative specification tell a consistent story. The post-treatment dynamics mirror those of the baseline model closely, with the positive trajectory for the moderate-intensity partition and the negative response for the high-intensity partition both preserved. Notably, the pre-treatment fit improves relative to the baseline specification: the minor deviations from parallel trends observed in the lowest PGA partition under the never-treated control group are no longer present, and the pre-period coefficients sit closer to zero across both partitions. This is consistent with the intuition that municipalities exposed to low-intensity shocks follow a more similar pre-treatment remittance trend to those exposed to moderate.
+
+```{r}
+ggplot(att_table_ld, aes(x = partition, y = att)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi),
+                width = 0.15, color = "steelblue", linewidth = 0.8) +
+  geom_point(color = "steelblue", size = 3) +
+  geom_text(aes(label = sig, y = ci_hi + 0.01),
+            size = 5, color = "steelblue") +
+  labs(
+    title    = "CS ATT by PGA Partition (low-dose controls)",
+    subtitle = "Callaway & Sant'Anna (2021) | low-dose (4–10) as controls | doubly robust",
+    x        = "PGA Partition (cm/s²)",
+    y        = "ATT (Inverse hyperbolic sine remittances)"
+  ) +
+  theme_bw() +
+  theme(plot.title    = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+```
+
