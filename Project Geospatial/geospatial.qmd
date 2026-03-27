@@ -1,6 +1,6 @@
 ---
 title: "Geospatial Project"
-author: "Joan Costa Rodríguez, Francesco Zucca, Xènia Alemany Rovira, Michael Fehl"
+author: "Joan Costa Rodríguez, Francesco Zucca, Xènia Alemany, Michael Fehl"
 date: today
 format:
   pdf:
@@ -128,10 +128,561 @@ Our sample includes all events of Mw ≥ 6.7 affecting Mexican territory between
 
 : \>6.5Mw Seismic events in Mexico, 2014-2022 {#tbl-earthquakes}
 
-```{r, eval=FALSE}
-# run script thru all earthquake data, manually updating script
+
+The first steps to load the data involves a project root detection to ensure the code is properly running when shared.  
+
+```{r}
+# Project root detection
+
+# Expects the working directory to be the project root (where Thesis.Rproj is).
+
+if (requireNamespace("here", quietly = TRUE)) {
+  proj_root <- here::here()
+} else if (requireNamespace("rstudioapi", quietly = TRUE) &&
+           rstudioapi::isAvailable()) {
+  proj_root <- rstudioapi::getActiveProject()
+  if (is.null(proj_root)) proj_root <- getwd()
+} else {
+  proj_root <- getwd()
+}
+cat("Project root:", proj_root, "\n")
+
+# Directory layout: input
+
+data_dir   <- file.path(proj_root, "Project Geospatial","data", "earthquakes")
+
+if (!dir.exists(data_dir))   stop("Data folder not found: ", data_dir,
+                                  "\nPlace ShakeMap HDF5 and shapefiles there.")
+```
+Install and load the specific packages to handle the earthquake data set. `rhdf5` (from Bioconductor) handles reading the HDF5 binary format. `terra` provides all raster and vector spatial operations. `jsonlite` parses the JSON metadata embedded inside the HDF5 file.
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+if (!requireNamespace("rhdf5",       quietly = TRUE)) BiocManager::install("rhdf5", update = FALSE, ask = FALSE)
+if (!requireNamespace("terra",       quietly = TRUE)) install.packages("terra")
+if (!requireNamespace("jsonlite",    quietly = TRUE)) install.packages("jsonlite")
+
+library(rhdf5)
+library(terra)
+library(jsonlite)
+```
+
+Define the earthquake event parameters: 
+
+```{r}
+# Edit these for each earthquake you want to map.
+
+event_folder  <- "2014_M7.2_coyuquilla_norte"   # change this when switching earthquakes
+epicenter_lon <- -100.972
+epicenter_lat <-  17.397
+eq_magnitude  <-  7.2
+eq_depth_km   <-  24.0
+eq_date       <- "2014-04-18"
+eq_title      <- "M7.2 Coyuquilla Norte, Mexico"
+```
+
+File paths are assembled from the project root and event folder. Every required file is checked for existence before proceeding.
+
+```{r}
+# Input paths
+hdf_path        <- file.path(data_dir, event_folder, "shake_result.hdf")
+admin0_path     <- file.path(data_dir, "mex_admin0/mex_admin0.shp")  # Country boundary
+admin1_path     <- file.path(data_dir, "mex_admin1/mex_admin1.shp")  # States
+municipios_path <- file.path(data_dir, "mex_admin2/mex_admin2.shp")  # Municipalities
+
+# Verify all inputs exist before starting expensive operations
+for (fp in c(hdf_path, admin0_path, admin1_path, municipios_path)) {
+  if (!file.exists(fp)) stop("Required file not found: ", fp)
+}
+
+# Output directory (created if it doesn't already exist)
+output_dir <- file.path(proj_root, "Project Geospatial", "output", event_folder)
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+```
+
+Three small helpers are defined here to keep the main code readable. They handle common edge cases in HDF5 metadata: missing values, mixed types, and the difference between cell-center and cell-edge coordinate conventions.
+
+```{r}
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+
+as_num <- function(x) {
+  if (is.null(x) || length(x) == 0) return(NA_real_)
+  v <- tryCatch(suppressWarnings(as.numeric(unlist(x, use.names = FALSE))),
+                error = function(e) NA_real_)
+  if (length(v) == 0) return(NA_real_)
+  v[1]
+}
+
+is_scalar_finite <- function(x) {
+  is.numeric(x) && length(x) == 1 && is.finite(x)
+}
+
+# Expand center-based min/max to cell-edge extent when possible
+edge_extent <- function(min_center, max_center, n, d) {
+  if (is_scalar_finite(min_center) && is_scalar_finite(max_center) &&
+      is_scalar_finite(n) && n > 1 && is_scalar_finite(d)) {
+    implied <- (max_center - min_center) / (n - 1)
+    tol <- max(abs(d), 1e-6) * 0.05
+    if (abs(implied - d) <= tol) {
+      return(c(min_center - d / 2, max_center + d / 2))
+    }
+  }
+  c(min_center, max_center)
+}
+```
+
+The HDF5 file is first inspected with `h5ls()` to show its internal directory tree. The embedded JSON blob (`dictionaries/info.json`) contains the grid definition (extent, resolution, dimensions). Since USGS ShakeMaps sometimes embed non-standard JSON tokens (`NaN`, `Infinity`), these are replaced with `null` before parsing.
+
+```{r}
+hdf_structure <- h5ls(hdf_path)
+cat("\n--- HDF5 structure ---\n")
+print(hdf_structure)
+
+info_txt <- h5read(hdf_path, "dictionaries/info.json")
+# ShakeMap embeds NaN / Infinity which are invalid JSON — replace with null
+info_txt <- gsub("\\bNaN\\b",       "null", info_txt)
+info_txt <- gsub("\\bInfinity\\b",  "null", info_txt)
+info_txt <- gsub("\\b-Infinity\\b", "null", info_txt)
+info     <- fromJSON(info_txt)
+
+map_info <- info$output$map_information
+
+xmin_c  <- as_num(map_info$min$longitude)
+xmax_c  <- as_num(map_info$max$longitude)
+ymin_c  <- as_num(map_info$min$latitude)
+ymax_c  <- as_num(map_info$max$latitude)
+nx_meta <- as_num(map_info$number_of_columns %||% map_info$nx %||% map_info$nlon)
+ny_meta <- as_num(map_info$number_of_rows    %||% map_info$ny %||% map_info$nlat)
+dx      <- as_num(map_info$grid_spacing$longitude %||% map_info$grid_spacing$lon %||% map_info$dx)
+dy      <- as_num(map_info$grid_spacing$latitude  %||% map_info$grid_spacing$lat %||% map_info$dy)
+
+cat("Center extent: lon [", xmin_c, ",", xmax_c, "] lat [", ymin_c, ",", ymax_c, "]\n")
+cat("Grid meta:     nx=", nx_meta, " ny=", ny_meta, " dx=", dx, " dy=", dy, "\n")
+```
+
+The intensity layers are relevant for the analysis as they will measure the intensity under which the earthquake hit a specific village and will allow the partitions study instead of a binary treatment. Intensity Measure Types (IMTs) such as MMI and PGA are stored at `/arrays/imts/GREATER_OF_TWO_HORIZONTAL/<IMT>/mean`. The pipeline prefers MMI for the primary visualization layer and falls back to PGA if MMI is absent.
+
+```{r}
+imt_base <- "/arrays/imts/GREATER_OF_TWO_HORIZONTAL"
+imt_rows <- hdf_structure[startsWith(hdf_structure$group, imt_base) &
+                            hdf_structure$name == "mean", ]
+imt_names <- basename(imt_rows$group)
+cat("Available IMT layers:", paste(imt_names, collapse = ", "), "\n")
+if (length(imt_names) == 0) stop("No IMT mean layers found in HDF5.")
+
+build_best_oriented_raster <- function(mat, layer_name) {
+  if (is.null(mat) || length(dim(mat)) != 2) return(NULL)
+
+  mat <- as.matrix(mat)
+  mat[!is.finite(mat)] <- NA
+  mat[mat <= -999]     <- NA
+  mat[mat > 1e6]       <- NA
+
+  nr <- nrow(mat);  nc <- ncol(mat)
+  nx <- if (is_scalar_finite(nx_meta)) nx_meta else nc
+  ny <- if (is_scalar_finite(ny_meta)) ny_meta else nr
+
+  x_edge <- edge_extent(xmin_c, xmax_c, nx, dx)
+  y_edge <- edge_extent(ymin_c, ymax_c, ny, dy)
+
+  make_r <- function(m) {
+    rast(m,
+         extent = ext(x_edge[1], x_edge[2], y_edge[1], y_edge[2]),
+         crs    = "EPSG:4326")
+  }
+
+  tmat <- t(mat)
+  candidates <- list(
+    as_is    = make_r(mat),
+    flipud   = make_r(mat[nrow(mat):1, ]),
+    fliplr   = make_r(mat[, ncol(mat):1]),
+    t_as_is  = make_r(tmat),
+    t_flipud = make_r(tmat[nrow(tmat):1, ]),
+    t_fliplr = make_r(tmat[, ncol(tmat):1])
+  )
+
+  # Score: pick orientation whose peak value is closest to the epicenter
+
+  score <- function(r) {
+    v <- values(r, mat = FALSE)
+    if (all(is.na(v))) return(Inf)
+    cell_max <- which.max(v)
+    xy <- xyFromCell(r, cell_max)
+    sqrt((xy[1] - epicenter_lon)^2 + (xy[2] - epicenter_lat)^2)
+  }
+
+  s <- sapply(candidates, score)
+  best_name <- names(which.min(s))
+  best <- candidates[[best_name]]
+  names(best) <- gsub("[()]", "_", layer_name)
+
+  cat("  Orientation for", layer_name, ":", best_name,
+      "(dist to epicenter =", round(min(s), 3), "deg)\n")
+  best
+}
+
+read_imt_layer <- function(imt_name) {
+  path <- paste0("arrays/imts/GREATER_OF_TWO_HORIZONTAL/", imt_name, "/mean")
+  mat  <- tryCatch(h5read(hdf_path, path), error = function(e) NULL)
+  if (is.null(mat)) return(NULL)
+  build_best_oriented_raster(mat, imt_name)
+}
+
+# Primary layer: prefer MMI, fall back to PGA
+if ("MMI" %in% imt_names) {
+  intensity       <- read_imt_layer("MMI")
+  intensity_label <- "Modified Mercalli Intensity (MMI)"
+  intensity_unit  <- "MMI"
+} else {
+  intensity       <- read_imt_layer("PGA")
+  intensity_label <- "Peak Ground Acceleration"
+  intensity_unit  <- "PGA"
+}
+if (is.null(intensity)) stop("Could not read main intensity layer (MMI/PGA).")
 
 ```
+
+Build multi-layer stack: 
+
+```{r}
+# all_layers     <- Filter(Negate(is.null), lapply(imt_names, read_imt_layer))
+# if (length(all_layers) == 0) stop("Could not read any IMT layers.")
+# shakemap_stack <- do.call(c, all_layers) # full stack
+
+# PGA + MMI only
+pga_layer      <- read_imt_layer("PGA")
+pga_layer      <- resample(pga_layer, intensity)  # align to MMI grid
+shakemap_stack <- c(intensity, pga_layer)
+
+
+h5closeAll()
+
+cat("Primary layer:", intensity_label, "\n")
+cat("All layers:   ", paste(names(shakemap_stack), collapse = ", "), "\n")
+```
+
+After the basic code that gives the foundation to build the earthquakes data is completed, the following section proceeds with the load of the shapefiles and exporting raw geoTIFFs. 
+
+```{r}
+mex_admin0 <- project(vect(admin0_path),     crs(intensity))
+mex_admin1 <- project(vect(admin1_path),      crs(intensity))
+mex_admin2 <- project(vect(municipios_path), crs(intensity))
+
+# export geoTIFFs
+
+writeRaster(shakemap_stack,
+            filename  = file.path(output_dir, "shakemap_all_layers.tif"),
+            overwrite = TRUE, gdal = "COMPRESS=LZW", NAflag = -9999)
+
+writeRaster(intensity,
+            filename  = file.path(output_dir, "shakemap_intensity.tif"),
+            overwrite = TRUE, gdal = "COMPRESS=LZW", NAflag = -9999)
+
+cat("Raw GeoTIFFs saved.\n")
+```
+
+We procced by building a smoothed visualization raster. Raw ShakeMap grids are relatively coarse (\~1–4 km).
+
+```{r}
+vis_intensity <- disagg(intensity, fact = 8, method = "bilinear")
+vis_intensity <- focal(vis_intensity, w = matrix(1, 3, 3),
+                       fun = mean, na.policy = "omit")
+
+rng <- minmax(intensity)
+vis_intensity <- clamp(vis_intensity,
+                       lower = rng[1, 1], upper = rng[2, 1],
+                       values = TRUE)
+
+# Mask to Mexico
+intensity_mx  <- mask(crop(intensity,     mex_admin0), mex_admin0)
+vis_intensity <- mask(crop(vis_intensity, mex_admin0), mex_admin0)
+
+writeRaster(intensity_mx,
+            filename  = file.path(output_dir, "shakemap_intensity_mexico_masked.tif"),
+            overwrite = TRUE, gdal = "COMPRESS=LZW", NAflag = -9999)
+```
+
+After having a proper raster we identify the affected municipalities in each earthquake case. Two spatial joins are performed: one to find any municipality that overlaps the shakemap footprint at all, and another to find municipalities where the maximum intensity cell exceeds the threshold.
+
+```{r}
+
+#For MMI the threshold is fixed at 4
+affected_threshold <- if (intensity_unit == "MMI") 4 else {
+  vtmp <- values(intensity_mx, mat = FALSE)
+  vtmp <- vtmp[is.finite(vtmp)]
+  as.numeric(stats::quantile(vtmp, probs = 0.75, na.rm = TRUE))
+}
+
+affected_raster <- intensity_mx >= affected_threshold
+
+# Municipalities touching the shakemap footprint
+touch_tbl <- raster::extract(!is.na(intensity_mx), mex_admin2, fun = max, na.rm = TRUE)
+touch_ids <- touch_tbl$ID[!is.na(touch_tbl[, 2]) & touch_tbl[, 2] > 0]
+muni_in_footprint <- if (length(touch_ids) > 0) mex_admin2[touch_ids, ] else mex_admin2[0]
+
+# Municipality-level average intensity
+mean_tbl <- raster::extract(intensity_mx, mex_admin2, fun = mean, na.rm = TRUE, exact = TRUE)
+mex_admin2$mean_intensity <- mean_tbl[, 2]
+muni_with_mean <- mex_admin2[!is.na(mex_admin2$mean_intensity), ]
+
+writeVector(mex_admin2,
+            filename = file.path(output_dir, "municipality_mean_intensity.gpkg"),
+            overwrite = TRUE)
+
+muni_df <- tryCatch(as.data.frame(mex_admin2), error = function(e) values(mex_admin2))
+muni_df$earthquake_id <- paste0(eq_date, "_M", eq_magnitude, "_", gsub(" ", "_", event_folder))
+write.csv(muni_df,
+          file = file.path(output_dir, "municipality_mean_intensity.csv"),
+          row.names = FALSE, na = "")
+
+cat("Municipalities with avg intensity:", nrow(muni_with_mean), "\n")
+
+# Affected municipalities (above threshold)
+affect_tbl <- raster::extract(affected_raster, mex_admin2, fun = max, na.rm = TRUE)
+affect_ids <- affect_tbl$ID[!is.na(affect_tbl[, 2]) & affect_tbl[, 2] > 0]
+affected_muni <- if (length(affect_ids) > 0) mex_admin2[affect_ids, ] else mex_admin2[0]
+
+cat("Municipalities in footprint: ", nrow(muni_in_footprint), "\n")
+cat("Affected (", intensity_unit, " >= ", round(affected_threshold, 2), "): ",
+    nrow(affected_muni), "\n", sep = "")
+
+if (nrow(affected_muni) > 0) {
+  writeVector(affected_muni,
+              filename = file.path(output_dir, "affected_municipalities.gpkg"),
+              overwrite = TRUE)
+}
+```
+
+Finally, to achieve a visual sense of the earthquake effect, we plot the affected zone map municipalities coloured by the intensity in shich they are hit. 
+
+```{r}
+# 11) Plot: Intensity (MMI) map ------------------------------------------------
+
+states_fp  <- crop(mex_admin1, vis_intensity)
+muni_fp    <- crop(mex_admin2, vis_intensity)
+country_fp <- crop(mex_admin0, vis_intensity)
+
+quake_cols <- colorRampPalette(c(
+  "#1A9850", "#66BD63", "#A6D96A", "#FEE08B", "#FDAE61", "#F46D43", "#D73027"
+))(180)
+
+vr <- values(vis_intensity, mat = FALSE)
+vr <- vr[is.finite(vr)]
+if (length(vr) == 0) stop("No finite values in intensity raster after masking.")
+
+legend_at  <- pretty(range(vr), n = 6)
+legend_lab <- format(round(legend_at, 2), trim = TRUE)
+
+epicenter <- vect(
+  data.frame(lon = epicenter_lon, lat = epicenter_lat),
+  geom = c("lon", "lat"), crs = "EPSG:4326"
+)
+
+epi_df <- tryCatch(raster::extract(vis_intensity, epicenter), error = function(e) NULL)
+epi_v  <- if (!is.null(epi_df) && ncol(epi_df) >= 2) epi_df[1, 2] else NA_real_
+if (is.finite(epi_v) && epi_v < stats::median(vr, na.rm = TRUE)) {
+  quake_cols <- rev(quake_cols)
+  cat("Palette reversed so epicenter maps to warmer colours.\n")
+}
+
+pad <- 0.4
+plot_ext <- ext(
+  xmin(vis_intensity) - pad, xmax(vis_intensity) + pad,
+  ymin(vis_intensity) - pad, ymax(vis_intensity) + pad
+)
+
+png(file.path(output_dir, "shakemap_intensity_mexico.png"),
+    width = 2400, height = 2000, res = 300)
+
+plot(vis_intensity,
+     col = quake_cols, zlim = range(vr), alpha = 0.86,
+     legend = TRUE, colNA = NA, ext = plot_ext,
+     plg = list(at = legend_at, title = intensity_unit, cex = 0.8),
+     axes = TRUE, main = "")
+
+if (nrow(muni_fp) > 0)
+  lines(muni_fp,    col = grDevices::adjustcolor("gray55", alpha.f = 0.5), lwd = 0.25)
+if (nrow(states_fp) > 0)
+  lines(states_fp,  col = "gray40", lwd = 0.45)
+if (nrow(country_fp) > 0)
+  lines(country_fp, col = "black",  lwd = 1.2)
+if (nrow(affected_muni) > 0) {
+  affected_muni_fp <- crop(affected_muni, vis_intensity)
+  if (nrow(affected_muni_fp) > 0) lines(affected_muni_fp, col = "#111111", lwd = 0.9)
+}
+
+points(epicenter, pch = 24, col = "black", bg = "yellow", cex = 1.8, lwd = 2)
+
+title(main = paste0(eq_title, "\n", eq_date), cex.main = 1.0, font.main = 2)
+sbar(d = 100, xy = "bottomleft", type = "bar", below = "km", divs = 2, cex = 0.6)
+
+legend("topright",
+       legend = c(
+         paste0("Epicenter (", epicenter_lat, "N, ", abs(epicenter_lon), "W, ", eq_depth_km, " km)"),
+         paste0("Magnitude: M", eq_magnitude),
+         paste0("Affected municipalities: ", nrow(affected_muni)),
+         paste0("Threshold: ", intensity_unit, " >= ", round(affected_threshold, 2))
+       ),
+       pch = c(24, NA, NA, NA), col = c("black", NA, NA, NA),
+       pt.bg = c("yellow", NA, NA, NA), pt.cex = c(1.2, NA, NA, NA),
+       cex = 0.7, bg = "white", box.lwd = 0.5)
+
+dev.off()
+cat("MMI map saved to:", file.path(output_dir, "shakemap_intensity_mexico.png"), "\n")
+```
+
+Peak Ground Acceleration (PGA) values in USGS ShakeMaps can be stored in different units depending on the ShakeMap version. This section applies automatic unit detection and conversion to **%g** (percent of gravitational acceleration), which is the conventional unit for engineering applications.
+
+**Unit Detection Logic**
+
+| Condition                                 | Inferred unit | Conversion     |
+|-------------------------------------------|---------------|----------------|
+| 5th–95th percentile spans negative to \~5 | ln(g)         | `exp(x) × 100` |
+| 95th percentile ≤ 3                       | g (fraction)  | `× 100`        |
+| Otherwise                                 | Already %g    | None           |
+
+```{r}
+#PGA section (auto-converted to %g)
+
+if ("PGA" %in% imt_names) {
+  pga_raw <- read_imt_layer("PGA")
+
+  if (!is.null(pga_raw)) {
+    pga_raw_mx   <- mask(crop(pga_raw, mex_admin0), mex_admin0)
+    pga_vals_raw <- values(pga_raw_mx, mat = FALSE)
+    pga_vals_raw <- pga_vals_raw[is.finite(pga_vals_raw)]
+
+    if (length(pga_vals_raw) == 0) {
+      cat("PGA layer has no finite values after masking.\n")
+    } else {
+      q05 <- as.numeric(stats::quantile(pga_vals_raw, 0.05, na.rm = TRUE))
+      q95 <- as.numeric(stats::quantile(pga_vals_raw, 0.95, na.rm = TRUE))
+
+      # Automatic unit detection → always convert to %g
+      if (q05 < 0 && q95 <= 5) {
+        pga_mx         <- exp(pga_raw_mx) * 100
+        pga_conversion <- "ln(g) -> %g"
+      } else if (q95 <= 3) {
+        pga_mx         <- pga_raw_mx * 100
+        pga_conversion <- "g -> %g"
+      } else {
+        pga_mx         <- pga_raw_mx
+        pga_conversion <- "already %g"
+      }
+      cat("PGA conversion: ", pga_conversion, "\n", sep = "")
+
+      writeRaster(pga_mx,
+                  filename  = file.path(output_dir, "shakemap_pga_mexico_masked.tif"),
+                  overwrite = TRUE, gdal = "COMPRESS=LZW", NAflag = -9999)
+
+      # Smooth for display only
+      vis_pga <- disagg(pga_mx, fact = 8, method = "bilinear")
+      vis_pga <- focal(vis_pga, w = matrix(1, 3, 3), fun = mean, na.policy = "omit")
+      pga_rng <- minmax(pga_mx)
+      vis_pga <- clamp(vis_pga, lower = pga_rng[1, 1], upper = pga_rng[2, 1], values = TRUE)
+
+      # Municipality average PGA (%g)
+      pga_mean_tbl <- raster::extract(pga_mx, mex_admin2, fun = mean, na.rm = TRUE, exact = TRUE)
+      mex_admin2$mean_pga <- pga_mean_tbl[, 2]
+      cat("Municipalities with avg PGA:", sum(is.finite(mex_admin2$mean_pga)), "\n")
+
+      muni_df_all <- tryCatch(as.data.frame(mex_admin2), error = function(e) values(mex_admin2))
+      muni_df_all$earthquake_id <- paste0(eq_date, "_M", eq_magnitude, "_", gsub(" ", "_", event_folder))
+      write.csv(muni_df_all,
+                file = file.path(output_dir, "municipality_mean_intensity_pga.csv"),
+                row.names = FALSE, na = "")
+      writeVector(mex_admin2,
+                  filename = file.path(output_dir, "municipality_mean_intensity_pga.gpkg"),
+                  overwrite = TRUE)
+
+      pga_threshold <- 10  # %g
+      pga_affected_raster <- pga_mx >= pga_threshold
+      pga_aff_tbl <- raster::extract(pga_affected_raster, mex_admin2, fun = max, na.rm = TRUE)
+      pga_aff_ids <- pga_aff_tbl$ID[!is.na(pga_aff_tbl[, 2]) & pga_aff_tbl[, 2] > 0]
+      pga_affected_muni <- if (length(pga_aff_ids) > 0) mex_admin2[pga_aff_ids, ] else mex_admin2[0]
+
+      if (nrow(pga_affected_muni) > 0) {
+        writeVector(pga_affected_muni,
+                    filename = file.path(output_dir, "affected_municipalities_pga.gpkg"),
+                    overwrite = TRUE)
+      }
+      cat("Affected (PGA >= ", round(pga_threshold, 2), " %g): ",
+          nrow(pga_affected_muni), "\n", sep = "")
+
+      # --- PGA plot ---
+      pga_plot_vals <- values(vis_pga, mat = FALSE)
+      pga_plot_vals <- pga_plot_vals[is.finite(pga_plot_vals)]
+
+      if (length(pga_plot_vals) > 0) {
+        pga_cols <- colorRampPalette(c(
+          "#1A9850", "#66BD63", "#A6D96A", "#FEE08B", "#FDAE61", "#F46D43", "#D73027"
+        ))(180)
+
+        pga_legend_at <- pretty(range(pga_plot_vals), n = 6)
+
+        epi_pga   <- tryCatch(raster::extract(vis_pga, epicenter), error = function(e) NULL)
+        epi_pga_v <- if (!is.null(epi_pga) && ncol(epi_pga) >= 2) epi_pga[1, 2] else NA_real_
+        if (is.finite(epi_pga_v) && epi_pga_v < stats::median(pga_plot_vals, na.rm = TRUE)) {
+          pga_cols <- rev(pga_cols)
+          cat("PGA palette reversed so epicenter maps to warmer colours.\n")
+        }
+
+        pga_ext     <- ext(vis_pga)
+        states_pga  <- crop(mex_admin1, vis_pga)
+        muni_pga    <- crop(mex_admin2, vis_pga)
+        country_pga <- crop(mex_admin0, vis_pga)
+
+        png(file.path(output_dir, "shakemap_pga_mexico.png"),
+            width = 2400, height = 2000, res = 300)
+
+        plot(vis_pga,
+             col = pga_cols, zlim = range(pga_plot_vals), alpha = 0.88,
+             legend = TRUE, colNA = NA, ext = pga_ext,
+             plg = list(at = pga_legend_at, title = "PGA (%g)", cex = 0.8),
+             axes = TRUE, main = "")
+
+        if (nrow(muni_pga) > 0)
+          lines(muni_pga,    col = grDevices::adjustcolor("gray55", alpha.f = 0.45), lwd = 0.22)
+        if (nrow(states_pga) > 0)
+          lines(states_pga,  col = "gray40", lwd = 0.45)
+        if (nrow(country_pga) > 0)
+          lines(country_pga, col = "black",  lwd = 1.2)
+        if (nrow(pga_affected_muni) > 0) {
+          pga_affected_fp <- crop(pga_affected_muni, vis_pga)
+          if (nrow(pga_affected_fp) > 0) lines(pga_affected_fp, col = "#111111", lwd = 0.9)
+        }
+
+        points(epicenter, pch = 24, col = "#c68a00", bg = "#ffc857", cex = 1.8, lwd = 2)
+
+        title(main = paste0(eq_title, "\n", eq_date, " – PGA (%g)"),
+              cex.main = 1.0, font.main = 2)
+        sbar(d = 100, xy = "bottomleft", type = "bar", below = "km", divs = 2, cex = 0.6)
+
+        legend("topright",
+               legend = c(
+                 paste0("Epicenter (", epicenter_lat, "N, ", abs(epicenter_lon), "W, ", eq_depth_km, " km)"),
+                 paste0("Magnitude: M", eq_magnitude),
+                 paste0("Affected municipalities: ", nrow(pga_affected_muni)),
+                 paste0("Threshold: PGA >= ", round(pga_threshold, 2), " %g"),
+                 paste0("Conversion: ", pga_conversion)
+               ),
+               pch = c(24, NA, NA, NA, NA), col = c("#c68a00", NA, NA, NA, NA),
+               pt.bg = c("#ffc857", NA, NA, NA, NA), pt.cex = c(1.2, NA, NA, NA, NA),
+               cex = 0.7, bg = "white", box.lwd = 0.5)
+
+        dev.off()
+        cat("PGA map saved to:", file.path(output_dir, "shakemap_pga_mexico.png"), "\n")
+      }
+    }
+  } else {
+    cat("PGA layer listed but could not be read from HDF5.\n")
+  }
+} else {
+  cat("PGA layer not available in IMTs.\n")
+}
+
+```
+
 
 ```{r}
 # check output data
@@ -612,6 +1163,14 @@ cat("\nNever-treated controls:",
 
 
 ## Callaway and Sant'Anna
+
+The workhorse of panel data econometrics, $Y_{it} = \alpha_i + \lambda_t + \beta D_{it} + \varepsilon_{it}$, seemed for a long time like a safe default for anyone working with staggered treatment. It turns out it is not. Goodman-Bacon (2021) showed that in settings where units are treated at different points in time, the TWFE estimate $\hat{\beta}$ is a weighted average of many implicit 2×2 DiD comparisons — and crucially, some of those weights are **negative**. The reason is uncomfortable: TWFE quietly uses already-treated units as controls for other treated units. When treatment effects evolve over time, this poisons the estimate, because the post-treatment outcomes of early adopters get subtracted when building the counterfactual for late adopters. A subgroup with a genuinely positive effect can end up pulling the overall $\hat{\beta}$ toward zero, or even flipping its sign.
+
+Callaway and Sant'Anna (2021) fix this by going back to basics. Rather than estimating one pooled coefficient, they build the estimator from the ground up using **group-time average treatment effects**, $ATT(g,t) = \mathbb{E}[Y_t(g) - Y_t(\infty) \mid G = g]$, where $g$ is the period a cohort first gets treated and $t$ is calendar time. The fix for the contamination problem is almost disarmingly simple: for each $ATT(g,t)$, only **never-treated or not-yet-treated units** are used as the comparison group — so an already-treated unit never serves as a control for anyone. Identification requires a cohort-specific conditional parallel trends assumption (cohort $g$ would have trended like the control group absent treatment, conditional on pre-treatment covariates $X$) and no anticipation. To keep the estimator robust, each cell is estimated using a doubly-robust combination of outcome regression and inverse probability weighting, which remains consistent if either the outcome model or the propensity score is correctly specified, but not necessarily both.
+
+The real payoff comes at the aggregation step. Once you have the full $ATT(g,t)$ matrix, you can ask different economic questions from the same set of building blocks: averaging within each cohort $g$ over time gives cohort-specific effects; averaging by relative time $\ell = t - g$ gives the familiar event-study plot with pre-trends and post-treatment dynamics; and a grand weighted average collapses everything into a single summary ATT when that is what you need. This is the honest version of what TWFE was always pretending to do — instead of forcing heterogeneous effects into one number with opaque and potentially negative weights, the method keeps the heterogeneity intact and lets the researcher decide how to summarize it.
+
+In our setting, a simple TWFE was not suitable because of the difference periods in which the earthquakes happen. This events make our different treatments to happen on different periods over time. Moreover, we are not sure on how many more periods the villages affected by an earthquake as going to be 'treated'. This means we cannot tell that if a village was hit by one of this common natural events in Mexico in September, the following September it would have already recovered or it would still need an extra amount of remittances to keep going. Therefore, using Callaway and Sant'Anna aproach is a robust methodology in this case. 
 
 We prepare the panel and partition the sample into three categories. For each partition, we compute the Callaway and Sant'Anna estimand and examine whether the estimated effect differs according to the level of PGA received by the municipality.
 
