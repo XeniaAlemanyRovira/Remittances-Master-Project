@@ -1,7 +1,6 @@
 ---
 title: "Geospatial Project"
-author: "Joan Costa Rodríguez, Francesco Zucca,
-Xènia Alemany Rovira, Michael Fehl"
+author: "Joan Costa Rodríguez, Francesco Zucca, Xènia Alemany Rovira, Michael Fehl"
 date: today
 format:
   pdf:
@@ -27,7 +26,7 @@ library(exactextractr) # exact_extract() for distances
 library(gdistance)     # fast distance() formula for geo data
 library(sf)            # vector operations
 library(spData)        # geo data
-library(tidyverse)     # NOTE: Conflict -- tidyr::extract() masks terra::extract()
+library(tidyverse)     # NOTE: tidyr::extract() masks terra::extract()
 library(ggrepel)       # add labels to ggplot
 library(tidyterra)     # visualize geospatial using tidy syntax
 library(patchwork)     # patch tg ggplot objects
@@ -35,7 +34,7 @@ library(did2s)
 library(BMisc)
 library(DRDID)
 library(nprobust)   # Local polynomial regression for dose-response curve
-library(cobalt)     # Covariate balance (optional but recommended)
+library(cobalt)     # Covariate balance
 library(stringi)
 ```
 
@@ -110,24 +109,24 @@ remit_long <- remit_long %>%
 
 ## Earthquake Data
 
-We source ShakeMap raster data from the [USGS Earthquake Hazard Program](https://www.usgs.gov/programs/earthquake-hazards/earthquakes) for 10 significant seismic events (M6.7–M8.2) affecting Mexican territory between 2014 and 2022. For each event, we read the `HDF5` ShakeMap file, construct a georeferenced PGA raster, and compute municipality-level mean PGA via zonal statistics over INEGI municipal boundaries. We prefer PGA over earthquake magnitude, as PGA better captures actual ground motion experienced at each location, accounting for depth, distance, and local geology, making it comparable across events.
+We source ShakeMap raster data from the [USGS Earthquake Hazard Program](https://www.usgs.gov/programs/earthquake-hazards/earthquakes) for 10 significant seismic events (M6.7-M8.2) affecting Mexican territory between 2014 and 2022. For each event, we read the `HDF5` ShakeMap file, construct a georeferenced PGA raster, and compute municipality-level mean PGA via zonal statistics over INEGI municipal boundaries. We prefer PGA over earthquake magnitude, as PGA better captures actual ground motion experienced at each location, accounting for depth, distance, and local geology, making it comparable across events.
 
 Our sample includes all events of Mw ≥ 6.7 affecting Mexican territory between 2014 and 2022 for which USGS ShakeMap raster data are available.
 
 | Event | Date | Magnitude | Location |
 |----|----|----|----|
 | 2014 Coyuquilla Norte | April 18, 2014 | M7.2 | Guerrero |
-| 2014 Puerto Madero | July 7, 2014 | M6.9 | Chiapas–Guatemala border |
+| 2014 Puerto Madero | July 7, 2014 | M6.9 | Chiapas-Guatemala border |
 | 2017 Chiapas | September 7, 2017 | M8.2 | Off coast of Chiapas |
 | 2017 Matzaco (Puebla) | September 19, 2017 | M7.1 | Puebla/Morelos |
 | 2018 Pinotepa | February 16, 2018 | M7.2 | Oaxaca |
-| 2019 Puerto Madero | February 1, 2019 | M6.6–6.7 | Chiapas |
+| 2019 Puerto Madero | February 1, 2019 | M6.6-6.7 | Chiapas |
 | 2020 Santa María Xadani | June 23, 2020 | M7.4 | Oaxaca |
 | 2021 Acapulco | September 7, 2021 | M7.0 | Guerrero |
 | 2022 Aguililla | September 19, 2022 | M7.6 | Michoacán |
 | 2022 Aguililla (aftershock) | September 22, 2022 | M6.8 | Michoacán |
 
-: \>6.5Mw Seismic events in Mexico, 2014–2022 {#tbl-earthquakes}
+: \>6.5Mw Seismic events in Mexico, 2014-2022 {#tbl-earthquakes}
 
 ```{r, eval=FALSE}
 # run script thru all earthquake data, manually updating script
@@ -414,7 +413,7 @@ write.csv(panel_filtered, "data/panel_remittances_pga.csv", row.names = FALSE)
 
 ## Migration Networks
 
-To get a measure of potential spillover effects, we can use a manually constructed weighting matrix of mexican migration from a given Mexican municipality to each US state. We can then multiply this matrix by its transpose to get a municipality x municipality matrix to try and understand the connectedness of certain Mexican municipalities based on their shares US migration destinations. Theoretically, this means that certain Mexican municipalities that are not close in geographic distance can still propagate shocks through these migration networks.
+To get a measure of potential spillover effects, we can use a manually constructed weighting matrix of mexican migration from a given Mexican municipality to each US state (computed via MCAS migration data from 2010-2024). We can then multiply this matrix by its transpose to get a municipality x municipality matrix to try and understand the connectedness of certain Mexican municipalities based on their shares US migration destinations. Theoretically, this means that certain Mexican municipalities that are not close in geographic distance can still propagate shocks through these migration networks.
 
 ```{r import weighting matrix}
 M <- read_excel("data/AVG_WEIGHTING_MATRIX.xlsx") 
@@ -450,11 +449,11 @@ as.data.frame(W_network) %>%
 
 # largest values in a row = strongest network neighbors
 # sort(W_network["Michoacan_Coeneo",], decreasing = TRUE)[1:5]
+
+# Persist W_network so the CS section can use it after rm(list=ls())
+saveRDS(W_network, "data/W_network.rds")
 ```
 
-::: callout-note
-Note that we row-normalize our final matrix here; what is important is that this final product is not a symmetric matrix. The interpretation is that for a given row $i$ (municipality), we get the probability distribution across all other municipalities ($\forall_{i \neq j}$). We must include it in this form in order to properly use it as a variable in our regression later on.
-:::
 
 ```{r clean up environment, results='hide', echo=FALSE}
 rm(M, M_prime, muni_ids, state_ids)
@@ -462,20 +461,54 @@ rm(M, M_prime, muni_ids, state_ids)
 
 This spillover matrix serves to approximately measure the "connectedness" between every pair of municipalities in Mexico, based on their historical migration patterns to the US. The idea is that if an earthquake hits Asientos in Aguascalientes, the migration community in (say) Texas that comes from this municipality will send more money home. But if that same community in Texas also has a large network of migrants from Coeneo in Michoacan, they might discuss the earthquake; consequently, migrants from Coeneo may send additional remittances back home as feel a heightened sense of their own family's vulnerability.
 
-We suspect this effect, if present, would be stronger among municipalities sharing the same US migration destinations, as information travels through co-ethnic social networks rather than purely along geographic borders. We test this by including the network-weighted average PGA of connected municipalities as an additional regressor.
+We suspect this effect, if present, would be stronger among municipalities sharing the same US migration destinations, as information travels through co-ethnic social networks rather than purely along geographic borders. We test this by estimating whether 'never-treated' municipalities with stronger network overlap with earthquake-affected areas experienced higher remittance inflows in the post-event period, conditional on municipality and time fixed effects.
 
 ## Geographic Distance
 
-Furthermore, we may suspect that neighboring municipalities in Mexico would contribute to this spillover effect. Theoretically, if an earthquake hits a municipality hard enough they might rely on aid from neighboring towns as local residents may be out of work and cannot afford to survive after such a disaster. Thus, we can create another matrix, this time using a simple weighting matrix based on geographic distance to the affected municipalit(ies).
+Furthermore, geographic proximity may independently drive spillover remittances. Even absent shared migration networks, US-based migrants aware of a nearby earthquake may send precautionary remittances to family in adjacent municipalities, which would reflect a generalized regional concern, rather than direct social-network linkages. To test this, we construct an inverse-distance weight matrix $W^{\text{geo}}$ using municipal centroids and compute a geographic PGA exposure variable for each never-treated municipality.
 
-To do so, we can simply use our previous weighting matrix and intialize the matrix by assigning zeros to all (municipality x municipality) pairs.
+To do so, we can simply find the centroid of each municipality using the `mex_admin2.shp` file, as it contains each municipality's associated geometry. Note that we define the WGS to standard `EPSG:4326` to be consistent. Afterwards, we just calculate all the pairwise distances between each centroid to generate a distance matrix (in meters).
 
 ```{r geographic matrix}
-empty_network = W_network * 0 # init empty matrix
+# municipal boundaries data
+mex_muni <- st_read("data/earthquakes/mex_admin2/mex_admin2.shp", 
+                    quiet = TRUE) %>%
+  st_transform("EPSG:4326") %>%
+  mutate(adm1_name = case_when(
+    adm1_name == "Coahuila de Zaragoza"            ~ "Coahuila",
+    adm1_name == "Distrito Federal"                ~ "Ciudad de México",
+    adm1_name == "Veracruz de Ignacio de la Llave" ~ "Veracruz",
+    adm1_name == "Michoacán de Ocampo"             ~ "Michoacán",
+    adm1_name == "Querétaro de Arteaga"            ~ "Querétaro",
+    TRUE                                            ~ adm1_name
+  )) %>%
+  mutate(muni_id = paste(adm1_name, adm2_name, sep = "_"))
 
+muni_centroids <- st_centroid(mex_muni)         # centroid of each muni
+dist_mat       <- st_distance(muni_centroids)   # compute all pairwise distances
 ```
 
-# Regression: Callaway Sant-Anna
+Now we can standardize this matrix to measure 'intensity' by rescaling all our values to become $\in [0,1]$. Values closer to 1 are closer in geographic distance, relative to all other municipality distances. 
+
+```{r}
+# diagonal = Inf so that 1/Inf = 0 (municipality is not its own neighbor)
+diag(dist_mat) <- Inf
+W_geo          <- 1 / dist_mat
+diag(W_geo)    <- 0
+
+# row-normalize: each row sums to 1
+W_geo <- W_geo / rowSums(W_geo)
+
+# name rows/cols with state_muni so they match muni_id in the panel
+rownames(W_geo) <- mex_muni$muni_id
+colnames(W_geo) <- mex_muni$muni_id
+
+# store as network
+saveRDS(W_geo, "data/W_geo.rds")
+```
+
+
+# Regression
 
 ## Parallel Trends Assumption
 
@@ -518,14 +551,14 @@ panel %>%
 
 The pre-treatment trends appear broadly parallel, providing visual support for the parallel trends assumption, though we cannot rule out pre-existing differences between treated and control municipalities.
 
-## Panel Preparation (shared by TWFE and CS)
+## Panel Preparation
 
 ```{r panel-prep}
 library(tidyverse)
 library(fixest)
 library(did)
 
-# ── 0. Build panel ─────────────────────────────────────────────────────────────
+# 1. Build panel
 panel <- panel %>%          # use the deduplicated panel (max PGA)
   rename(event_quarter = event) %>%
   mutate(
@@ -534,7 +567,7 @@ panel <- panel %>%          # use the deduplicated panel (max PGA)
     asinhremit  = asinh(remittances_musd)
   )
 
-# ── 1. PGA partitions ──────────────────────────────────────────────────────────
+# 2. PGA partitions
 partitions <- list(
   "4-10"  = c(4, 10),
   "10-20" = c(10, 20),
@@ -543,12 +576,8 @@ partitions <- list(
 
 PGA_THRESHOLD <- 4   # municipalities below this are controls
 
-# ── 2. Municipality-level metadata ─────────────────────────────────────────────
-# FIX: use slice_max on mean_pga (strongest shock) instead of slice_min on
-# time_index (earliest shock). slice_min assigned dose and cohort G from the
-# first earthquake, even when a later, much stronger event was the real
-# treatment. This (a) misrouted municipalities across PGA partitions and
-# (b) set treatment timing G to the wrong earthquake for CS.
+# 3. Municipality-level metadata 
+# uses slice_max on mean_pga (strongest shock) 
 muni_meta <- panel %>%
   filter(!is.na(event_quarter), mean_pga > PGA_THRESHOLD) %>%
   group_by(muni_id) %>%
@@ -561,12 +590,12 @@ muni_meta <- panel %>%
   ) %>%
   ungroup()
 
-# ── 3. Merge back ──────────────────────────────────────────────────────────────
+# 4. Merge back 
 panel <- panel %>%
   left_join(muni_meta, by = "muni_id")
-# event=NA after join  →  clean never-treated control
+# event=NA after join gives us a clean 'never-treated' control
 
-# ── 4. Sanity check — should show ~10 cohorts ─────────────────────────────────
+# 5. Sanity check
 earthquake_cohorts <- muni_meta %>%
   distinct(event, G) %>%
   arrange(G)
@@ -581,91 +610,8 @@ cat("\nNever-treated controls:",
     panel %>% filter(is.na(event)) %>% distinct(muni_id) %>% nrow(), "\n")
 ```
 
-## Continuous treatment ATT estimation
 
-```{r, eval=FALSE}
-results_raw <- map_dfr(seq_len(nrow(earthquake_cohorts)), function(i) {
-  eq_event <- earthquake_cohorts$event[i]
-  eq_G     <- earthquake_cohorts$G[i]
-
-  map_dfr(names(partitions), function(part_name) {
-    bounds <- partitions[[part_name]]
-    run_twfe_cell(
-      data            = panel,
-      eq_event        = eq_event,
-      eq_G            = eq_G,
-      pga_lo          = bounds[1],
-      pga_hi          = bounds[2],
-      partition_label = part_name,
-      window          = 3
-    )
-  })
-})
-
-glimpse(results_raw)
-
-# ── 6. Weighted average ATT by partition ──────────────────────────────────────
-att_by_partition <- results_raw %>%
-  group_by(partition) %>%
-  summarise(
-    n_earthquakes = n(),
-    avg_att       = weighted.mean(att, w = n_treated_munis, na.rm = TRUE),
-    avg_se        = sqrt(sum(se^2 * n_treated_munis^2) / sum(n_treated_munis)^2),
-    total_treated = sum(n_treated_munis),
-    .groups       = "drop"
-  ) %>%
-  mutate(
-    ci_lo     = avg_att - 1.96 * avg_se,
-    ci_hi     = avg_att + 1.96 * avg_se,
-    p_val     = 2 * pnorm(-abs(avg_att / avg_se)),
-    sig       = case_when(
-      p_val < 0.01 ~ "***",
-      p_val < 0.05 ~ "**",
-      p_val < 0.10 ~ "*",
-      TRUE         ~ ""
-    ),
-    partition = factor(partition, levels = c("4-10", "10-20", "20-35", "35+"))
-  ) %>%
-  arrange(partition)
-
-print(att_by_partition)
-
-# ── 7. Table ──────────────────────────────────────────────────────────────────
-att_by_partition %>%
-  transmute(
-    `PGA Partition` = partition,
-    `Earthquakes`   = n_earthquakes,
-    `Treated Munis` = total_treated,
-    `Avg ATT`       = round(avg_att, 4),
-    `Std. Error`    = round(avg_se,  4),
-    `95% CI`        = paste0("[", round(ci_lo, 4), ", ", round(ci_hi, 4), "]"),
-    `p-value`       = round(p_val, 3),
-    ` `             = sig
-  ) %>%
-  knitr::kable(
-    booktabs = TRUE,
-    align    = c("l","c","c","r","r","c","r","l"),
-    caption  = "Average ATT by PGA Partition (TWFE, 4-quarter window)"
-  )
-
-# ── 8. Plot ───────────────────────────────────────────────────────────────────
-ggplot(att_by_partition, aes(x = partition, y = avg_att)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi),
-                width = 0.15, color = "steelblue", linewidth = 0.8) +
-  geom_point(color = "steelblue", size = 3) +
-  labs(
-    title    = "Average ATT by PGA Partition",
-    subtitle = "TWFE DiD | 4-quarter treatment window | weighted by treated municipalities",
-    x        = "PGA Partition (%g)",
-    y        = "Avg ATT (Inverse hyperbolic sine remittances)"
-  ) +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5))
-
-```
-
-## Callaway and Santana
+## Callaway and Sant'Anna
 
 We prepare the panel and partition the sample into three categories. For each partition, we compute the Callaway and Sant'Anna estimand and examine whether the estimated effect differs according to the level of PGA received by the municipality.
 
@@ -777,7 +723,6 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
 We run the Callaway & Sant'Anna estimator for each PGA partition. The "map()" call iterates over the three partitions defined earlier, invoking run_cs_partition() for each one with the corresponding PGA bounds and the pre/post windows specified above
 
 ```{r}
-
 cs_results <- map(names(partitions), function(part_name) {
   bounds <- partitions[[part_name]]
   run_cs_partition(
@@ -796,7 +741,6 @@ cs_results <- map(names(partitions), function(part_name) {
 We then collect the aggregate ATT estimates into a single tidy dataframe. For each partition, we extract the overall ATT, its standard error, the implied 95% confidence interval, and a two-sided p-value derived from the normal approximation. Significance stars are appended following conventional thresholds (10%, 5%, 1%), and partitions are recast as an ordered factor to ensure correct sorting in downstream tables and plots.
 
 ```{r}
-
 att_table <- map_dfr(cs_results, function(res) {
   if (is.null(res$agg)) return(NULL)
   tibble(
@@ -847,9 +791,9 @@ att_table %>%
   )
 ```
 
-The results reveal a striking and economically meaningful pattern of heterogeneity across PGA partitions. For municipalities exposed to low- and moderate-intensity seismic shocks (PGA 4–10 and 10–20 cm/s²), we estimate large, positive, and precisely estimated average treatment effects on remittances, ATTs of 0.513 and 0.496 log points, respectively, both significant at the 1% level. This finding is consistent with the consumption-smoothing motive for remittances: when a household in the origin municipality is struck by a moderate earthquake, migrants abroad respond by increasing transfers, effectively acting as informal insurers against idiosyncratic shocks and dampening the impact on consumption.
+The results reveal a striking and economically meaningful pattern of heterogeneity across PGA partitions. For municipalities exposed to low- and moderate-intensity seismic shocks (PGA 4-10 and 10-20 %g), we estimate large, positive, and precisely estimated average treatment effects on remittances, ATTs of 0.513 and 0.496 log points, respectively, both significant at the 1% level. This finding is consistent with the consumption-smoothing motive for remittances: when a household in the origin municipality is struck by a moderate earthquake, migrants abroad respond by increasing transfers, effectively acting as informal insurers against idiosyncratic shocks and dampening the impact on consumption.
 
-The picture changes heavyly for municipalities in the highest PGA partition (above 20 cm/s²). Here, the estimated ATT turns negative (−0.506 log points) and remains statistically significant at the 5% level, also with a substantially larger standard error, reflecting the reduced sample of treated units in this category. This reversal is consistent with the migration-response mechanism documented by Uriel (2022), when a disaster is severe enough, affected households may themselves migrate to smooth consumption, thereby disrupting the pre-existing remittance relationship and potentially reversing the direction of transfers or reducing the stock of recipients in the origin municipality altogether.
+The picture changes heavyly for municipalities in the highest PGA partition (above 20 %g). Here, the estimated ATT turns negative (−0.506 log points) and remains statistically significant at the 5% level, also with a substantially larger standard error, reflecting the reduced sample of treated units in this category. This reversal is consistent with the migration-response mechanism documented by Uriel (2022), when a disaster is severe enough, affected households may themselves migrate to smooth consumption, thereby disrupting the pre-existing remittance relationship and potentially reversing the direction of transfers or reducing the stock of recipients in the origin municipality altogether.
 
 Taken together, these results suggest that the remittance response to seismic shocks is non-monotonic in shock severity, with consumption smoothing via inflows dominating at moderate intensities and outmigration effects dominating at the upper tail of the shock distribution.
 
@@ -900,7 +844,7 @@ ggplot(att_table, aes(x = partition, y = att)) +
   labs(
     title    = "CS ATT by PGA Partition",
     subtitle = "Callaway & Sant'Anna (2021) | quarters 0 to +4 | doubly robust | never-treated controls",
-    x        = "PGA Partition (cm/s²)",
+    x        = "PGA Partition (%g)",
     y        = "ATT (Inverse hyperbolic sine remittances)"
   ) +
   theme_bw() +
@@ -909,9 +853,9 @@ ggplot(att_table, aes(x = partition, y = att)) +
 ```
 
 
-### Callaway and Santanna: Robustness check
+### Robustness check
 
-The following specification replaces the never-treated municipalities with the lowest-dose treated group (PGA 4–10 cm/s²) as the control group. The motivation is to restrict the comparison to municipalities that lie within the vicinity of an earthquake, and therefore share similar geographic and structural characteristics.
+The following specification replaces the never-treated municipalities with the lowest-dose treated group (PGA 4-10 %g) as the control group. The motivation is to restrict the comparison to municipalities that lie within the vicinity of an earthquake, and therefore share similar geographic and structural characteristics.
 
 Using never-treated municipalities as controls risks confounding the earthquake effect with pre-existing differences between seismically active regions and the rest of the country, differences that could manifest as divergent trends in remittance inflows unrelated to the shock itself. By benchmarking higher-dose municipalities against those that experienced only a mild ground shaking, we hold constant the broad exposure to a seismic event and isolate the incremental effect of stronger shaking intensity on remittance inflows.
 
@@ -1046,7 +990,7 @@ cs_out <- tryCatch(
 Run the function for every PGA partition:
 
 
-```{r, warning=False}
+```{r, warning=FALSE}
 cs_results_ld <- map(names(partitions_ld), function(part_name) {
   bounds <- partitions_ld[[part_name]]
   run_cs_partition_ld(
@@ -1109,12 +1053,11 @@ att_table_ld %>%
   knitr::kable(
     booktabs = TRUE,
     align    = c("l","c","c","c","r","r","c","r","l"),
-    caption  = "CS ATT by PGA Partition | low-dose (4–10) as controls | doubly robust"
+    caption  = "CS ATT by PGA Partition | low-dose (4-10) as controls | doubly robust"
   )
 ```
 
-
-As a robustness check, we re-estimate the model replacing the never-treated municipalities with those in the lowest PGA partition (4–10 cm/s²) as the control group. The results, are consistnet. Both ATT estimates remain statistically significant and retain their respective signs: the moderate-intensity partition (10–20 cm/s²) yields a positive and precisely estimated effect of 0.496 log points, while the high-intensity partition (above 20 cm/s²) continues to exhibit a negative effect of −0.506 log points, significant at the 5% level. The standard errors are virtually unchanged relative to the baseline specification, and the confidence intervals overlap closely with those reported in the table above.
+As a robustness check, we re-estimate the model replacing the never-treated municipalities with those in the lowest PGA partition (4-10 %g) as the control group. The results, are consistnet. Both ATT estimates remain statistically significant and retain their respective signs: the moderate-intensity partition (10-20 %g) yields a positive and precisely estimated effect of 0.496 log points, while the high-intensity partition (above 20 %g) continues to exhibit a negative effect of −0.506 log points, significant at the 5% level. The standard errors are virtually unchanged relative to the baseline specification, and the confidence intervals overlap closely with those reported in the table above.
 
 This stability is reassuring on two fronts. First, it suggests that the never-treated control group was not driving the results through some idiosyncratic feature of municipalities that experienced no seismic activity during the sample period. Second, it lends further credibility to the identifying assumption: municipalities exposed to low-intensity shocks appear to provide a valid counterfactual for more severely affected units, implying that the parallel trends assumption extends across treatment intensities and is not an artifact of the choice of control group which we can observe in the following plots.
 
@@ -1130,7 +1073,7 @@ es_plots_ld <- map(cs_results_ld, function(res) {
   ggdid(res$es) +
     labs(
       title    = paste("Event Study — PGA Partition:", res$partition),
-      subtitle = paste0("CS (2021) | low-dose (4–10) as controls | ",
+      subtitle = paste0("CS (2021) | low-dose (4-10) as controls | ",
                         res$n_treated, " treated, ",
                         res$n_controls, " control munis"),
       x        = "Quarters relative to earthquake",
@@ -1157,8 +1100,8 @@ ggplot(att_table_ld, aes(x = partition, y = att)) +
             size = 5, color = "steelblue") +
   labs(
     title    = "CS ATT by PGA Partition (low-dose controls)",
-    subtitle = "Callaway & Sant'Anna (2021) | low-dose (4–10) as controls | doubly robust",
-    x        = "PGA Partition (cm/s²)",
+    subtitle = "Callaway & Sant'Anna (2021) | low-dose (4-10) as controls | doubly robust",
+    x        = "PGA Partition (%g)",
     y        = "ATT (Inverse hyperbolic sine remittances)"
   ) +
   theme_bw() +
@@ -1166,3 +1109,433 @@ ggplot(att_table_ld, aes(x = partition, y = att)) +
         plot.subtitle = element_text(hjust = 0.5))
 ```
 
+
+## Testing for Spillover Effects {#sec-spillover}
+
+### Geographic Distances
+
+To test whether earthquake exposure in neighboring municipalities generates remittance spillovers through pure geographic proximity, we compute a geographic PGA exposure variable for each municipality using an inverse-distance-weighted spatial lag of the treatment dose vector:
+
+$$\text{geo\_pga}_i = \sum_{j \neq i} w^{\text{geo}}_{ij} \cdot \mathbf{1}[\text{PGA}_j > \tau]$$
+
+where $w^{\text{geo}}_{ij} = \frac{d_{ij}^{-1}}{\sum_{k \neq i} d_{ik}^{-1}}$ is the row-normalized inverse geodesic distance between municipal centroids, constructed from the geographic weight matrix $W^{\text{geo}}$.
+
+```{r geographic pga}
+# define our 'dose' matrix
+dose_lookup <- panel %>%
+  mutate(muni_id = paste(state, municipality, sep = "_")) %>%
+  group_by(muni_id) %>%
+  summarise(dose = max(mean_pga, na.rm = TRUE))
+
+# call our geographic matrix
+W_geo <- readRDS("data/W_geo.rds")
+
+# match dimensions to do matrix multiplication
+dose_vector_geo <- setNames(rep(0, nrow(W_geo)), 
+                            rownames(W_geo))
+matched_geo <- intersect(rownames(W_geo), # find shared muni names
+                         dose_lookup$muni_id)
+dose_vector_geo[matched_geo] <- dose_lookup$dose[match(matched_geo,
+                                                       dose_lookup$muni_id)]
+# fill in PGA values, missing assigned 0
+
+# sanity check
+dim(W_geo)[2] == length(dose_vector_geo) # TRUE
+
+# geography matrix * dose_vector
+geo_pga = as.vector(W_geo %*% dose_vector_geo)
+
+# store in tibble df
+geo_pga_df <- tibble(
+  muni_id = rownames(W_geo),
+  geo_pga = geo_pga
+)
+```
+
+We then estimate:
+
+$$\log(\text{remit}_{it}) = \alpha_i + \gamma_t + \beta \cdot \text{post}_{it} \times \widetilde{\text{geo\_pga}}_i + \varepsilon_{it}$$
+
+where $\widetilde{\text{geo\_pga}}_i$ is mean-centered, and standard errors are clustered at the municipality level.
+
+```{r geographic spillover estimate}
+spillover_df <- panel_cs %>%
+  left_join(geo_pga_df, by = "muni_id") %>%
+  filter(G_cs == 0, !is.na(geo_pga)) %>%
+  mutate(
+    post      = as.integer(time_index >= min(muni_meta$G)),
+    geo_pga_c = geo_pga - mean(geo_pga, na.rm = TRUE)
+  )
+
+spillover_mod_geo <- feols(
+  asinhremit ~ post:geo_pga_c | muni_num + time_index,
+  data    = spillover_df,
+  cluster = ~muni_num
+)
+
+summary(spillover_mod_geo)
+```
+
+The univariate geographic specification yields $\hat{\beta} = 0.097$ ($p < 0.001^{***}$), indicating that municipalities geographically proximate to severely shaken areas receive significantly higher remittance inflows in the post-earthquake period. Taken in isolation, this result is consistent with a pure proximity-based spillover story, which perhaps reflects shared regional labor-market disruption or aggregate demand shocks that span administrative boundaries.
+
+### Migration Network
+
+Geographic proximity alone cannot distinguish between two competing mechanisms: 
+
+  (i) direct geographic contagion, and 
+  (ii) diaspora network propagation, 
+
+where migrant communities in the United States redirect remittances toward origin municipalities that are socially connected to affected areas, regardless of physical distance. To isolate the network channel, we compute a migration-network PGA exposure variable:
+
+$$\text{network\_pga}_i = \sum_{j \neq i} w^{\text{net}}_{ij} \cdot \mathbf{1}[\text{PGA}_j > \tau]$$
+
+where $W^{\text{net}} = MM^\top$ is constructed from the municipality $\times$ US-state migration share matrix $M$, row-normalized so that $w^{\text{net}}_{ij}$ reflects the share of common migrant-destination overlap between municipalities $i$ and $j$.
+
+```{r network pga}
+# call in migration network 
+W_network <- readRDS("data/W_network.rds")
+
+# same dose vector as geographic section: max PGA per municipality
+dose_vector_net <- setNames(rep(0, nrow(W_network)), rownames(W_network))
+matched_net     <- intersect(rownames(W_network), dose_lookup$muni_id)
+dose_vector_net[matched_net] <- dose_lookup$dose[match(matched_net,
+                                                        dose_lookup$muni_id)]
+
+# sanity check
+dim(W_network)[2] == length(dose_vector_net) # TRUE
+
+# network matrix * dose vector
+network_pga_df <- tibble(
+  muni_id     = rownames(W_network),
+  network_pga = as.vector(W_network %*% dose_vector_net)
+)
+```
+
+```{r network spillover estimate}
+# join on CS panel, create 'post' and mean 0 pga
+spillover_df_net <- panel_cs %>%
+  left_join(network_pga_df, by = "muni_id") %>%
+  filter(G_cs == 0, !is.na(network_pga)) %>%
+  mutate(
+    post          = as.integer(time_index >= min(muni_meta$G)),
+    network_pga_c = network_pga - mean(network_pga, na.rm = TRUE)
+  )
+
+# TWFE reg
+spillover_mod_net <- feols(
+  asinhremit ~ post:network_pga_c | muni_num + time_index,
+  data    = spillover_df_net,
+  cluster = ~muni_num
+)
+
+summary(spillover_mod_net)
+```
+
+The univariate network specification yields $\hat{\beta} = 0.162$ ($p = 0.0397$, $^{*}$), confirming that municipalities with stronger diaspora network linkages to earthquake-affected areas experience increased remittance inflows post-event. This is consistent with the altruistic remittance hypothesis, wherein US-based migrants respond to earthquake news in socially connected origin communities, not solely in the geographically nearest ones.
+
+### Joint Test
+
+The univariate results are both individually significant, but geographic proximity and migration network connectivity are, by construction, correlated. Municipalities that share borders tend also to share migration corridors. To assess which mechanism drives the spillover, we estimate both simultaneously:
+
+$$\log(\text{remit}_{it}) = \alpha_i + \gamma_t + \beta_1 \left( \text{post}_{it} \cdot \widetilde{\text{network\_pga}}_i \right) + \beta_2 \left( \text{post}_{it} \cdot \widetilde{\text{geo\_pga}}_i \right) + \varepsilon_{it}$$
+
+```{r spillover test}
+spillover_df_joint <- panel_cs %>%
+  left_join(network_pga_df, by = "muni_id") %>%
+  left_join(geo_pga_df,     by = "muni_id") %>%
+  filter(G_cs == 0, !is.na(network_pga), !is.na(geo_pga)) %>%
+  mutate(
+    post          = as.integer(time_index >= min(muni_meta$G)),
+    network_pga_c = network_pga - mean(network_pga, na.rm = TRUE),
+    geo_pga_c     = geo_pga     - mean(geo_pga,     na.rm = TRUE)
+  )
+
+spillover_mod_joint <- feols(
+  asinhremit ~ post:network_pga_c + post:geo_pga_c | muni_num + time_index,
+  data    = spillover_df_joint,
+  cluster = ~muni_num
+)
+
+summary(spillover_mod_joint)
+```
+
+From the joint specification results, we notice that the network exposure coefficient remains stable at $\hat{\beta}_1 = 0.162$ ($p = 0.043^{*}$), while the geographic exposure coefficient collapses to $\hat{\beta}_2 = -0.005$ ($p = 0.882$), statistically indistinguishable from zero. This suggests that, although the geographic distances are much more significant univariately, once network exposure is controlled for the geography contributes no additional explanatory power. The spillover mechanism is therefore not driven by physical distance or regional economic contagion, but exclusively by the structure of the migrant diaspora network. 
+
+Under SUTVA, control municipalities should be unaffected by treatment; the significant network spillover coefficient ($\hat{\beta}_1 = 0.162$, $p = 0.043$) indicates a partial violation structured along diaspora lines. 
+
+This implies that the CS estimates may be understating how much remittances fall in the directly-hit municipalities, because some control municipalities are receiving network-driven remittance boosts that make the treated-control gap appear smaller than it actually may be.
+
+
+### Visualization
+
+```{r, echo=FALSE}
+#| fig-cap: "Spillover Exposure: Network vs Geography"
+#| label: fig-spillover-maps
+
+# chiapos-only dose vector for map
+dose_lookup_chiapas <- panel %>%
+  mutate(muni_id = paste(state, municipality, sep = "_")) %>%
+  filter(grepl("chiapas", event, ignore.case = TRUE)) %>%
+  group_by(muni_id) %>%
+  summarise(dose = max(mean_pga, na.rm = TRUE), .groups = "drop")
+
+dose_vector_geo_chiapas <- setNames(rep(0, nrow(W_geo)), rownames(W_geo))
+matched_geo_c <- intersect(rownames(W_geo), dose_lookup_chiapas$muni_id)
+dose_vector_geo_chiapas[matched_geo_c] <- dose_lookup_chiapas$dose[
+  match(matched_geo_c, dose_lookup_chiapas$muni_id)
+]
+
+geo_pga_chiapas_df <- tibble(
+  muni_id = rownames(W_geo),
+  geo_pga_chiapas = as.vector(W_geo %*% dose_vector_geo_chiapas)
+)
+
+# admin borders
+mex_muni <- st_read("data/earthquakes/mex_admin2/mex_admin2.shp", quiet = TRUE) %>%
+  st_transform("EPSG:4326") %>%
+  mutate(adm1_name = case_when(
+    adm1_name == "Coahuila de Zaragoza"            ~ "Coahuila",
+    adm1_name == "Distrito Federal"                ~ "Ciudad de México",
+    adm1_name == "Veracruz de Ignacio de la Llave" ~ "Veracruz",
+    adm1_name == "Michoacán de Ocampo"             ~ "Michoacán",
+    adm1_name == "Querétaro de Arteaga"            ~ "Querétaro",
+    TRUE                                            ~ adm1_name
+  ))
+
+# crop to Mexico 
+mex_admin0 <- st_read("data/earthquakes/mex_admin0/mex_admin0.shp", 
+                      quiet = TRUE) %>% 
+  st_transform("EPSG:4326")
+
+# state borders
+mex_states <- st_read("data/earthquakes/mex_admin1/mex_admin1.shp", 
+                      quiet = TRUE) %>%
+  st_transform("EPSG:4326")
+
+# join both exposure variables to municipality geometries
+map_spillover <- mex_muni %>%
+  mutate(muni_id = paste(adm1_name, adm2_name, sep = "_")) %>%
+  left_join(network_pga_df,      by = "muni_id") %>%
+  left_join(geo_pga_chiapas_df,  by = "muni_id")
+
+# network exposure plot
+p_net_exp <- ggplot() +
+  geom_sf(data = map_spillover, aes(fill = network_pga), color = NA) +
+  geom_sf(data = mex_states, fill = NA, color = "grey30", linewidth = 0.3) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1,
+                       name = "Network\nexposure", na.value = "grey88") +
+  coord_sf(xlim = c(-119, -86), ylim = c(14, 33)) +
+  labs(title = "Migration Network", x = NULL, y = NULL) +
+  theme_bw() +
+  theme(plot.title  = element_text(hjust = 0.5),
+        axis.text   = element_blank(),
+        axis.ticks  = element_blank())
+
+# geographic exposure plot
+p_geo_exp <- ggplot() +
+  geom_sf(data = map_spillover, aes(fill = geo_pga_chiapas), color = NA) +
+  geom_sf(data = mex_states, fill = NA, color = "grey30", linewidth = 0.3) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1,
+                       name = "Geographic\nexposure", na.value = "grey88") +
+  coord_sf(xlim = c(-119, -86), ylim = c(14, 33)) +
+  labs(title = "Geographic Distance", x = NULL, y = NULL) +
+  theme_bw() +
+  theme(plot.title  = element_text(hjust = 0.5),
+        axis.text   = element_blank(),
+        axis.ticks  = element_blank())
+
+# side-by-side
+p_net_exp + p_geo_exp +
+  plot_annotation(
+    title    = "Spillover Exposure: Network vs Geography",
+    subtitle = "2017 Chiapas M8.2 | never-treated municipalities",
+    theme    = theme(plot.title    = element_text(hjust = 0.5),
+                     plot.subtitle = element_text(hjust = 0.5))
+  )
+```
+
+Inspecting Figure @fig-spillover-maps visually, the geographic exposure graph shows a smooth decay pattern centered on the Chiapas epicenter, while the network exposure graph disperses across traditional high-emigration states in central and western Mexico, far from the earthquake zone. The two graphs highlight largely different municipalities, confirming that network and geographic exposure are empirically separable and that the joint regression is identifying distinct channels.
+
+# Plots: Remittances and Earthquakes
+
+## 2017 M8.2 Chiapas
+
+@fig-earthquake-raster shows the PGA spread of the 2017 Chiapas M8.2 earthquake, with shaking concentrated along the southern coast and decaying towards the north. Municipality borders are colored by PGA partition, defining the four treatment intensity bins used in the Callaway-Sant'Anna estimation.
+
+@fig-earthquake-remittances plots the percentage change in municipal remittance inflows relative to the pre-earthquake quarter (Q2 2017) for the four quarters immediately following the event. Two patterns are visible: remittances increase sharply in several municipalities in Q+0 and Q+1, consistent with an immediate diaspora response, but the picture becomes more heterogeneous by Q+2 and Q+3 as both large gains and losses emerge across Mexico. Notably, the response is not spatially concentrated around the epicenter, as municipalities far from the earthquake zone also show significant changes, which motivates the spillover analysis in Section @sec-spillover.
+
+### Earthquake Raster
+
+```{r, echo=FALSE}
+#| fig-cap: "PGA %g of M8.2 Earthquake near Tehuantepec, Mexico in 2017"
+#| label: fig-earthquake-raster
+
+library(terra)
+library(tidyterra)
+library(sf)
+
+# crop to Mexico 
+mex_admin0 <- st_read("data/earthquakes/mex_admin0/mex_admin0.shp", 
+                      quiet = TRUE) %>% 
+  st_transform("EPSG:4326")
+
+# state borders
+mex_states <- st_read("data/earthquakes/mex_admin1/mex_admin1.shp", 
+                      quiet = TRUE) %>%
+  st_transform("EPSG:4326")
+
+# PGA raster
+pga_rast <- rast("output/2017_M8.2_chiapas/shakemap_pga_mexico_masked.tif") %>%
+  project("EPSG:4326")
+
+# Epicenter
+epicenter_2017 <- data.frame(lon = -93.899, 
+                             lat = 15.022)
+
+# Municipality shapefile (with state name cleaning)
+mex_muni <- st_read("data/earthquakes/mex_admin2/mex_admin2.shp", quiet = TRUE) %>%
+  st_transform("EPSG:4326") %>%
+  mutate(adm1_name = case_when(
+    adm1_name == "Coahuila de Zaragoza"            ~ "Coahuila",
+    adm1_name == "Distrito Federal"                ~ "Ciudad de México",
+    adm1_name == "Veracruz de Ignacio de la Llave" ~ "Veracruz",
+    adm1_name == "Michoacán de Ocampo"             ~ "Michoacán",
+    adm1_name == "Querétaro de Arteaga"            ~ "Querétaro",
+    TRUE                                            ~ adm1_name
+  ))
+
+# PGA partition borders (treated municipalities only, colored by partition)
+panel <- read_csv("data/panel_remittances_pga.csv")
+
+map_borders <- mex_muni %>%
+  left_join(
+    panel %>%
+      filter(grepl("chiapas", event, ignore.case = TRUE), mean_pga > 4) %>%
+      mutate(pga_bin = case_when(
+        mean_pga <= 10 ~ "4-10",
+        mean_pga <= 20 ~ "10-20",
+        mean_pga <= 35 ~ "20-35",
+        TRUE           ~ "35+"
+      )) %>%
+      select(state, municipality, pga_bin),
+    by = c("adm1_name" = "state", "adm2_name" = "municipality")
+  ) %>%
+  filter(!is.na(pga_bin)) %>%
+  mutate(pga_bin = factor(pga_bin, levels = c("4-10", "10-20", "20-35", "35+")))
+
+
+p_pga <- ggplot() +
+  # base layer: Mexico vector object
+  geom_sf(data = mex_muni, fill = "grey92", color = NA) +
+  # PGA raster on top
+  geom_spatraster(data = pga_rast) +
+  # state borders 
+  geom_sf(data = mex_states, fill = NA, color = "grey30", linewidth = 0.35) +
+  # PGA partition municipality borders
+  geom_sf(data = map_borders, aes(color = pga_bin),
+          fill = NA, linewidth = 0.7) +
+  geom_point(data = epicenter_2017, aes(x = lon, y = lat),
+             shape = 24, fill = "yellow", color = "black", size = 3) +
+  scale_fill_distiller(
+    palette   = "YlOrRd",
+    direction = 1,
+    name      = "PGA (%g)",
+    na.value  = "transparent"
+  ) +
+  scale_color_manual(
+    values = c("4-10"  = "#FEE08B", "10-20" = "#FDAE61",
+               "20-35" = "#F46D43", "35+"   = "#D73027"),
+    guide  = "none"
+  ) +
+  coord_sf(xlim = c(-119, -86), ylim = c(14, 33)) +
+  labs(title = "2017 Chiapas M8.2 (PGA %g)", x = NULL, y = NULL) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p_pga
+```
+
+### Remittances Across Municipalities
+
+```{r, echo=FALSE}
+#| fig-cap: "Percentage Change in Remittances, post 2017 Tehuantepec Earthquake"
+#| label: fig-earthquake-remittances
+
+pre <- panel %>%
+  filter(year == 2017, quarter == 2) %>%
+  select(state, municipality, remit_pre = remittances_musd)
+
+post <- panel %>%
+  filter(
+    (year == 2017 & quarter %in% c(3, 4)) |
+    (year == 2018 & quarter %in% c(1, 2))
+  ) %>%
+  mutate(label = case_when(
+    year == 2017 & quarter == 3 ~ "Q+0  (Q3 2017)",
+    year == 2017 & quarter == 4 ~ "Q+1  (Q4 2017)",
+    year == 2018 & quarter == 1 ~ "Q+2  (Q1 2018)",
+    year == 2018 & quarter == 2 ~ "Q+3  (Q2 2018)"
+  ))
+
+remit_change <- post %>%
+  left_join(pre, by = c("state", "municipality")) %>%
+  mutate(pct_change = pmax(pmin(
+    (remittances_musd - remit_pre) / (remit_pre + 1) * 100,
+    60), -60))
+
+map_remit <- mex_muni %>%
+  left_join(remit_change,
+            by = c("adm1_name" = "state", "adm2_name" = "municipality"))
+
+# Add PGA bin to map_remit so we can draw partition borders
+map_remit_borders <- map_remit %>%
+  left_join(
+    panel %>%
+      filter(year == 2017, quarter == 3) %>%
+      mutate(pga_bin = case_when(
+        mean_pga >  4 & mean_pga <= 10 ~ "4-10",
+        mean_pga > 10 & mean_pga <= 20 ~ "10-20",
+        mean_pga > 20 & mean_pga <= 35 ~ "20-35",
+        mean_pga > 35                  ~ "35+",
+        TRUE                           ~ NA_character_
+      )) %>%
+      select(state, municipality, pga_bin),
+    by = c("adm1_name" = "state", "adm2_name" = "municipality")
+  )
+
+p_remit <- ggplot() +
+  # All municipalities: fill = % remittance change
+  geom_sf(data  = map_remit_borders %>% filter(!is.na(label)),
+          aes(fill = pct_change),
+          color = NA, linewidth = 0.05) +
+  geom_sf(data  = mex_states,
+          fill  = NA, color = "grey20", linewidth = 0.35) +
+  scale_fill_gradient2(
+    low      = "#2166AC",
+    mid      = "white",
+    high     = "#D73027",
+    midpoint = 0,
+    limits   = c(-60, 60),
+    oob      = scales::squish,
+    name     = "% change\nvs Q2 2017",
+    na.value = "grey88"
+  ) +
+  facet_wrap(~ label, ncol = 2) +
+  coord_sf(xlim = c(-119, -86), ylim = c(14, 33)) +
+  labs(
+    title    = "Remittance % Change After 2017 Chiapas M8.2",
+    x = NULL, y = NULL
+  ) +
+  theme_bw() +
+  theme(
+    plot.title       = element_text(hjust = 0.5),
+    plot.subtitle    = element_text(hjust = 0.5),
+    strip.background = element_rect(fill = "grey92"),
+    legend.position  = "right",
+    axis.text  = element_blank(),
+    axis.ticks = element_blank()
+
+  ) 
+
+p_remit
+```
