@@ -1813,6 +1813,8 @@ library(tidyverse)
 library(fixest)
 library(did)
 
+panel <- read_csv("data/panel_remittances_pga.csv")
+
 # 1. Build panel
 panel <- panel %>%      # use the deduplicated panel (max PGA)
   rename(event_quarter = event) %>%
