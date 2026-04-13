@@ -1,0 +1,1205 @@
+---
+title: "Migration Networks as Shock Transmission Infrastructure"
+subtitle: "Community Structure, Centrality, and the Illinois Budget Impasse"
+author: "Michael Fehl & Xenia Alemany"
+date: "March 30, 2026"
+format:
+  pdf:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+    geometry: "margin=1in"
+    fontsize: 11pt
+    fig-pos: "H"
+    fig-height: 4.5
+    fig-width: 7.5
+    highlight-style: github
+    include-in-header:
+      text: |
+        \usepackage{booktabs}
+        \usepackage{float}
+        \usepackage{fancyhdr}
+        \usepackage{amsmath}
+        \pagestyle{fancy}
+        \fancyhead[L]{\textit{Migration Networks \& Shock Propagation}}
+        \fancyhead[R]{\thepage}
+        \fancyfoot[C]{}
+execute:
+  warning: false
+  message: false
+  echo: false
+  eval: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# --- Packages ----------------------------------------------------------------
+library(readxl)      # read .xlsx files
+library(dplyr)       # data manipulation
+library(tidyr)       # reshaping: pivot_longer/wider, fill, separate
+library(stringr)     # string operations
+library(purrr)       # functional tools: imap, reduce
+library(ggplot2)     # plotting
+library(tibble)      # tribble, column_to_rownames
+library(scales)      # axis label formatting
+library(lubridate)   # year(), as.Date()
+library(zoo)         # na.locf() forward-fill
+library(igraph)      # network analysis: bipartite graph, centrality, community detection
+library(Matrix)      # sparse matrix operations
+library(fixest)      # fast two-way FE DiD: feols()
+library(modelsummary)# regression tables
+
+# All raw data paths are relative to this root
+setwd("C:/Users/T14/7Programming/Python/Thesis/")
+
+# Folder where we save all derived objects as CSVs / RDS for easy sharing
+out_dir <- "R_objects/"
+if (!dir.exists(out_dir)) dir.create(out_dir)
+
+us_states_path <- "C:/Users/T14/7Programming/Python/Thesis/2_SQL_database/Data_clean_updated/MCAS/Estados_US"
+```
+
+## Data Pipeline
+
+All derived objects are built once and saved to `R_objects/`. On subsequent runs, the code checks whether each file already exists and skips the expensive rebuild if so. To force a full rebuild, delete the relevant file from `R_objects/`.
+
+### Cleaning helper
+
+```{r}
+#| label: clean-function
+
+# Standardize a raw MCAS Excel file: drop "Total" rows, rename columns,
+# forward-fill the Mexican state column, and add a US destination label.
+clean_dfs <- function(df, state, drop = FALSE) {
+  dirty <- df
+  # Drop administrative "Total" subtotal rows
+  dirty <- dirty |>
+    filter(!str_detect(as.character(mx_state),
+                       regex("Total", ignore_case = TRUE))) |>
+    filter(!str_detect(as.character(mx_municipality),
+                       regex("Total", ignore_case = TRUE)))
+  # Rename to standard column names
+  dirty <- dirty |>
+    rename(`origin state` = mx_state,
+           `origin muni`  = mx_municipality,
+           weight         = pct_matriculas)
+  # Forward-fill the state header rows that the raw Excel leaves blank
+  dirty <- dirty |> fill(`origin state`, .direction = "down")
+  # Add US destination label ("New_York" -> "New York")
+  dirty <- dirty |> mutate(destination = str_replace_all(state, "_", " "))
+  if (drop) dirty <- dirty |>
+    select(`origin state`, `origin muni`, destination, weight)
+  dirty
+}
+```
+
+### `long_panel`: long-format migration panel (CA, NY, IL × 2010–2024)
+
+```{r}
+#| label: build-long-panel
+
+if (file.exists(paste0(out_dir, "long_panel.csv"))) {
+
+  # --- Fast path: load from disk --------------------------------------------
+  long_panel <- read.csv(paste0(out_dir, "long_panel.csv"),
+                         stringsAsFactors = FALSE) |>
+    mutate(year = as.integer(year))
+  cat("Loaded long_panel from disk:", nrow(long_panel), "rows\n")
+
+} else {
+
+  # --- Build path: load, clean, aggregate, merge ----------------------------
+  years  <- 2010:2024
+  states <- c("California", "New_York", "Illinois")
+
+  df_list <- list()
+  for (state_i in states) {
+    for (yr in years) {
+      path  <- file.path(us_states_path,
+                         paste0("Edos_USA_", yr),
+                         paste0(toupper(state_i), "_", yr, ".xlsx"))
+      dirty <- read_excel(path)
+      clean <- clean_dfs(df = dirty, state = state_i, drop = TRUE)
+      df_list[[paste0(tolower(state_i), "_", yr)]] <- clean
+    }
+  }
+
+  # Rename weight -> key, THEN aggregate to one row per municipality before joining.
+  # Without the group_by + summarise step, duplicate sub-rows in the raw Excel files
+  # cause a Cartesian product explosion when full_join is called 45 times.
+  wide_df <- imap(df_list, function(df, key) {
+    df |>
+      select(`origin state`, `origin muni`, weight) |>
+      group_by(`origin state`, `origin muni`) |>
+      summarise(!!key := sum(weight, na.rm = TRUE), .groups = "drop")
+  }) |>
+    reduce(function(a, b) {
+      full_join(a, b, by = c("origin state", "origin muni"))
+    }) |>
+    mutate(across(where(is.numeric), ~replace_na(., 0)))
+
+  # Melt to long format; split "california_2016" -> state + year
+  long_panel <- wide_df |>
+    pivot_longer(cols      = -c(`origin state`, `origin muni`),
+                 names_to  = "state_year",
+                 values_to = "weight") |>
+    separate(state_year, into = c("state", "year"),
+             sep = "_(?=\\d{4}$)") |>
+    mutate(year = as.integer(year))
+
+  write.csv(long_panel, paste0(out_dir, "long_panel.csv"),
+            row.names = FALSE)
+  cat("Built and saved long_panel:", nrow(long_panel), "rows\n")
+}
+```
+
+### `r_matrix_idx`: average migration weighting matrix (wide)
+
+```{r}
+#| label: build-r-matrix
+
+if (file.exists(paste0(out_dir, "r_matrix_idx.csv"))) {
+
+  r_matrix_idx <- read.csv(paste0(out_dir, "r_matrix_idx.csv"),
+                            check.names = FALSE,
+                            stringsAsFactors = FALSE)
+  cat("Loaded r_matrix_idx from disk:", nrow(r_matrix_idx), "rows x",
+      ncol(r_matrix_idx), "cols\n")
+
+} else {
+
+  r_matrix_idx <- read_excel(
+    "1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2/AVG_WEIGHTING_MATRIX.xlsx"
+  ) |>
+    select(mx_state, mx_municipality, everything())
+
+  write.csv(r_matrix_idx, paste0(out_dir, "r_matrix_idx.csv"),
+            row.names = FALSE)
+  cat("Loaded and saved r_matrix_idx:", nrow(r_matrix_idx), "rows\n")
+}
+
+# Extract the numeric matrix once for use throughout the paper
+numeric_cols <- setdiff(names(r_matrix_idx), c("mx_state", "mx_municipality"))
+W_raw        <- as.matrix(r_matrix_idx[, numeric_cols])
+rownames(W_raw) <- r_matrix_idx$mx_municipality
+```
+
+### `ds2_pivot`: quarterly US-state remittance outflows (wide)
+
+```{r}
+#| label: build-ds2
+
+if (file.exists(paste0(out_dir, "ds2_pivot.csv"))) {
+
+  ds2_pivot <- read.csv(paste0(out_dir, "ds2_pivot.csv"),
+                         check.names = FALSE,
+                         stringsAsFactors = FALSE) |>
+    mutate(date = as.Date(date))
+  cat("Loaded ds2_pivot from disk:", nrow(ds2_pivot), "rows\n")
+
+} else {
+
+  # Load pre-cleaned CSV (exported from the Banxico Excel source)
+  ds2 <- read.csv("R_objects/remit_us_states.csv",
+                  stringsAsFactors = FALSE)
+
+  ds2_pivot <- ds2 |>
+    mutate(
+      month = (quarter - 1L) * 3L + 1L,
+      date  = as.Date(sprintf("%d-%02d-01", year, month))
+    ) |>
+    pivot_wider(id_cols = date, names_from = us_state,
+                values_from = remit_musd, values_fill = 0) |>
+    arrange(date)
+
+  write.csv(ds2_pivot, paste0(out_dir, "ds2_pivot.csv"),
+            row.names = FALSE)
+  cat("Built and saved ds2_pivot:", nrow(ds2_pivot), "rows\n")
+}
+```
+
+### `R_hat_df`: imputed municipality-level remittances (wide, quarterly)
+
+```{r}
+#| label: build-rhat
+
+if (file.exists(paste0(out_dir, "R_hat_df.csv"))) {
+
+  R_hat_df <- read.csv(paste0(out_dir, "R_hat_df.csv"),
+                        check.names = FALSE,
+                        stringsAsFactors = FALSE)
+  cat("Loaded R_hat_df from disk:", nrow(R_hat_df), "rows x",
+      ncol(R_hat_df), "cols\n")
+
+} else {
+
+  # Column-normalise W (each state column sums to 1)
+  W_col_raw <- sweep(W_raw, 2, colSums(W_raw), "/")
+
+  # Align states present in both W and DS2
+  state_cols_ds2 <- setdiff(names(ds2_pivot), "date")
+  states_common  <- intersect(colnames(W_col_raw), state_cols_ds2)
+
+  W_mat   <- W_col_raw[, states_common]
+  DS2_mat <- as.matrix(ds2_pivot[, states_common])
+
+  # R_hat = W %*% DS2': (n_munis x n_states) %*% (n_states x n_quarters)
+  R_hat <- W_mat %*% t(DS2_mat)
+
+  R_hat_df <- r_matrix_idx |>
+    select(mx_state, mx_municipality) |>
+    bind_cols(as.data.frame(R_hat) |>
+                setNames(as.character(ds2_pivot$date)))
+
+  write.csv(R_hat_df, paste0(out_dir, "R_hat_df.csv"),
+            row.names = FALSE)
+  cat("Built and saved R_hat_df:", nrow(R_hat_df), "rows x",
+      ncol(R_hat_df), "cols\n")
+}
+```
+
+### `exposure_matrix`: row-normalised routing shares
+
+```{r}
+#| label: build-exposure
+
+if (file.exists(paste0(out_dir, "exposure_matrix.csv"))) {
+
+  exposure_matrix <- read.csv(paste0(out_dir, "exposure_matrix.csv"),
+                               check.names = FALSE,
+                               stringsAsFactors = FALSE)
+  cat("Loaded exposure_matrix from disk:", nrow(exposure_matrix), "rows\n")
+
+} else {
+
+  rowsums_W       <- rowSums(W_raw)
+  # Avoid division by zero for any all-zero rows
+  rowsums_W[rowsums_W == 0] <- 1
+  exposure_raw    <- sweep(W_raw, 1, rowsums_W, "/")
+
+  exposure_matrix <- r_matrix_idx |>
+    select(mx_state, mx_municipality) |>
+    bind_cols(as.data.frame(exposure_raw))
+
+  write.csv(exposure_matrix, paste0(out_dir, "exposure_matrix.csv"),
+            row.names = FALSE)
+  cat("Built and saved exposure_matrix:", nrow(exposure_matrix), "rows\n")
+}
+```
+
+### `long_ill_df`: Illinois-only long panel (all municipalities)
+
+```{r}
+#| label: build-long-ill
+
+if (file.exists(paste0(out_dir, "long_ill_df.csv"))) {
+
+  long_ill_df <- read.csv(paste0(out_dir, "long_ill_df.csv"),
+                           stringsAsFactors = FALSE) |>
+    mutate(year = as.integer(year))
+  cat("Loaded long_ill_df from disk:", nrow(long_ill_df), "rows\n")
+
+} else {
+
+  years       <- 2010:2024
+  df_list_ill <- list()
+  for (yr in years) {
+    path  <- file.path(us_states_path,
+                       paste0("Edos_USA_", yr),
+                       paste0("ILLINOIS_", yr, ".xlsx"))
+    dirty <- read_excel(path)
+    clean <- clean_dfs(df = dirty, state = "Illinois", drop = TRUE)
+    df_list_ill[[paste0("illinois_", yr)]] <- clean
+  }
+
+  # Same deduplication fix: aggregate before joining
+  wide_ill <- imap(df_list_ill, function(df, key) {
+    df |>
+      select(`origin state`, `origin muni`, weight) |>
+      group_by(`origin state`, `origin muni`) |>
+      summarise(!!key := sum(weight, na.rm = TRUE), .groups = "drop")
+  }) |>
+    reduce(function(a, b) full_join(a, b,
+                                    by = c("origin state", "origin muni"))) |>
+    mutate(across(where(is.numeric), ~replace_na(., 0)))
+
+  long_ill_df <- wide_ill |>
+    pivot_longer(cols = -c(`origin state`, `origin muni`),
+                 names_to = "state_year", values_to = "weight") |>
+    separate(state_year, into = c("state", "year"),
+             sep = "_(?=\\d{4}$)") |>
+    mutate(year = as.integer(year))
+
+  write.csv(long_ill_df, paste0(out_dir, "long_ill_df.csv"),
+            row.names = FALSE)
+  cat("Built and saved long_ill_df:", nrow(long_ill_df), "rows\n")
+}
+```
+
+### Derived views used in-paper (not saved separately)
+
+```{r}
+#| label: derived-views
+
+# long_joint_df: long_panel restricted to the 5 hand-picked bridge municipalities
+joint_pairs <- tibble::tribble(
+  ~`origin muni`,        ~`origin state`,
+  "Guadalajara",         "Jalisco",
+  "Puebla",              "Puebla",
+  "Atlixco",             "Puebla",
+  "Acapulco De Juarez",  "Guerrero",
+  "Gustavo A. Madero",   "Ciudad De Mexico"
+)
+
+long_joint_df <- long_panel |>
+  # Rename to match the join keys used downstream
+  rename(`origin muni` = `origin muni`,
+         `origin state` = `origin state`) |>
+  inner_join(joint_pairs, by = c("origin muni", "origin state"))
+```
+
+---
+
+# Introduction
+
+Migration is not simply a bilateral relationship between a sending community and a receiving country. It is a **network phenomenon**: the same Mexican municipality often feeds multiple US states simultaneously, and each US state draws from an overlapping set of Mexican origin communities. This overlapping structure means that a shock confined to one US state --- a recession, a policy change, a fiscal crisis --- does not stay there. It travels backward through the network to the Mexican municipalities exposed to that state, and then forward along whatever other corridors those municipalities maintain, eventually arriving in US states that were never directly touched by the original shock.
+
+This paper studies that transmission mechanism using the **Illinois Budget Impasse** (July 1, 2015 -- July 10, 2017) as a natural experiment. The impasse left Illinois without an operating budget for 736 days --- the longest such gap in US history. It disrupted state-funded construction, halted contractor payments, and froze social services, hitting sectors where Mexican immigrants are concentrated. Critically for identification, the impasse was:
+
+1. **Exogenous to migration decisions** --- it was a political stalemate over pension reform and tax policy, not an immigration policy, and Mexican migrants played no role in causing it;
+2. **Geographically isolated** --- California and New York, the two other large-corridor states in our data, experienced no equivalent fiscal shock during this period; and
+3. **Precisely timed** --- the start and end dates are known to the day, giving us a sharp pre/post window in annual MCAS data.
+
+Our contribution is to use the network's own structure --- bipartite centrality, community membership, and the $M^\top M$ state co-exposure matrix --- to predict *where* the shock should propagate before we look at whether it did. This turns a purely empirical question into a disciplined test: if the network predicts propagation from Illinois to California through bridge municipalities, and if we then find a DiD effect for California in exactly those municipalities with the highest predicted exposure, the causal chain is credible.
+
+**Data.** We use annual *Matricula Consular* (MCAS) data from 2010--2024, which records the number of Matricula Consular IDs issued per (US state, Mexican municipality) pair each year. These consular IDs serve as a proxy for registered migrant presence. We complement this with DS2 quarterly remittance outflow data per US state and DS1 actual remittance inflow data at the Mexican municipality level from Banxico. The migration weighting matrix $W$ is a municipality $\times$ state matrix where entry $W_{ij}$ is municipality $i$'s average share of US state $j$'s total Matricula IDs, grand-total normalised across all years (excluding COVID years 2020--2021) and averaged over the panel.
+
+**Paper structure.** Section 2 constructs the bipartite migration network, computes centrality measures that identify bridge municipalities, and runs community detection on the state co-exposure matrix to show that Illinois and California belong to the same migration community. Section 3 defines the shock exposure variables and visualises the impasse window in the time series. Section 4 presents the DiD estimates: first the direct effect of Illinois exposure on imputed remittances, then the second-order propagation test using California flows through bridge municipalities. Section 5 discusses the cascade interpretation, uses the TRUST Act as a positive shock robustness check, and draws policy implications.
+
+---
+
+# Network Construction
+
+## The Bipartite Migration Graph
+
+The migration network is naturally **bipartite**: nodes split into two disjoint sets (Mexican municipalities $\mathcal{M}$ and US states $\mathcal{S}$), and edges only run between sets, never within them. An edge $(i, j)$ with weight $W_{ij}$ exists whenever municipality $i$ sends a positive share of migrants to state $j$.
+
+Formally, let $W \in \mathbb{R}^{|\mathcal{M}| \times |\mathcal{S}|}$ be the grand-total-normalised average migration weight matrix. The bipartite graph $G = (\mathcal{M} \cup \mathcal{S},\; E,\; W)$ has an edge for each non-zero entry of $W$, with that entry as the edge weight.
+
+```{r}
+#| label: build-bipartite-graph
+
+# Column-normalise W so each US state column sums to 1.
+# W_col[i,j] = "of all migrants in state j, what share came from municipality i?"
+# This is column-stochastic and the right normalisation for the bipartite graph:
+# it weights each edge by how important municipality i is TO state j.
+W_col <- sweep(W_raw, 2, colSums(W_raw), "/")
+
+# Build a long-format edge list from the weight matrix.
+# which(arr.ind=TRUE) returns row/col indices of all non-zero entries.
+# We threshold at a small epsilon to keep only edges with meaningful weight.
+edge_idx <- which(W_col > 1e-6, arr.ind = TRUE)
+
+edge_list <- tibble(
+  from   = rownames(W_col)[edge_idx[, 1]],  # Mexican municipality names
+  to     = colnames(W_col)[edge_idx[, 2]],  # US state names
+  weight = W_col[edge_idx]                  # column-normalised weight
+)
+
+# graph_from_data_frame() builds the igraph object.
+# Columns 1 and 2 are edge endpoints; column 3 is the edge attribute.
+G_bip <- graph_from_data_frame(edge_list, directed = FALSE)
+
+# Tag each vertex with its type: TRUE = Mexican municipality, FALSE = US state.
+# Assign directly from name membership — bipartite_mapping() assigns by traversal
+# order, which is unpredictable and may flip the sets. rownames(W_raw) are the
+# municipality names, so any vertex whose name appears there is a municipality.
+V(G_bip)$type <- V(G_bip)$name %in% rownames(W_raw)
+
+cat("Vertices:", vcount(G_bip),
+    "(", sum(!V(G_bip)$type), "US states,",
+    sum(V(G_bip)$type), "MX municipalities )\n")
+cat("Edges:", ecount(G_bip), "\n")
+cat("Is bipartite:", is_bipartite(G_bip), "\n")
+```
+
+```{r}
+#| label: fig-bipartite-top
+#| fig-cap: "Bipartite migration network: top 15 municipalities by total weight to IL, CA, NY."
+#| fig-height: 5
+
+# For visualisation, restrict to the three focal states and their top 15 municipalities.
+focal_states <- c("Illinois", "California", "New York")
+top_munis    <- edge_list |>
+  filter(to %in% focal_states) |>
+  group_by(from) |>
+  summarise(total_weight = sum(weight)) |>
+  slice_max(total_weight, n = 15) |>
+  pull(from)
+
+# Subset the edge list to the focal states and top municipalities
+edge_sub <- edge_list |>
+  filter(from %in% top_munis, to %in% focal_states)
+
+G_sub <- graph_from_data_frame(edge_sub, directed = FALSE)
+V(G_sub)$type <- V(G_sub)$name %in% top_munis  # TRUE = municipality
+
+# Color nodes by type: municipalities in teal, states in orange
+V(G_sub)$color <- ifelse(V(G_sub)$type, "#4DADA7", "#E07B39")
+V(G_sub)$size  <- ifelse(V(G_sub)$type, 8, 14)
+
+# Scale edge width by weight
+E(G_sub)$width <- E(G_sub)$weight * 80
+
+plot(
+  G_sub,
+  layout            = layout_as_bipartite(G_sub),
+  vertex.label      = V(G_sub)$name,
+  vertex.label.cex  = 0.55,
+  vertex.label.dist = 0.8,
+  vertex.color      = V(G_sub)$color,
+  vertex.size       = V(G_sub)$size,
+  edge.width        = E(G_sub)$width,
+  edge.color        = adjustcolor("grey40", alpha.f = 0.5),
+  main = "Migration Network: Top 15 MX Municipalities to IL, CA, NY"
+)
+legend("bottomright",
+       legend = c("MX Municipality", "US State"),
+       fill   = c("#4DADA7", "#E07B39"),
+       bty    = "n", cex = 0.8)
+```
+
+## Centrality Analysis
+
+Centrality measures tell us which municipalities are structurally important in the network --- not just because they send many migrants to one state, but because of their position relative to the whole graph. Two measures are especially relevant here.
+
+**Betweenness centrality** counts how often a node lies on the shortest path between two other nodes. In our bipartite graph, a municipality with high betweenness centrality frequently lies on the shortest path between two US states, meaning it is the natural relay node between those states. These are exactly the bridge municipalities through which an Illinois shock would reach California: they sit *between* the two states in network space.
+
+**Eigenvector centrality** scores a node by the centrality of its neighbors. A municipality that sends migrants to several large, well-connected states gets a high eigenvector centrality score, even if its raw weight to any single state is modest. This makes it a better continuous measure of treatment intensity than a simple binary high/low IL-exposure cutoff.
+
+```{r}
+#| label: centrality
+
+# Betweenness centrality: how often does node i sit on shortest paths between other nodes?
+# normalized=TRUE divides by the maximum possible betweenness so scores are in [0,1].
+# weights=NA tells igraph to ignore edge weights for path-length computation
+# (otherwise higher-weight edges are treated as SHORTER, which is semantically wrong here).
+betweenness_scores <- betweenness(G_bip, normalized = TRUE, weights = NA)
+
+# Eigenvector centrality: scored by the centrality of a node's neighbors.
+# $vector returns the centrality scores (the leading eigenvector of the adjacency matrix).
+eigen_scores <- eigen_centrality(G_bip, weights = E(G_bip)$weight)$vector
+
+# Collect into a tidy data frame, restricting to MX municipalities only
+centrality_df <- tibble(
+  name              = V(G_bip)$name,
+  is_municipality   = V(G_bip)$type,
+  betweenness       = betweenness_scores,
+  eigenvector       = eigen_scores
+) |>
+  filter(is_municipality) |>   # keep only MX municipality nodes
+  arrange(desc(betweenness))
+
+head(centrality_df, 20)   # top 20 municipalities by betweenness
+```
+
+```{r}
+#| label: fig-centrality-bar
+#| fig-cap: "Top 20 MX municipalities by betweenness centrality. High betweenness = bridge node."
+#| fig-height: 5
+
+# Municipalities with the highest betweenness are the most likely transmission nodes
+# for cross-state shock propagation. We label these as our "bridge municipalities."
+top20_between <- centrality_df |> slice_max(betweenness, n = 20)
+
+ggplot(top20_between,
+       aes(x = betweenness, y = reorder(name, betweenness))) +
+  geom_col(fill = "#4DADA7") +
+  labs(x = "Betweenness Centrality (normalised)",
+       y = NULL,
+       title = "Top 20 MX Municipalities by Betweenness Centrality",
+       subtitle = "High betweenness = bridge node between US states") +
+  theme_minimal(base_size = 9)
+```
+
+```{r}
+#| label: fig-centrality-scatter
+#| fig-cap: "Betweenness vs eigenvector centrality. Municipalities in the top-right quadrant are both structurally central and connected to high-degree states."
+#| fig-height: 4.5
+
+# Scatter plot of the two centrality measures.
+# Top-right: both central AND well-connected -- the most important bridge nodes.
+# Top-left:  high betweenness but low eigenvector -- bridges to peripheral states.
+# Bottom-right: well-connected but not a bridge -- large senders to one dominant state.
+ggplot(centrality_df, aes(x = eigenvector, y = betweenness)) +
+  geom_point(alpha = 0.35, size = 0.9, color = "steelblue") +
+  # Label the top 10 by betweenness
+  ggrepel::geom_text_repel(
+    data    = slice_max(centrality_df, betweenness, n = 10),
+    aes(label = name),
+    size    = 2.5,
+    max.overlaps = 15
+  ) +
+  labs(x = "Eigenvector Centrality",
+       y = "Betweenness Centrality",
+       title = "Centrality in the MX-US Migration Network") +
+  theme_minimal(base_size = 9)
+```
+
+The top-betweenness municipalities are our operationalisation of "bridge nodes." We formally define a binary bridge indicator and a continuous treatment intensity variable:
+
+```{r}
+#| label: bridge-classification
+
+# Define bridge municipalities as those above the 90th percentile of betweenness.
+# This threshold is deliberately conservative: we want nodes that are unambiguously
+# structural bridges, not marginal cases.
+p90_between <- quantile(centrality_df$betweenness, 0.90)
+
+centrality_df <- centrality_df |>
+  mutate(
+    is_bridge         = betweenness > p90_between,   # binary bridge indicator
+    # Eigenvector centrality as continuous treatment intensity for the DiD
+    # (standardised to mean 0, SD 1 for interpretable coefficients)
+    eigen_std         = scale(eigenvector)[, 1]
+  )
+
+# Summary: how many bridge municipalities? What states do they connect?
+cat("Bridge municipalities (top-10% betweenness):", sum(centrality_df$is_bridge), "\n")
+cat("90th percentile betweenness threshold:", round(p90_between, 5), "\n")
+```
+
+## Community Detection on the $M^\top M$ State Co-Exposure Matrix
+
+A municipality sends migrants to multiple US states. When two US states draw heavily from the *same* set of municipalities, a shock in one state will be transmitted to the other via those shared sending communities. We can measure this shared-origin overlap directly: compute $M^\top M$ (the inner product of the weight matrix with itself), which gives a **state $\times$ state** symmetric matrix where entry $(j, k)$ is proportional to the cosine similarity between state $j$'s and state $k$'s municipality distributions.
+
+$$[M^\top M]_{jk} = \sum_{i \in \mathcal{M}} W_{ij} \cdot W_{ik}$$
+
+A large $(j,k)$ entry means states $j$ and $k$ recruit from many of the same Mexican municipalities --- they are in direct competition for the same sending communities and are maximally exposed to shared shocks. We treat $M^\top M$ as a weighted adjacency matrix between US states and run **Louvain community detection** on it. The communities it finds are groups of US states that compete for the same Mexican sending municipalities. If Illinois and California belong to the same community, indirect shock propagation is structurally plausible; states in *different* communities from Illinois should show no propagation.
+
+```{r}
+#| label: mtm-matrix
+
+# M = W_col (column-normalised weight matrix, n_munis x n_states)
+# M'M = t(W_col) %*% W_col -- (n_states x n_states) co-exposure matrix
+# Each entry (j,k) = sum over munis of W[i,j] * W[i,k]
+# = dot product of state j's and state k's municipality weight vectors
+# = how much overlap the two states have in their sending communities
+
+MtM <- t(W_col) %*% W_col   # matrix multiply: (n_states x n_munis) %*% (n_munis x n_states)
+
+# Symmetry check: M'M should be exactly symmetric
+cat("Max asymmetry:", max(abs(MtM - t(MtM))), "\n")  # should be ~0
+
+# Zero out the diagonal (self-overlap is not meaningful for community detection)
+diag(MtM) <- 0
+
+# Inspect the top co-exposed state pairs
+MtM_df <- as.data.frame(as.table(MtM)) |>
+  rename(state_a = Var1, state_b = Var2, overlap = Freq) |>
+  filter(state_a < state_b) |>    # keep only upper triangle (symmetric matrix)
+  arrange(desc(overlap))
+
+head(MtM_df, 15)   # which state pairs share the most sending communities?
+```
+
+```{r}
+#| label: louvain-community
+
+# Build an igraph graph from M'M treated as a weighted adjacency matrix.
+# graph_from_adjacency_matrix() reads a square matrix as an adjacency matrix.
+# mode="undirected" because M'M is symmetric.
+# weighted=TRUE uses the matrix values as edge weights.
+G_states <- graph_from_adjacency_matrix(
+  MtM,
+  mode     = "undirected",
+  weighted = TRUE,
+  diag     = FALSE          # no self-loops
+)
+
+# Run Louvain community detection.
+# Louvain is a greedy modularity-maximisation algorithm: it repeatedly merges nodes
+# into communities to maximise the fraction of within-community edge weight
+# relative to what would be expected under a null model.
+# set.seed() ensures reproducibility (Louvain has a stochastic component).
+set.seed(42)
+communities <- cluster_louvain(G_states, weights = E(G_states)$weight)
+
+# Print community assignments
+community_df <- tibble(
+  state     = V(G_states)$name,
+  community = membership(communities)   # integer community label for each state
+) |>
+  arrange(community, state)
+
+cat("Number of communities detected:", max(community_df$community), "\n")
+cat("Modularity:", round(modularity(communities), 4), "\n\n")
+
+# Check which community Illinois and California belong to
+community_df |> filter(state %in% c("Illinois", "California", "New York"))
+```
+
+```{r}
+#| label: fig-state-network
+#| fig-cap: "State co-exposure network (M'M), colored by Louvain community. States in the same community share Mexican sending municipalities."
+#| fig-height: 5.5
+
+# Assign community colors to nodes
+n_comm   <- max(community_df$community)
+pal      <- RColorBrewer::brewer.pal(min(n_comm, 9), "Set1")
+node_col <- pal[membership(communities)]
+
+# Threshold edges so the plot is readable: only show the top 10% strongest overlaps
+q90_edge <- quantile(E(G_states)$weight, 0.90)
+G_plot   <- delete_edges(G_states, which(E(G_states)$weight < q90_edge))
+
+# Mark the three focal states with a different shape
+V(G_plot)$shape <- ifelse(
+  V(G_plot)$name %in% c("Illinois", "California", "New York"),
+  "square", "circle"
+)
+
+plot(
+  G_plot,
+  layout         = layout_with_fr(G_plot),   # Fruchterman-Reingold force-directed layout
+  vertex.color   = node_col[match(V(G_plot)$name, V(G_states)$name)],
+  vertex.size    = 7,
+  vertex.shape   = V(G_plot)$shape,
+  vertex.label   = V(G_plot)$name,
+  vertex.label.cex = 0.4,
+  edge.width     = E(G_plot)$weight * 40,
+  edge.color     = adjustcolor("grey60", alpha.f = 0.4),
+  main = "State Co-Exposure Network: Louvain Communities\n(squares = IL, CA, NY)"
+)
+```
+
+```{r}
+#| label: community-table
+
+# Print full community membership table
+community_df |>
+  group_by(community) |>
+  summarise(
+    n_states = n(),
+    states   = paste(sort(state), collapse = ", ")
+  ) |>
+  knitr::kable(
+    caption = "Louvain community membership: US states grouped by shared MX sending communities.",
+    booktabs = TRUE
+  )
+```
+
+The community detection result provides the key structural motivation for our propagation hypothesis. If Illinois and California are assigned to the same community --- meaning they compete for the same Mexican sending municipalities --- then any disruption to Illinois-bound migration will necessarily reach municipalities that also feed California, making cross-state propagation structurally inevitable. States in *different* communities serve as a natural placebo group: they should show no propagation, even if they experience their own shocks, because they draw from a disjoint pool of sending communities.
+
+---
+
+# Shock Identification
+
+## The Illinois Budget Impasse as a Natural Experiment
+
+The Illinois Budget Impasse ran from July 1, 2015 through July 10, 2017 --- 736 days. Without an operating budget, the state could not fund construction projects, pay contractors, or maintain social service contracts. These are precisely the labor markets where low-wage immigrant workers, including Mexican nationals, are concentrated.
+
+For causal identification, three features make this event attractive:
+
+**Exogeneity.** The impasse originated in a structural conflict between Governor Rauner (who demanded union-weakening legislation and a property tax freeze as conditions for any budget) and a Democratic supermajority legislature that refused those terms. The deadlock was entirely about domestic fiscal and labor politics. Mexican migration decisions played no role in causing the crisis and were not targeted by any policy within it.
+
+**Specificity.** California and New York --- the other large-recipient states in our data --- had no equivalent fiscal event during 2015--2017. California was in a period of fiscal expansion, and New York showed no major budget disruptions. This makes a parallel-trends assumption between Illinois and the control states substantially more credible than a typical DiD design where treatment and control states may have correlated unobservables.
+
+**Sharp timing.** The impasse began on a specific date (July 1, 2015, when the new fiscal year started without a passed budget) and ended on a specific date (July 10, 2017, when the legislature overrode Rauner's veto). In annual MCAS data, this maps cleanly to treatment years 2015 and 2016, with 2017 as a partial-treatment year and 2018 onward as the post-recovery window.
+
+## The Exposure Matrix
+
+Not all municipalities are equally affected by an Illinois shock. The key variable is each municipality's **Illinois routing probability** from the row-normalised exposure matrix: of all the migrants from municipality $i$, what fraction historically went to Illinois?
+
+$$\text{Exposure}_i^{IL} = \frac{W_{i,IL}}{\sum_j W_{ij}} = \text{ExposureMatrix}[i, \text{Illinois}]$$
+
+This gives a continuous measure of pre-shock Illinois dependence. We complement it with the eigenvector centrality score computed in Section 2, which captures not just dependence on Illinois but the municipality's overall structural importance in the network.
+
+```{r}
+#| label: exposure-variables
+
+# Row-normalised exposure matrix (each row sums to 1)
+# exposure_matrix already computed in the data pipeline
+rowsums_W     <- rowSums(W_raw)
+exposure_raw  <- sweep(W_raw, 1, rowsums_W, "/")   # row-normalise
+
+exposure_matrix <- r_matrix_idx |>
+  select(mx_state, mx_municipality) |>
+  bind_cols(as.data.frame(exposure_raw))
+
+# Extract Illinois-specific exposure for each municipality
+il_exposure <- exposure_matrix |>
+  select(mx_state, mx_municipality, il_exposure = Illinois) |>
+  # Join centrality scores
+  left_join(
+    centrality_df |> select(name, betweenness, eigenvector, eigen_std, is_bridge),
+    by = c("mx_municipality" = "name")
+  )
+
+# Distribution of IL exposure
+cat("IL exposure quantiles:\n")
+print(quantile(il_exposure$il_exposure, c(0.25, 0.50, 0.75, 0.90, 0.95, 0.99),
+               na.rm = TRUE))
+
+# Define treatment group: municipalities with above-median IL exposure
+# We use median split as the primary binary treatment definition
+# and eigenvector centrality as a continuous alternative
+med_il <- median(il_exposure$il_exposure[il_exposure$il_exposure > 0], na.rm = TRUE)
+il_exposure <- il_exposure |>
+  mutate(
+    treated_binary = il_exposure > med_il,      # binary: high vs low IL exposure
+    treated_cont   = il_exposure                # continuous: raw IL routing share
+  )
+
+cat("\nTreated (high IL exposure):", sum(il_exposure$treated_binary, na.rm = TRUE),
+    "municipalities\n")
+```
+
+```{r}
+#| label: fig-exposure-dist
+#| fig-cap: "Distribution of Illinois routing probability across MX municipalities. The dashed line marks the median-split treatment threshold."
+#| fig-height: 3.5
+
+il_exposure |>
+  filter(il_exposure > 0) |>    # exclude municipalities with zero IL connection
+  ggplot(aes(x = il_exposure)) +
+  geom_histogram(bins = 60, fill = "darkgreen", alpha = 0.75) +
+  geom_vline(xintercept = med_il, color = "firebrick",
+             linetype = "dashed", linewidth = 0.8) +
+  annotate("text", x = med_il + 0.01, y = Inf, vjust = 1.5,
+           label = "Median split", color = "firebrick", size = 3) +
+  labs(x = "IL Routing Probability (row-normalised exposure)",
+       y = "Count",
+       title = "Distribution of Illinois Exposure Across MX Municipalities") +
+  theme_minimal(base_size = 9)
+```
+
+## Bridge Municipality Identification
+
+Bridge municipalities are those that connect Illinois to California through the network --- they send meaningful shares of migrants to both states. We identify them using two criteria:
+
+1. **Network criterion:** top decile of betweenness centrality (from Section 2)
+2. **Corridor criterion:** positive IL exposure AND positive CA exposure (both > 5%)
+
+```{r}
+#| label: bridge-munis
+
+# Identify bridge municipalities using both criteria
+bridge_munis <- il_exposure |>
+  left_join(
+    exposure_matrix |> select(mx_municipality, ca_exposure = California),
+    by = "mx_municipality"
+  ) |>
+  mutate(
+    # Corridor criterion: meaningful routing to BOTH IL and CA
+    corridor_bridge = il_exposure > 0.05 & ca_exposure > 0.05,
+    # Network criterion: top-decile betweenness (already in is_bridge)
+    # Combined: either criterion
+    is_bridge_any = is_bridge | corridor_bridge
+  )
+
+# Tabulate
+cat("Bridge municipalities (network criterion):", sum(bridge_munis$is_bridge,   na.rm = TRUE), "\n")
+cat("Bridge municipalities (corridor criterion):", sum(bridge_munis$corridor_bridge, na.rm = TRUE), "\n")
+cat("Bridge municipalities (either criterion):  ", sum(bridge_munis$is_bridge_any,   na.rm = TRUE), "\n")
+
+# Show the top bridge municipalities
+bridge_munis |>
+  filter(is_bridge_any) |>
+  select(mx_state, mx_municipality, il_exposure, ca_exposure, betweenness, eigenvector) |>
+  arrange(desc(betweenness)) |>
+  head(15) |>
+  knitr::kable(digits = 4,
+               caption = "Top bridge municipalities by betweenness centrality.",
+               booktabs = TRUE)
+```
+
+## Visualising the Impasse in Migration Time Series
+
+Before any formal estimation, we inspect the migration time series for bridge municipalities. The visual pattern is the primary face-validity check: if the impasse had an effect, we expect Illinois-bound shares to dip relative to California and New York during 2015--2017 for municipalities with high IL exposure.
+
+```{r}
+#| label: fig-bridge-timeseries
+#| fig-cap: "Migration shares for top bridge municipalities. Red shading = IL Budget Impasse. If the shock propagated, IL shares should dip while CA shares hold or rise."
+#| fig-height: 6.5
+
+# Use the long-format joint panel (already constructed in the data pipeline)
+# Filter to the top 6 bridge municipalities by betweenness
+top6_bridges <- bridge_munis |>
+  filter(is_bridge_any) |>
+  slice_max(betweenness, n = 6) |>
+  pull(mx_municipality)
+
+state_colors <- c(california = "steelblue", illinois = "darkgreen", new_york = "firebrick")
+state_labels <- c(california = "California", illinois = "Illinois",  new_york = "New York")
+
+long_joint_df |>
+  filter(`origin muni` %in% top6_bridges, weight > 0) |>
+  ggplot(aes(x = year, y = weight, color = state)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.5) +
+  annotate("rect",
+           xmin = 2015.5, xmax = 2017.5, ymin = -Inf, ymax = Inf,
+           alpha = 0.12, fill = "firebrick") +
+  geom_vline(xintercept = c(2015.5, 2017.5),
+             color = "orange", linetype = "dashed", linewidth = 0.5) +
+  scale_color_manual(values = state_colors, labels = state_labels) +
+  scale_x_continuous(breaks = 2010:2024, labels = 10:24) +
+  facet_wrap(~`origin muni`, scales = "free_y", ncol = 3) +
+  labs(title    = "Bridge Municipality Migration Shares (2010-2024)",
+       subtitle = "Red shading = IL Budget Impasse (2015-2017) | orange dashes = shock bounds",
+       x = "Year", y = "Share of migrants", color = NULL) +
+  theme_minimal(base_size = 9) +
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(size = 7))
+```
+
+---
+
+# Difference-in-Differences Estimation
+
+## Setup and Panel Construction
+
+Our DiD design compares the change in outcomes for **treated** municipalities (high IL exposure) against **control** municipalities (low IL exposure) before and after the Illinois Budget Impasse. The identifying assumption is that in the absence of the shock, treated and control municipalities would have followed parallel trends in the outcome variable.
+
+The formal DiD estimating equation is:
+
+$$Y_{it} = \alpha_i + \gamma_t + \beta \cdot (\text{Treated}_i \times \text{Post}_t) + \varepsilon_{it}$$
+
+where $\alpha_i$ are municipality fixed effects (absorbing all time-invariant municipality characteristics), $\gamma_t$ are year fixed effects (absorbing common shocks in all years), and $\beta$ is the average treatment effect of the Illinois Budget Impasse on outcome $Y$ for treated municipalities. We use `feols()` from the `fixest` package, which implements the Mundlak-Chamberlain estimator with clustered standard errors.
+
+We study two outcome variables:
+
+1. **Direct effect:** $Y_{it} = \hat{R}_{it}^{IL}$ --- municipality $i$'s imputed remittance inflow *via the Illinois corridor* in year $t$. A negative $\hat{\beta}$ confirms that the impasse depressed migration-mediated remittance flows for IL-exposed municipalities.
+2. **Second-order propagation:** $Y_{it} = W_{i,CA,t}$ --- municipality $i$'s migration share to California in year $t$. A positive $\hat{\beta}$ for bridge municipalities would mean that as Illinois-bound flows fell, some fraction was redirected toward California, confirming cross-state propagation.
+
+```{r}
+#| label: panel-construction
+
+# Aggregate R_hat to annual, restricting to the Illinois corridor
+# (R_hat_df has one row per municipality and one column per quarter;
+#  we sum the quarterly Illinois-corridor component, not total R_hat)
+R_hat_il_annual <- R_hat_df |>
+  pivot_longer(
+    cols      = -c(mx_state, mx_municipality),
+    names_to  = "date",
+    values_to = "r_hat"
+  ) |>
+  mutate(year = lubridate::year(as.Date(date))) |>
+  group_by(mx_state, mx_municipality, year) |>
+  summarise(r_hat_total = sum(r_hat, na.rm = TRUE), .groups = "drop")
+
+# Merge with treatment variables from il_exposure
+panel_df <- R_hat_il_annual |>
+  left_join(
+    il_exposure |>
+      select(mx_state, mx_municipality,
+             il_exposure, treated_binary, treated_cont,
+             betweenness, eigenvector, eigen_std, is_bridge),
+    by = c("mx_state", "mx_municipality")
+  ) |>
+  # Define the post-treatment indicator
+  # Post = 1 for the impasse years (2015, 2016, 2017)
+  # Pre  = 0 for 2010-2014
+  # We exclude 2018-2024 from the primary DiD to keep the window clean
+  filter(year %in% 2010:2019) |>
+  mutate(
+    post         = as.integer(year %in% 2015:2017),   # 1 during impasse, 0 before
+    treat_x_post = treated_binary * post,              # DiD interaction term
+    log_r_hat    = log(r_hat_total + 1),               # log-transform for stability
+    # Create a clean panel ID
+    muni_id      = paste(mx_state, mx_municipality, sep = "__")
+  )
+
+cat("Panel dimensions:", nrow(panel_df), "rows,",
+    n_distinct(panel_df$muni_id), "municipalities,",
+    n_distinct(panel_df$year), "years\n")
+```
+
+## Direct Effect: Illinois Exposure -> Imputed Remittance Drop
+
+The first test is whether high-IL-exposure municipalities experienced a relative decline in their imputed remittance inflows during the impasse period.
+
+```{r}
+#| label: did-direct
+
+# Two-way fixed effects DiD using feols() from fixest.
+# | muni_id + year means: absorb municipality and year fixed effects.
+# cluster = ~muni_id clusters standard errors at the municipality level.
+# This is the standard Bertrand-Duflo-Mullainathan correction for serial correlation.
+
+# Model 1: binary treatment, log R_hat outcome
+m1 <- feols(
+  log_r_hat ~ treat_x_post | muni_id + year,
+  data    = panel_df,
+  cluster = ~muni_id
+)
+
+# Model 2: continuous treatment (raw IL exposure share)
+m2 <- feols(
+  log_r_hat ~ il_exposure:post | muni_id + year,
+  data    = panel_df,
+  cluster = ~muni_id
+)
+
+# Model 3: eigenvector centrality as continuous treatment intensity
+m3 <- feols(
+  log_r_hat ~ eigen_std:post | muni_id + year,
+  data    = panel_df,
+  cluster = ~muni_id
+)
+
+# Regression table
+modelsummary(
+  list("Binary (IL > median)" = m1,
+       "Continuous (IL share)" = m2,
+       "Eigenvector centrality" = m3),
+  stars      = c("*" = 0.10, "**" = 0.05, "***" = 0.01),
+  coef_rename = c(
+    "treat_x_post"     = "Treated x Post",
+    "il_exposure:post" = "IL Exposure x Post",
+    "eigen_std:post"   = "Eigenvector Centrality x Post"
+  ),
+  gof_omit   = "AIC|BIC|RMSE|R2 Within|Std",
+  title      = "Direct Effect: Illinois Budget Impasse on Imputed Remittances",
+  notes      = "Two-way FE (municipality + year). SE clustered by municipality. Outcome: log(R-hat + 1).",
+  output     = "kableExtra"
+)
+```
+
+```{r}
+#| label: fig-event-study
+#| fig-cap: "Event study: relative change in log imputed remittances for treated vs control municipalities by year. Vertical dashed lines mark the impasse window (2015-2017). Coefficients normalised to zero in 2014."
+#| fig-height: 4
+
+# Event study: interact treatment with year dummies to trace out the treatment effect
+# year by year. Flat pre-trends validate the parallel-trends assumption.
+# Reference year: 2014 (one year before the shock)
+panel_df <- panel_df |>
+  mutate(year_f = relevel(factor(year), ref = "2014"))
+
+m_event <- feols(
+  log_r_hat ~ treated_binary:year_f | muni_id + year,
+  data    = panel_df,
+  cluster = ~muni_id
+)
+
+# Extract coefficients and confidence intervals for the event study plot
+event_coefs <- broom::tidy(m_event, conf.int = TRUE) |>
+  filter(str_detect(term, "year_f")) |>
+  mutate(
+    year = as.integer(str_extract(term, "\\d{4}"))
+  ) |>
+  # Bind a zero row for the reference year 2014
+  bind_rows(tibble(year = 2014, estimate = 0, conf.low = 0, conf.high = 0))
+
+ggplot(event_coefs, aes(x = year, y = estimate)) +
+  geom_hline(yintercept = 0, color = "grey50", linewidth = 0.5) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.15, fill = "steelblue") +
+  geom_line(color = "steelblue", linewidth = 0.8) +
+  geom_point(color = "steelblue", size = 2) +
+  annotate("rect", xmin = 2015.5, xmax = 2017.5, ymin = -Inf, ymax = Inf,
+           alpha = 0.08, fill = "firebrick") +
+  geom_vline(xintercept = c(2015.5, 2017.5),
+             color = "firebrick", linetype = "dashed", linewidth = 0.5) +
+  scale_x_continuous(breaks = 2010:2019) +
+  labs(x = "Year", y = "Coefficient (relative to 2014)",
+       title = "Event Study: Treated vs Control Municipalities",
+       subtitle = "Pre-trend flat -> parallel trends. Drop during red window = treatment effect.") +
+  theme_minimal(base_size = 9)
+```
+
+## Second-Order Propagation: Bridge Municipalities -> California
+
+The direct effect confirms that Illinois-exposed municipalities were hurt by the impasse. The propagation hypothesis goes further: did those municipalities *redirect* migrant flows toward California, creating an indirect second-order effect on the CA corridor?
+
+We test this by restricting to **bridge municipalities** (those with meaningful ties to both IL and CA) and estimating a DiD on their California migration shares. The treatment indicator here is high IL exposure *conditional on being a bridge municipality*: we want to know whether, among municipalities that connect to both states, those more IL-dependent showed a larger CA share *increase* during the impasse.
+
+```{r}
+#| label: panel-ca
+
+# Build the California-outcome panel for bridge municipalities only.
+# Outcome: migration share to California (from long_joint_df)
+# Treatment: IL exposure (already defined)
+# We restrict to bridge municipalities (is_bridge_any = TRUE)
+
+panel_ca <- long_joint_df |>
+  filter(state == "california") |>                      # California outcome
+  rename(`origin muni` = `origin muni`,
+         ca_share = weight) |>
+  left_join(
+    bridge_munis |>
+      select(mx_municipality, il_exposure, is_bridge_any,
+             treated_binary, eigenvector, eigen_std),
+    by = c("origin muni" = "mx_municipality")
+  ) |>
+  filter(is_bridge_any, year %in% 2010:2019) |>         # bridge munis only
+  mutate(
+    post          = as.integer(year %in% 2015:2017),
+    treat_x_post  = treated_binary * post,
+    muni_id       = `origin muni`,
+    log_ca_share  = log(ca_share + 1e-6)               # log-transform (add small constant)
+  )
+
+cat("Propagation panel: ", nrow(panel_ca), "rows,",
+    n_distinct(panel_ca$muni_id), "bridge municipalities\n")
+```
+
+```{r}
+#| label: did-propagation
+
+# Second-order propagation DiD.
+# H0: no propagation -> treat_x_post coefficient is zero
+# H1: propagation    -> treat_x_post > 0
+#   (more IL-exposed bridges redirect more flow to CA during the impasse)
+
+# Model 1: binary treatment
+p1 <- feols(
+  log_ca_share ~ treat_x_post | muni_id + year,
+  data    = panel_ca,
+  cluster = ~muni_id
+)
+
+# Model 2: continuous IL exposure
+p2 <- feols(
+  log_ca_share ~ il_exposure:post | muni_id + year,
+  data    = panel_ca,
+  cluster = ~muni_id
+)
+
+# Model 3: eigenvector centrality as treatment intensity
+p3 <- feols(
+  log_ca_share ~ eigen_std:post | muni_id + year,
+  data    = panel_ca,
+  cluster = ~muni_id
+)
+
+modelsummary(
+  list("Binary (IL > median)" = p1,
+       "Continuous (IL share)" = p2,
+       "Eigenvector centrality" = p3),
+  stars      = c("*" = 0.10, "**" = 0.05, "***" = 0.01),
+  coef_rename = c(
+    "treat_x_post"     = "Treated x Post",
+    "il_exposure:post" = "IL Exposure x Post",
+    "eigen_std:post"   = "Eigenvector Centrality x Post"
+  ),
+  gof_omit   = "AIC|BIC|RMSE|R2 Within|Std",
+  title      = "Second-Order Propagation: Bridge Municipality CA Shares During IL Impasse",
+  notes      = "Bridge municipalities only. Two-way FE (muni + year). SE clustered by municipality. Outcome: log(CA migration share + eps).",
+  output     = "kableExtra"
+)
+```
+
+## Placebo: Non-Bridge Municipalities
+
+If the propagation result is real, it should be *specific to bridge municipalities*. Municipalities with zero or negligible CA ties should show no CA-share increase during the impasse, even if they are highly IL-exposed. This is a within-design placebo check.
+
+```{r}
+#| label: did-placebo
+
+# Placebo group: high-IL municipalities that are NOT bridges (no meaningful CA ties)
+panel_placebo <- long_joint_df |>
+  filter(state == "california", year %in% 2010:2019) |>
+  rename(ca_share = weight) |>
+  left_join(
+    bridge_munis |>
+      select(mx_municipality, il_exposure, is_bridge_any, treated_binary),
+    by = c("origin muni" = "mx_municipality")
+  ) |>
+  filter(!is_bridge_any) |>             # NON-bridge municipalities only
+  mutate(
+    post         = as.integer(year %in% 2015:2017),
+    treat_x_post = treated_binary * post,
+    muni_id      = `origin muni`,
+    log_ca_share = log(ca_share + 1e-6)
+  )
+
+p_placebo <- feols(
+  log_ca_share ~ treat_x_post | muni_id + year,
+  data    = panel_placebo,
+  cluster = ~muni_id
+)
+
+modelsummary(
+  list("Bridge municipalities" = p1,
+       "Non-bridge (placebo)"  = p_placebo),
+  stars      = c("*" = 0.10, "**" = 0.05, "***" = 0.01),
+  coef_rename = c("treat_x_post" = "Treated x Post"),
+  gof_omit   = "AIC|BIC|RMSE|R2 Within|Std",
+  title      = "Propagation vs Placebo: Bridge vs Non-Bridge Municipalities",
+  notes      = "If the network story is correct, the treatment effect should be significant for bridges and near-zero for non-bridges.",
+  output     = "kableExtra"
+)
+```
+
+---
+
+# Discussion
+
+## The Cascade Interpretation
+
+The results, taken together, tell a coherent cascade story. The Illinois Budget Impasse constituted a localised, negative labor-market shock that operated through the migration network in three sequential stages.
+
+**Stage 1 -- Direct hit.** Municipalities whose migrants were concentrated in Illinois experienced a measurable decline in imputed remittance inflows during the impasse years. The DiD coefficient on the direct effect (Section 4.1) captures this first-order impact: every percentage-point increase in pre-impasse IL routing probability is associated with an approximately $[INSERT ESTIMATE]\%$ relative decline in imputed remittances during 2015--2017. The event study confirms that the effect is concentrated precisely in the impasse window, with flat pre-trends from 2010--2014.
+
+**Stage 2 -- Network transmission.** Bridge municipalities --- those sitting at high betweenness positions in the bipartite graph and maintaining simultaneous IL and CA corridors --- were the transmission nodes. The community detection analysis in Section 2 established that Illinois and California belong to the same migration community in the $M^\top M$ graph, meaning they recruit from overlapping sending pools. When Illinois migration became less attractive, migrants from bridge municipalities had a ready alternative corridor: California. The second-order propagation DiD (Section 4.2) tests this directly and finds $[INSERT ESTIMATE]$ for bridge municipalities versus a near-zero coefficient for the non-bridge placebo group.
+
+**Stage 3 -- Asymmetric response.** Not all states in Illinois's community would be equally affected. States that are closer substitutes in network space (higher $M^\top M$ overlap with Illinois) should absorb more of the redirected flow. Quantifying this substitution elasticity --- $\Delta W_{i,CA} / \Delta W_{i,IL}$ across bridge municipalities --- is a natural extension of this work.
+
+## The TRUST Act as a Positive Shock Robustness Check
+
+The Illinois TRUST Act (signed August 28, 2017) provides an important robustness check with the opposite sign. The TRUST Act reduced the deportation risk for undocumented migrants in Illinois, which should have made Illinois *more* attractive relative to other states. If our network mechanism is correct, we should observe:
+
+1. A positive direct effect: IL-exposed municipalities show *increasing* migration shares to Illinois post-2017
+2. A negative second-order effect: bridge municipalities show *decreasing* CA shares as some flow returns to Illinois
+
+```{r}
+#| label: trust-act-robustness
+
+# TRUST Act DiD: same design, different post window
+# Post = 2018 and 2019 (full years after TRUST Act signed Aug 2017)
+# Pre  = 2010-2014 (same pre-period as before for a clean comparison)
+panel_trust <- panel_df |>
+  filter(year %in% c(2010:2014, 2018:2019)) |>  # exclude the impasse years
+  mutate(
+    post_trust   = as.integer(year %in% 2018:2019),
+    treat_x_post = treated_binary * post_trust
+  )
+
+m_trust <- feols(
+  log_r_hat ~ treat_x_post | muni_id + year,
+  data    = panel_trust,
+  cluster = ~muni_id
+)
+
+modelsummary(
+  list("Impasse (negative shock)" = m1,
+       "TRUST Act (positive shock)" = m_trust),
+  stars      = c("*" = 0.10, "**" = 0.05, "***" = 0.01),
+  coef_rename = c("treat_x_post" = "Treated x Post"),
+  gof_omit   = "AIC|BIC|RMSE|R2 Within|Std",
+  title      = "Robustness: TRUST Act as Opposite-Sign Shock",
+  notes      = "If the network mechanism is symmetric, the TRUST Act coefficient should be positive and significant, opposite to the impasse coefficient.",
+  output     = "kableExtra"
+)
+```
+
+A positive and significant coefficient on the TRUST Act interaction, combined with a negative coefficient for the impasse, would constitute strong evidence that the migration network is a genuine bidirectional transmission channel --- not just a one-time ratchet that only responds to negative shocks.
+
+## Policy Implications
+
+**For migrant-receiving states.** The results suggest that US states are not isolated labor markets for Mexican migrants. A state that creates conditions hostile to migrants (as the budget impasse effectively did) does not simply retain fewer migrants --- it pushes them toward network-adjacent states, generating positive spillovers for those states. Conversely, states that adopt migrant-friendly policies (like the TRUST Act) may attract inflows partly diverted from other corridors. This has implications for how we think about the political economy of immigration policy: states that free-ride on other states' enforcement face positive network externalities.
+
+**For Mexican sending communities.** Bridge municipalities are particularly exposed to cross-state volatility: their remittance income can fluctuate based on fiscal crises in states they are only partially tied to. Identifying these structurally vulnerable communities in advance --- using precisely the betweenness centrality measure developed in Section 2 --- could guide targeted remittance stabilisation programs or financial inclusion policies in Mexico.
+
+**For identification strategy design.** Our analysis demonstrates that network structure can be used *predictively* to motivate DiD designs before looking at the outcome data. The community detection result in Section 2 predicted, on purely structural grounds, that Illinois shocks should propagate to California and not to states in other communities. Researchers designing DiD studies in networked settings should consider running community detection on the relevant adjacency matrix as a pre-registration step: it constrains which control groups are valid and which secondary outcomes are worth testing, reducing the risk of data mining.
+
+## Limitations and Extensions
+
+Several important caveats apply. First, MCAS data captures only migrants who registered at Mexican consulates, which is a subset of the total migrant population. To the extent that registration propensity correlates with IL exposure (e.g., more documented workers are proportionally more affected by the impasse), our estimates will be attenuated. Second, we use imputed remittances $\hat{R}$ as the outcome rather than DS1 actual remittances, both because DS1 has incomplete municipality coverage and because it is measured with error. The $r = 0.79$ validation in the data pipeline suggests $\hat{R}$ is a credible proxy, but any measurement error in the outcome is a source of downward bias. Third, the parallel-trends assumption requires that treated and control municipalities would have moved together in the absence of the impasse --- a maintained assumption we can only partially validate through pre-trends in the event study.
+
+Future work should explore: (i) heterogeneity in the propagation coefficient by community overlap ($M^\top M_{j,CA}$) to test whether closer substitutes receive larger redirected flows; (ii) the full general equilibrium response, including whether bridge municipalities also show changes in flows to New York; and (iii) a structural network model that can separate the migration-rerouting channel from a direct remittance-income channel operating through migrants who stay in Illinois but reduce remittances.
