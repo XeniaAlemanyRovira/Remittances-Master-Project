@@ -7,35 +7,17 @@ library(tidyr)
 library(stringr)
 library(readxl)
 library(arrow)
+library(here) 
 
-# ── Resolve THESIS_DIR from this script's location ────────────────────────────
-# Script lives at: THESIS_DIR/1_network_estimation/1_data_cleaning/Utility_scripts/
-# Works for both source() in RStudio and Rscript from the command line.
+# ── Run Prerequisite Scripts (Works for everyone) ────────────────────────────
 
-get_script_dir <- function() {
-  # source() path
-  src <- tryCatch(normalizePath(sys.frame(1)$ofile, winslash = "/"),
-                  error = function(e) NULL)
-  if (!is.null(src)) return(dirname(src))
-  # Rscript --file= path
-  args  <- commandArgs(trailingOnly = FALSE)
-  farg  <- grep("--file=", args, value = TRUE)
-  if (length(farg))
-    return(dirname(normalizePath(sub("--file=", "", farg[1]), winslash = "/")))
-  stop("Cannot resolve script location. Set THESIS_DIR manually or run from Thesis/.")
-}
+source("1_network_estimation/1_data_cleaning/Scripts/3_format_xlsx.R")
 
-thesis_dir <- normalizePath(file.path(get_script_dir(), "..", "..", ".."), winslash = "/")
-message("THESIS_DIR: ", thesis_dir)
+# ── Update your Data paths similarly ─────────────────────────────────────────
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
-
-ds2_path <- file.path(thesis_dir, "Data", "Remittances",
-                      "Estado de origen de los ingresos por remesas provenientes de Estados Unidos.xlsx")
-ds1_path <- file.path(thesis_dir, "Data", "Remittances",
-                      "Ingresos por remesas, distribución por municipio.xlsx")
-out_dir  <- file.path(thesis_dir, "2_SQL_database", "Data_clean_updated", "Remittances")
-dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+ds2_path <- "Data/Remittances/Estado de origen de los ingresos por remesas provenientes de Estados Unidos.xlsx"
+ds1_path <- "Data/Remittances/Ingresos por remesas, distribución por municipio.xlsx"
+out_dir  <- "2_SQL_database/Data_clean_updated/Remittances"
 
 # Banxico file layout (same for both files)
 HEADER_ROW <- 10   # 1-indexed: row with column name strings

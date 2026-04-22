@@ -6,9 +6,13 @@ library(stringr)
 library(writexl)
 library(dplyr)
 library(tibble)
-setwd("C:/Users/T14/1BSE/8Thesis/")
+#setwd("C:/Users/T14/1BSE/8Thesis/")
 estados_dir <- file.path("1_network_estimation", "1_data_cleaning", "Data_clean", "MCAS", "Estados_US")    # input (from _1/_2)
 out_dir     <- file.path("2_SQL_database", "Data_clean_updated", "MCAS", "Estados_US")  # final output
+
+# ── Run Prerequisite Scripts (Works for everyone) ────────────────────────────
+
+source("1_network_estimation/1_data_cleaning/Scripts/2_renaming_pulling_xlsx.R")
 
 # Rename columns
 STANDARD_COLS <- c("mx_state", "mx_municipality", "n_matriculas", "pct_matriculas")

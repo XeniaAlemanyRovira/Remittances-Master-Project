@@ -1,7 +1,7 @@
 # This script reads the single state xlsx files and spits out cross-sectional
 # MX municipality to US State migration matrices for each year
 
-rm(list = ls())
+#rm(list = ls())
 
 library(tidyverse)
 library(readxl)
@@ -11,6 +11,9 @@ library(writexl)
 base_dir <- "2_SQL_database/Data_clean_updated/MCAS/Estados_US"
 output_dir  <- "1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2"
 years    <- 2010:2024
+
+# ── Run Prerequisite Scripts (Works for everyone) ────────────────────────────
+source("1_network_estimation/1_data_cleaning/Scripts/4_clean_remittances.R")
 
 # Helper: extracts the US State name from the file path
 parse_us_state <- function(path) {
@@ -120,3 +123,120 @@ dir.create(output_dir)
 walk2(matrices, names(matrices), function(df, name) {
   write_xlsx(df, path = file.path(output_dir, paste0(name, ".xlsx")))
 })
+
+
+# ROBUSTNESS CHECKS: 
+
+library(dplyr)
+library(stringr)
+
+# 1. Find cases where one name is "inside" another in the same state
+# e.g., "Cuautitlan" is inside "Cuautitlan Izcalli"
+potential_duplicates <- all_municipalities %>%
+  distinct(mx_state, mx_municipality) %>%
+  arrange(mx_state, mx_municipality) %>%
+  group_by(mx_state) %>%
+  filter(any(sapply(mx_municipality, function(x) {
+    # Look for other munis in the same state that contain this name
+    # but are NOT exactly this name
+    sum(str_detect(mx_municipality, fixed(x))) > 1
+  }))) %>%
+  # Flag the shorter names as potential 'Totals' or 'Aggregates'
+  mutate(is_shorter_version = sapply(mx_municipality, function(x) {
+    any(nchar(mx_municipality) > nchar(x) & str_detect(mx_municipality, fixed(x)))
+  })) %>%
+  filter(is_shorter_version == TRUE)
+
+print(potential_duplicates)
+
+library(janitor)
+
+library(stringi)
+
+# Create a robust normalization function
+super_clean <- function(x) {
+  x <- as.character(x)
+  x <- stri_trans_general(x, "Latin-ASCII") # Removes accents (á -> a, ñ -> n)
+  x <- toupper(x)                           # Everything to Uppercase
+  x <- gsub("[^A-Z0-9 ]", " ", x)           # Replace punctuation with space
+  x <- str_squish(x)                        # Remove double/trailing spaces
+  return(x)
+}
+
+inegi_list <- read_xlsx("Data/catun_municipio/catun_municipio/AGEEML_2026318759531.xlsx", skip = 3) %>% 
+  clean_names() %>% 
+  select(nom_ent, nom_mun) %>% 
+  rename(
+    mx_state        = nom_ent,
+    mx_municipality = nom_mun
+  )
+
+# Apply to INEGI
+inegi_list_clean <- inegi_list %>%
+  mutate(across(c(mx_state, mx_municipality), super_clean)) %>%
+  distinct()
+
+# Apply to Banxico
+all_municipalities_clean <- all_municipalities %>%
+  mutate(across(c(mx_state, mx_municipality), super_clean))
+
+inegi_list_clean <- inegi_list_clean %>%
+  mutate(mx_state = case_when(
+    mx_state == "COAHUILA DE ZARAGOZA"            ~ "COAHUILA",
+    mx_state == "MEXICO"                          ~ "ESTADO DE MEXICO",
+    mx_state == "MICHOACAN DE OCAMPO"             ~ "MICHOACAN",
+    mx_state == "VERACRUZ DE IGNACIO DE LA LLAVE" ~ "VERACRUZ",
+    TRUE ~ mx_state
+  ))
+
+# Now the join will recognize the columns automatically
+mismatches <- anti_join(all_municipalities_clean, inegi_list_clean, 
+                        by = c("mx_state", "mx_municipality"))
+
+# Check how many didn't match
+message("Number of rows in Banxico not found in INEGI: ", nrow(mismatches))
+
+library(dplyr)
+library(stringr)
+
+# Function that ONLY uses the 100% containment rule
+find_subset_match <- function(muni, state, choices_df) {
+  # 1. Filter choices for the specific state
+  valid_choices <- choices_df$mx_municipality[choices_df$mx_state == state]
+  
+  if(length(valid_choices) == 0) return(NA_character_)
+  
+  # Normalize to ensure comparison isn't broken by trailing spaces
+  muni_clean <- trimws(as.character(muni))
+  choices_clean <- trimws(as.character(valid_choices))
+  
+  # 2. Check for 100% containment (A inside B OR B inside A)
+  is_subset <- str_detect(choices_clean, fixed(muni_clean)) | 
+    str_detect(muni_clean, fixed(choices_clean))
+  
+  # 3. Handle the results
+  if(any(is_subset)) {
+    # If there are multiple matches (rare), we pick the first one
+    return(valid_choices[which(is_subset)[1]])
+  } else {
+    # If not 100% contained, return NA
+    return(NA_character_)
+  }
+}
+
+# Apply the logic to your 190 mismatches
+mismatches_resolved <- mismatches %>%
+  rowwise() %>%
+  mutate(best_inegi_match = find_subset_match(mx_municipality, mx_state, inegi_list_clean)) %>%
+  ungroup()
+
+# Filter to see what was successfully linked
+successful_links <- mismatches_resolved %>% 
+  filter(!is.na(best_inegi_match))
+
+# Filter to see what is STILL unmatched (the "True" errors or Totals)
+still_mismatched <- mismatches_resolved %>% 
+  filter(is.na(best_inegi_match))
+
+message("Total matches found via subset rule: ", nrow(successful_links))
+message("Total remaining unmatched rows: ", nrow(still_mismatched))

@@ -1,5 +1,5 @@
 
-setwd("C:/Users/T14/7Programming/Python/Thesis")
+#setwd("C:/Users/T14/7Programming/Python/Thesis")
 
 # Overwrites Data_clean
 unlink("Data_clean", recursive = TRUE)
