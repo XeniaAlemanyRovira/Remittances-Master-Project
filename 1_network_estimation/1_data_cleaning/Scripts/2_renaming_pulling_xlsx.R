@@ -4,7 +4,11 @@ library(tools)
 library(readxl)
 library(writexl)
 
-setwd("C:/Users/T14/7Programming/Python/Thesis")
+#setwd("C:/Users/T14/7Programming/Python/Thesis")
+# ── Run Prerequisite Scripts (Works for everyone) ────────────────────────────
+
+# R starts looking from the folder where the .Rproj file lives
+source("1_network_estimation/1_data_cleaning/Scripts/1_folder_cleaning.R")
 
 # Config
 estados_dir <- file.path("1_network_estimation","Data_clean", "MCAS", "Estados_US")
