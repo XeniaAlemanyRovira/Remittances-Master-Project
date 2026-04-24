@@ -1,0 +1,54 @@
+mx_state,mx_municipality,validation_status,resolution,official_state,official_municipality,candidate_count,candidate_states,suggested_state,state_mismatch_flag,drop_reason
+Baja California,Guadalupe Victoria,dropped_unresolved,NA,NA,NA,2,Durango | Puebla,NA,FALSE,ambiguous_multiple_candidates
+Chiapas,Cintalapa,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Chihuahua,Batopilas,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Chihuahua,Rosario,dropped_unresolved,NA,NA,NA,2,Sinaloa | Sonora,NA,FALSE,ambiguous_multiple_candidates
+Ciudad De Mexico,Nogales,dropped_unresolved,NA,NA,NA,2,Sonora | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Ciudad De Mexico,San Lucas,dropped_unresolved,NA,NA,NA,2,Chiapas | Michoacan De Ocampo,NA,FALSE,ambiguous_multiple_candidates
+Durango,Francisco I. Madero,dropped_unresolved,NA,NA,NA,2,Coahuila De Zaragoza | Hidalgo,NA,FALSE,ambiguous_multiple_candidates
+Estado De Mexico,Acambay,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Estado De Mexico,Alvaro Obregon,dropped_unresolved,NA,NA,NA,2,Ciudad De Mexico | Michoacan De Ocampo,NA,FALSE,ambiguous_multiple_candidates
+Guanajuato,Dolores Hidalgo,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Guanajuato,Silao,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Guerrero,Acatlan,dropped_unresolved,NA,NA,NA,3,Hidalgo | Puebla | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Actopan,dropped_unresolved,NA,NA,NA,2,Hidalgo | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Alcozauca De Guerero,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Guerrero,Apaxtla,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Guerrero,Eloxochitlan,dropped_unresolved,NA,NA,NA,2,Hidalgo | Puebla,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Francisco I. Madero,dropped_unresolved,NA,NA,NA,2,Coahuila De Zaragoza | Hidalgo,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Huehuetla,dropped_unresolved,NA,NA,NA,2,Hidalgo | Puebla,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Jilotepec,dropped_unresolved,NA,NA,NA,2,Estado De Mexico | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Lagunillas,dropped_unresolved,NA,NA,NA,2,Michoacan De Ocampo | San Luis Potosi,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Metepec,dropped_unresolved,NA,NA,NA,2,Estado De Mexico | Hidalgo,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Tenancingo,dropped_unresolved,NA,NA,NA,2,Estado De Mexico | Tlaxcala,NA,FALSE,ambiguous_multiple_candidates
+Guerrero,Tuxpan,dropped_unresolved,NA,NA,NA,4,Jalisco | Michoacan De Ocampo | Nayarit | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Hidalgo,Cuauhtemoc,dropped_unresolved,NA,NA,NA,4,Chihuahua | Ciudad De Mexico | Colima | Zacatecas,NA,FALSE,ambiguous_multiple_candidates
+Hidalgo,San Juan Del Rio,dropped_unresolved,NA,NA,NA,3,Durango | Oaxaca | Queretaro,NA,FALSE,ambiguous_multiple_candidates
+Jalisco,Tlaquepaque,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Morelos,Jonacatepec,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Morelos,Metepec,dropped_unresolved,NA,NA,NA,2,Estado De Mexico | Hidalgo,NA,FALSE,ambiguous_multiple_candidates
+Morelos,Tlaltizapan,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Morelos,Zacatepec De Hidalgo,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Morelos,Zacualpan,dropped_unresolved,NA,NA,NA,2,Estado De Mexico | Veracruz De Ignacio De La Llave,NA,FALSE,ambiguous_multiple_candidates
+Oaxaca,Huajuapan De Leon,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Juchitan De Zaragoza,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Miahuatlan De Porfirio Diaz,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Blas Atempa,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Juan Mixtepec -Dto. 08 -,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Juan Mixtepec -Dto. 26 -,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Martin De Los Cansecos,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Pedro Mixtepec -Dto. 22 -,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,San Pedro Mixtepec -Dto. 26 -,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Santiago Chazumba,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Tezoatlan De Segura Y Luna,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Villa De Tututepec De Melchor Ocampo,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Oaxaca,Villa Hidalgo,dropped_unresolved,NA,NA,NA,4,Jalisco | San Luis Potosi | Sonora | Zacatecas,NA,FALSE,ambiguous_multiple_candidates
+Oaxaca,Zapotitlan Del Rio,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Puebla,San Juan Del Rio,dropped_unresolved,NA,NA,NA,3,Durango | Oaxaca | Queretaro,NA,FALSE,ambiguous_multiple_candidates
+San Luis Potosi,Ahualulco,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+San Luis Potosi,Victoria,dropped_unresolved,NA,NA,NA,2,Guanajuato | Tamaulipas,NA,FALSE,ambiguous_multiple_candidates
+Veracruz De Ignacio De La Llave,Cazones,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Veracruz De Ignacio De La Llave,Huiloapan,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Veracruz De Ignacio De La Llave,La Paz,dropped_unresolved,NA,NA,NA,2,Baja California Sur | Estado De Mexico,NA,FALSE,ambiguous_multiple_candidates
+Veracruz De Ignacio De La Llave,Medellin,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
+Veracruz De Ignacio De La Llave,Temapache,dropped_unresolved,NA,NA,NA,NA,NA,NA,FALSE,no_inegi_candidate
