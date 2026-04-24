@@ -1,13 +1,9 @@
-# WEIGHTING MATRIX ESTIMATION
+# GENERATING CLEAN PANEL DATA, CLEAN ZUCCA WEIGHTS AND CLEAN YEARLY MIGRATION MATRICES
 
-The scripts contained in this directory produce the cleaned migration matrices and the final migration weighting matrices.
+this is just a copy of whatever we had before, but with some new output and code to obtain the final cleant data matrix. 
 
-`1_migration_matrices` takes the cleaned state files, reconciles municipality-state pairs to the official INEGI municipality catalog, drops unresolved rows that cannot be matched safely, and produces a migration flow matrix for each year, from 2010 to 2024, with **nominal** flows.
+specifically, youll find the code to generate clean data in the `1_network_estimation/2_migration_matrix_estimation/Scripts` path. i checked and both `1_migration_matrices` script and `2_weighting_matrices` scripts (both combined generate the final migration matrix w the zucca weights) match and work. 
 
-`2_weighting_matrices` takes the files produced by `1_migration_matrices` and produces a migration flow matrix for each year with shares over the total migration flow instead of nominal flows. It also produces the final average weighting matrix, which is an average between all of the other matrices excluding the Covid years, 2020 and 2021.
+the cleaned panel generated is to be found in `1_network_estimation/2_migration_matrix_estimation/clean final data`, the changes and decisions taken to obtain this cleant data is found in `1_network_estimation/2_migration_matrix_estimation/validation reports`.
 
-Outputs produced by `1_migration_matrices`:
-
-- `yearly_migration_matrices_2/`: yearly municipality-by-US-state migration matrices used by the weighting script
-- `clean final data/`: final municipality-level panel and clean municipality universe after INEGI reconciliation
-- `validation reports/`: municipality mapping report, unresolved report, and dropped-row diagnostics
+the clean migration weighting matrices are found in `1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2` and applying the resulting zucca weights to the migration data we get the new yearly migration matrices in `1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2`
