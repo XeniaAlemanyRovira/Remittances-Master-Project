@@ -1,0 +1,54 @@
+us_state_original,us_state,total_remittances_musd,mapping_status
+California,California,149326.261861,kept
+Texas,Texas,70957.396096,kept
+Illinois,Illinois,18396.136549,kept
+Florida,Florida,16777.598869,kept
+Georgia,Georgia,15684.91898,kept
+Nueva York,New York,14012.659552,kept
+Arizona,Arizona,13475.171688,kept
+Colorado,Colorado,13025.87553,kept
+No Identificado,No Identificado,11744.925273,dropped_no_identificado
+Carolina Del Norte,North Carolina,10900.552871,kept
+Washington,Washington,9313.485141,kept
+Nueva Jersey,New Jersey,7775.081331,kept
+Minnesota,Minnesota,7664.336613,kept
+Tennessee,Tennessee,7607.507104,kept
+Nevada,Nevada,5562.530025,kept
+Ohio,Ohio,5274.634239,kept
+Indiana,Indiana,5195.091041,kept
+Oregon,Oregon,5072.409268,kept
+Carolina Del Sur,South Carolina,4961.38182,kept
+Michigan,Michigan,4917.668237,kept
+Louisiana,Louisiana,4837.33799,kept
+Virginia,Virginia,4793.99333,kept
+Wisconsin,Wisconsin,4543.38268,kept
+Pensilvania,Pennsylvania,4045.698546,kept
+Utah,Utah,3841.970251,kept
+Alabama,Alabama,3776.380562,kept
+Oklahoma,Oklahoma,3572.17816,kept
+Kansas,Kansas,3347.631138,kept
+Misuri,Missouri,3185.38394,kept
+Arkansas,Arkansas,3109.289853,kept
+Nuevo Mexico,New Mexico,3014.695275,kept
+Kentucky,Kentucky,2915.518374,kept
+Iowa,Iowa,2594.177153,kept
+Maryland,Maryland,2433.447541,kept
+Nebraska,Nebraska,2174.832366,kept
+Idaho,Idaho,2127.478337,kept
+Mississipi,Mississippi,1902.709949,kept
+Massachusetts,Massachusetts,1285.487529,kept
+Dakota Del Norte,North Dakota,1250.582866,kept
+Connecticut,Connecticut,1171.729301,kept
+Hawaii,Hawaii,804.175424,kept
+Wyoming,Wyoming,788.124136,kept
+Delaware,Delaware,748.062045,kept
+Alaska,Alaska,644.891888,kept
+Dakota Del Sur,South Dakota,502.873651,kept
+Montana,Montana,460.334365,kept
+West Virginia,West Virginia,388.586438,kept
+"Washington, D.c.",District Of Columbia,366.47150799999997,kept
+Nuevo Hampshire,New Hampshire,343.220113,kept
+Maine,Maine,320.773065,kept
+Vermont,Vermont,319.621006,kept
+Rhode Island,Rhode Island,257.481262,kept
+Puerto Rico,Puerto Rico,185.152549,dropped_puerto_rico
