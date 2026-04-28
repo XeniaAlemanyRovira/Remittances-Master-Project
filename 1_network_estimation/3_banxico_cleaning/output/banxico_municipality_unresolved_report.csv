@@ -1,0 +1,16 @@
+mx_state,mx_municipality,validation_status,resolution,official_state,official_municipality,candidate_count,candidate_states,drop_reason
+Chiapas,Cintalapa,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Chihuahua,Rosario,dropped_unresolved,NA,NA,NA,2,Sinaloa | Sonora,ambiguous_multiple_candidates
+Guanajuato,Dolores Hidalgo Cuna De La Independencia Nal.,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Guerrero,Apaxtla,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,Miahuatlan De Porfirio Diaz,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Blas Atempa,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Juan Mixtepec - Distr. 08 -,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Juan Mixtepec - Distr. 26 -,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Martin De Los Cansecos,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Pedro Mixtepec - Distr. 22 -,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,San Pedro Mixtepec - Distr. 26 -,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,Santiago Chazumba,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+Oaxaca,Villa Hidalgo,dropped_unresolved,NA,NA,NA,4,Jalisco | San Luis Potosi | Sonora | Zacatecas,ambiguous_multiple_candidates
+Oaxaca,Zapotitlan Del Rio,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate
+San Luis Potosi,Ahualulco,dropped_unresolved,NA,NA,NA,NA,NA,no_weighting_universe_candidate

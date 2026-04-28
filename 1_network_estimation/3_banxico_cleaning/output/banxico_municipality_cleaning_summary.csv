@@ -1,0 +1,9 @@
+metric,value
+raw_municipality_state_pairs,2456
+resolved_municipality_state_pairs,2441
+unresolved_municipality_state_pairs,15
+clean_municipality_panel_rows,117120
+clean_origin_state_panel_rows,2544
+clean_municipality_total_musd,477391.855738
+dropped_municipality_total_musd,4723.214354
+dropped_municipality_share,0.009796861054558383
