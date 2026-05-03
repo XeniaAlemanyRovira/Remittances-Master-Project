@@ -31,14 +31,35 @@ safe_write_csv <- function(df, path) {
   readr::write_csv(df, path, na = "")
 }
 
+safe_save_plot <- function(plot_obj, path, width = 7, height = 5, dpi = 300) {
+  ggplot2::ggsave(
+    filename = path,
+    plot = plot_obj,
+    width = width,
+    height = height,
+    dpi = dpi
+  )
+}
+
+sig_stars <- function(p_val) {
+  dplyr::case_when(
+    p_val < 0.01 ~ "***",
+    p_val < 0.05 ~ "**",
+    p_val < 0.10 ~ "*",
+    TRUE ~ ""
+  )
+}
+
 script_path <- get_script_path()
 repo_root <- normalizePath(file.path(dirname(script_path), "..", ".."), winslash = "/", mustWork = TRUE)
 extension_dir <- file.path(repo_root, "00_EXTENDING THE GEOSPATIAL PROJECT")
 panel_dir <- file.path(extension_dir, "1_cleaned_panels")
 input_dir <- file.path(extension_dir, "2_receiver_side_rerun", "input")
 output_dir <- file.path(extension_dir, "2_receiver_side_rerun", "output")
+plot_dir <- file.path(output_dir, "plots")
 dir.create(input_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 suppressPackageStartupMessages({
   library(tidyverse)
@@ -104,6 +125,132 @@ panel_cs <- panel %>%
     muni_num = as.integer(factor(muni_id))
   )
 
+time_lookup <- panel %>%
+  distinct(time_index, year, quarter)
+
+cohort_lookup <- muni_meta %>%
+  distinct(event, G) %>%
+  rename(event_quarter = event, cohort_time_index = G) %>%
+  left_join(time_lookup, by = c("cohort_time_index" = "time_index")) %>%
+  group_by(cohort_time_index, year, quarter) %>%
+  summarise(
+    cohort_events = paste(sort(unique(event_quarter)), collapse = "; "),
+    .groups = "drop"
+  )
+
+cohort_counts <- muni_meta %>%
+  count(G, name = "cohort_treated_munis") %>%
+  rename(cohort_time_index = G)
+
+build_cohort_table <- function(results_list, lookup_df, counts_df) {
+  purrr::map_dfr(results_list, function(res) {
+    if (is.null(res$group)) {
+      return(NULL)
+    }
+
+    tibble(
+      partition = res$partition,
+      cohort_time_index = as.integer(res$group$egt),
+      att = res$group$att.egt,
+      se = res$group$se.egt
+    ) %>%
+      left_join(lookup_df, by = "cohort_time_index") %>%
+      left_join(counts_df, by = "cohort_time_index") %>%
+      mutate(
+        ci_lo = att - 1.96 * se,
+        ci_hi = att + 1.96 * se,
+        p_val = 2 * pnorm(-abs(att / se)),
+        sig = sig_stars(p_val)
+      ) %>%
+      select(
+        partition,
+        cohort_events,
+        year,
+        quarter,
+        cohort_time_index,
+        cohort_treated_munis,
+        att,
+        se,
+        ci_lo,
+        ci_hi,
+        p_val,
+        sig
+      ) %>%
+      arrange(partition, cohort_time_index)
+  })
+}
+
+save_event_study_plots <- function(results_list, spec_slug, spec_label) {
+  purrr::walk(results_list, function(res) {
+    if (is.null(res$es)) {
+      return(invisible(NULL))
+    }
+
+    plot_obj <- ggdid(res$es) +
+      labs(
+        title = paste("Event Study - PGA Partition:", res$partition),
+        subtitle = paste0(
+          "CS (2021) | ",
+          spec_label,
+          " | ",
+          res$n_treated,
+          " treated, ",
+          res$n_controls,
+          " control munis"
+        ),
+        x = "Quarters relative to earthquake",
+        y = "ATT (Inverse hyperbolic sine remittances)"
+      ) +
+      theme_bw(base_size = 11) +
+      theme(
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, size = 8),
+        legend.position = "bottom"
+      )
+
+    file_stub <- gsub("[^A-Za-z0-9]+", "_", res$partition)
+    safe_save_plot(
+      plot_obj,
+      file.path(plot_dir, paste0("receiver_event_study_", spec_slug, "_", file_stub, ".png"))
+    )
+  })
+}
+
+save_att_plot <- function(att_df, spec_slug, title_text, subtitle_text) {
+  if (nrow(att_df) == 0) {
+    return(invisible(NULL))
+  }
+
+  plot_obj <- ggplot(att_df, aes(x = partition, y = att)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_errorbar(
+      aes(ymin = ci_lo, ymax = ci_hi),
+      width = 0.15,
+      color = "steelblue",
+      linewidth = 0.8
+    ) +
+    geom_point(color = "steelblue", size = 3) +
+    geom_text(aes(label = sig, y = ci_hi + 0.01), size = 5, color = "steelblue") +
+    labs(
+      title = title_text,
+      subtitle = subtitle_text,
+      x = "PGA Partition (%g)",
+      y = "ATT (Inverse hyperbolic sine remittances)"
+    ) +
+    theme_bw() +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5)
+    )
+
+  safe_save_plot(
+    plot_obj,
+    file.path(plot_dir, paste0("receiver_att_comparison_", spec_slug, ".png")),
+    width = 6.5,
+    height = 4.5
+  )
+}
+
 run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
                              pre_window = -10, post_window = 10) {
   treated_in_partition <- data %>%
@@ -150,6 +297,11 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
     error = function(e) NULL
   )
 
+  group <- tryCatch(
+    aggte(cs_out, type = "group", na.rm = TRUE),
+    error = function(e) NULL
+  )
+
   agg <- NULL
   if (!is.null(es)) {
     post_idx <- which(es$egt >= 0 & es$egt <= post_window)
@@ -168,7 +320,8 @@ run_cs_partition <- function(data, pga_lo, pga_hi, partition_label,
     n_cohorts = n_cohorts,
     cs_out = cs_out,
     agg = agg,
-    es = es
+    es = es,
+    group = group
   )
 }
 
@@ -204,17 +357,18 @@ att_table <- purrr::map_dfr(cs_results, function(res) {
   )
 }) %>%
   mutate(
-    sig = case_when(
-      p_val < 0.01 ~ "***",
-      p_val < 0.05 ~ "**",
-      p_val < 0.10 ~ "*",
-      TRUE ~ ""
-    ),
+    sig = sig_stars(p_val),
     partition = factor(partition, levels = c("4-10", "10-20", "20+"))
   ) %>%
   arrange(partition)
 
 safe_write_csv(att_table, file.path(output_dir, "receiver_att_table_calibrated.csv"))
+
+cohort_att_table <- build_cohort_table(cs_results, cohort_lookup, cohort_counts)
+safe_write_csv(
+  cohort_att_table,
+  file.path(output_dir, "receiver_att_by_cohort_calibrated.csv")
+)
 
 dynamic_baseline <- purrr::map_dfr(cs_results, function(res) {
   if (is.null(res$es)) {
@@ -230,6 +384,13 @@ dynamic_baseline <- purrr::map_dfr(cs_results, function(res) {
   )
 })
 safe_write_csv(dynamic_baseline, file.path(output_dir, "receiver_event_study_baseline_calibrated.csv"))
+save_event_study_plots(cs_results, "baseline", "never-treated controls")
+save_att_plot(
+  att_table,
+  "baseline",
+  "CS ATT by PGA Partition",
+  "Callaway & Sant'Anna (2021) | calibrated receiver panel | never-treated controls"
+)
 
 message("Running low-dose-controls robustness specification...")
 panel_cs_ld <- panel %>%
@@ -298,6 +459,11 @@ run_cs_partition_ld <- function(data, pga_lo, pga_hi, partition_label,
     error = function(e) NULL
   )
 
+  group <- tryCatch(
+    aggte(cs_out, type = "group", na.rm = TRUE),
+    error = function(e) NULL
+  )
+
   agg <- NULL
   if (!is.null(es)) {
     post_idx <- which(es$egt >= 0 & es$egt <= post_window)
@@ -316,7 +482,8 @@ run_cs_partition_ld <- function(data, pga_lo, pga_hi, partition_label,
     n_cohorts = n_cohorts,
     cs_out = cs_out,
     agg = agg,
-    es = es
+    es = es,
+    group = group
   )
 }
 
@@ -351,17 +518,18 @@ att_table_ld <- purrr::map_dfr(cs_results_ld, function(res) {
   )
 }) %>%
   mutate(
-    sig = case_when(
-      p_val < 0.01 ~ "***",
-      p_val < 0.05 ~ "**",
-      p_val < 0.10 ~ "*",
-      TRUE ~ ""
-    ),
+    sig = sig_stars(p_val),
     partition = factor(partition, levels = c("10-20", "20+"))
   ) %>%
   arrange(partition)
 
 safe_write_csv(att_table_ld, file.path(output_dir, "receiver_att_table_low_dose_controls_calibrated.csv"))
+
+cohort_att_table_ld <- build_cohort_table(cs_results_ld, cohort_lookup, cohort_counts)
+safe_write_csv(
+  cohort_att_table_ld,
+  file.path(output_dir, "receiver_att_by_cohort_low_dose_controls_calibrated.csv")
+)
 
 dynamic_ld <- purrr::map_dfr(cs_results_ld, function(res) {
   if (is.null(res$es)) {
@@ -377,6 +545,13 @@ dynamic_ld <- purrr::map_dfr(cs_results_ld, function(res) {
   )
 })
 safe_write_csv(dynamic_ld, file.path(output_dir, "receiver_event_study_low_dose_controls_calibrated.csv"))
+save_event_study_plots(cs_results_ld, "low_dose_controls", "low-dose (4-10) controls")
+save_att_plot(
+  att_table_ld,
+  "low_dose_controls",
+  "CS ATT by PGA Partition (low-dose controls)",
+  "Callaway & Sant'Anna (2021) | calibrated receiver panel | low-dose controls"
+)
 
 message("Running spillover regressions with the same specifications...")
 W_geo <- readRDS(file.path(input_dir, "W_geo.rds"))
@@ -479,11 +654,23 @@ summary_lines <- c(
   "## Baseline ATT estimates",
   capture.output(print(att_table)),
   "",
+  "## Baseline ATT by cohort",
+  capture.output(print(cohort_att_table)),
+  "",
   "## Low-dose-controls ATT estimates",
   capture.output(print(att_table_ld)),
   "",
+  "## Low-dose-controls ATT by cohort",
+  capture.output(print(cohort_att_table_ld)),
+  "",
   "## Spillover coefficients",
-  capture.output(print(spillover_table))
+  capture.output(print(spillover_table)),
+  "",
+  "## Saved event-study and ATT plots",
+  "- output/plots/receiver_event_study_baseline_*.png",
+  "- output/plots/receiver_event_study_low_dose_controls_*.png",
+  "- output/plots/receiver_att_comparison_baseline.png",
+  "- output/plots/receiver_att_comparison_low_dose_controls.png"
 )
 
 writeLines(summary_lines, file.path(output_dir, "receiver_side_calibrated_summary.md"))
