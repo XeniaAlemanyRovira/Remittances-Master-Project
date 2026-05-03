@@ -1,0 +1,2432 @@
+state,municipality,matched_quarters,total_quarters,fully_matched
+Chiapas,Cintalapa,0,48,FALSE
+Chihuahua,Rosario,0,48,FALSE
+Guanajuato,Dolores Hidalgo Cuna de la Independencia Nacional,0,48,FALSE
+Guerrero,Apaxtla,0,48,FALSE
+Oaxaca,Miahuatlán de Porfirio Díaz,0,48,FALSE
+Oaxaca,San Blas Atempa,0,48,FALSE
+Oaxaca,San Juan Mixtepec -Dto. 08 -,0,48,FALSE
+Oaxaca,San Juan Mixtepec -Dto. 26 -,0,48,FALSE
+Oaxaca,San Martín de los Cansecos,0,48,FALSE
+Oaxaca,San Pedro Mixtepec -Dto. 22 -,0,48,FALSE
+Oaxaca,San Pedro Mixtepec -Dto. 26 -,0,48,FALSE
+Oaxaca,Santiago Chazumba,0,48,FALSE
+Oaxaca,Santo Domingo Tonaltepec,0,48,FALSE
+Oaxaca,Villa Hidalgo,0,48,FALSE
+Oaxaca,Zapotitlán del Río,0,48,FALSE
+San Luis Potosí,Ahualulco,0,48,FALSE
+Tlaxcala,Altzayanca,0,48,FALSE
+Aguascalientes,Aguascalientes,48,48,TRUE
+Aguascalientes,Asientos,48,48,TRUE
+Aguascalientes,Calvillo,48,48,TRUE
+Aguascalientes,Cosío,48,48,TRUE
+Aguascalientes,El Llano,48,48,TRUE
+Aguascalientes,Jesús María,48,48,TRUE
+Aguascalientes,Pabellón de Arteaga,48,48,TRUE
+Aguascalientes,Rincón de Romos,48,48,TRUE
+Aguascalientes,San Francisco de los Romo,48,48,TRUE
+Aguascalientes,San José de Gracia,48,48,TRUE
+Aguascalientes,Tepezalá,48,48,TRUE
+Baja California,Ensenada,48,48,TRUE
+Baja California,Mexicali,48,48,TRUE
+Baja California,Playas de Rosarito,48,48,TRUE
+Baja California,Tecate,48,48,TRUE
+Baja California,Tijuana,48,48,TRUE
+Baja California Sur,Comondú,48,48,TRUE
+Baja California Sur,La Paz,48,48,TRUE
+Baja California Sur,Loreto,48,48,TRUE
+Baja California Sur,Los Cabos,48,48,TRUE
+Baja California Sur,Mulegé,48,48,TRUE
+Campeche,Calakmul,48,48,TRUE
+Campeche,Calkiní,48,48,TRUE
+Campeche,Campeche,48,48,TRUE
+Campeche,Candelaria,48,48,TRUE
+Campeche,Carmen,48,48,TRUE
+Campeche,Champotón,48,48,TRUE
+Campeche,Escárcega,48,48,TRUE
+Campeche,Hecelchakán,48,48,TRUE
+Campeche,Hopelchén,48,48,TRUE
+Campeche,Palizada,48,48,TRUE
+Campeche,Tenabo,48,48,TRUE
+Chiapas,Acacoyagua,48,48,TRUE
+Chiapas,Acala,48,48,TRUE
+Chiapas,Acapetahua,48,48,TRUE
+Chiapas,Aldama,48,48,TRUE
+Chiapas,Altamirano,48,48,TRUE
+Chiapas,Amatenango de la Frontera,48,48,TRUE
+Chiapas,Amatenango del Valle,48,48,TRUE
+Chiapas,Amatán,48,48,TRUE
+Chiapas,Angel Albino Corzo,48,48,TRUE
+Chiapas,Arriaga,48,48,TRUE
+Chiapas,Bejucal de Ocampo,48,48,TRUE
+Chiapas,Bella Vista,48,48,TRUE
+Chiapas,Benemérito de las Américas,48,48,TRUE
+Chiapas,Berriozábal,48,48,TRUE
+Chiapas,Bochil,48,48,TRUE
+Chiapas,Cacahoatán,48,48,TRUE
+Chiapas,Catazajá,48,48,TRUE
+Chiapas,Chalchihuitán,48,48,TRUE
+Chiapas,Chamula,48,48,TRUE
+Chiapas,Chanal,48,48,TRUE
+Chiapas,Chapultenango,48,48,TRUE
+Chiapas,Chenalhó,48,48,TRUE
+Chiapas,Chiapa de Corzo,48,48,TRUE
+Chiapas,Chiapilla,48,48,TRUE
+Chiapas,Chicoasén,48,48,TRUE
+Chiapas,Chicomuselo,48,48,TRUE
+Chiapas,Chilón,48,48,TRUE
+Chiapas,Coapilla,48,48,TRUE
+Chiapas,Comitán de Domínguez,48,48,TRUE
+Chiapas,Copainalá,48,48,TRUE
+Chiapas,El Bosque,48,48,TRUE
+Chiapas,El Porvenir,48,48,TRUE
+Chiapas,Escuintla,48,48,TRUE
+Chiapas,Francisco León,48,48,TRUE
+Chiapas,Frontera Comalapa,48,48,TRUE
+Chiapas,Frontera Hidalgo,48,48,TRUE
+Chiapas,Huehuetán,48,48,TRUE
+Chiapas,Huitiupán,48,48,TRUE
+Chiapas,Huixtla,48,48,TRUE
+Chiapas,Huixtán,48,48,TRUE
+Chiapas,Ixhuatán,48,48,TRUE
+Chiapas,Ixtacomitán,48,48,TRUE
+Chiapas,Ixtapa,48,48,TRUE
+Chiapas,Ixtapangajoya,48,48,TRUE
+Chiapas,Jitotol,48,48,TRUE
+Chiapas,Juárez,48,48,TRUE
+Chiapas,La Concordia,48,48,TRUE
+Chiapas,La Grandeza,48,48,TRUE
+Chiapas,La Independencia,48,48,TRUE
+Chiapas,La Libertad,48,48,TRUE
+Chiapas,La Trinitaria,48,48,TRUE
+Chiapas,Larráinzar,48,48,TRUE
+Chiapas,Las Margaritas,48,48,TRUE
+Chiapas,Las Rosas,48,48,TRUE
+Chiapas,Mapastepec,48,48,TRUE
+Chiapas,Maravilla Tenejapa,48,48,TRUE
+Chiapas,Marqués de Comillas,48,48,TRUE
+Chiapas,Mazapa de Madero,48,48,TRUE
+Chiapas,Mazatán,48,48,TRUE
+Chiapas,Metapa,48,48,TRUE
+Chiapas,Mitontic,48,48,TRUE
+Chiapas,Montecristo de Guerrero,48,48,TRUE
+Chiapas,Motozintla,48,48,TRUE
+Chiapas,Nicolás Ruíz,48,48,TRUE
+Chiapas,Ocosingo,48,48,TRUE
+Chiapas,Ocotepec,48,48,TRUE
+Chiapas,Ocozocoautla de Espinosa,48,48,TRUE
+Chiapas,Ostuacán,48,48,TRUE
+Chiapas,Osumacinta,48,48,TRUE
+Chiapas,Oxchuc,48,48,TRUE
+Chiapas,Palenque,48,48,TRUE
+Chiapas,Pantelhó,48,48,TRUE
+Chiapas,Pantepec,48,48,TRUE
+Chiapas,Pichucalco,48,48,TRUE
+Chiapas,Pijijiapan,48,48,TRUE
+Chiapas,Pueblo Nuevo Solistahuacán,48,48,TRUE
+Chiapas,Rayón,48,48,TRUE
+Chiapas,Reforma,48,48,TRUE
+Chiapas,Sabanilla,48,48,TRUE
+Chiapas,Salto de Agua,48,48,TRUE
+Chiapas,San Andrés Duraznal,48,48,TRUE
+Chiapas,San Cristóbal de las Casas,48,48,TRUE
+Chiapas,San Fernando,48,48,TRUE
+Chiapas,San Juan Cancuc,48,48,TRUE
+Chiapas,San Lucas,48,48,TRUE
+Chiapas,Santiago el Pinar,48,48,TRUE
+Chiapas,Siltepec,48,48,TRUE
+Chiapas,Simojovel,48,48,TRUE
+Chiapas,Sitalá,48,48,TRUE
+Chiapas,Socoltenango,48,48,TRUE
+Chiapas,Solosuchiapa,48,48,TRUE
+Chiapas,Soyaló,48,48,TRUE
+Chiapas,Suchiapa,48,48,TRUE
+Chiapas,Suchiate,48,48,TRUE
+Chiapas,Sunuapa,48,48,TRUE
+Chiapas,Tapachula,48,48,TRUE
+Chiapas,Tapalapa,48,48,TRUE
+Chiapas,Tapilula,48,48,TRUE
+Chiapas,Tecpatán,48,48,TRUE
+Chiapas,Tenejapa,48,48,TRUE
+Chiapas,Teopisca,48,48,TRUE
+Chiapas,Tila,48,48,TRUE
+Chiapas,Tonalá,48,48,TRUE
+Chiapas,Totolapa,48,48,TRUE
+Chiapas,Tumbalá,48,48,TRUE
+Chiapas,Tuxtla Chico,48,48,TRUE
+Chiapas,Tuxtla Gutiérrez,48,48,TRUE
+Chiapas,Tuzantán,48,48,TRUE
+Chiapas,Tzimol,48,48,TRUE
+Chiapas,Unión Juárez,48,48,TRUE
+Chiapas,Venustiano Carranza,48,48,TRUE
+Chiapas,Villa Comaltitlán,48,48,TRUE
+Chiapas,Villa Corzo,48,48,TRUE
+Chiapas,Villaflores,48,48,TRUE
+Chiapas,Yajalón,48,48,TRUE
+Chiapas,Zinacantán,48,48,TRUE
+Chihuahua,Ahumada,48,48,TRUE
+Chihuahua,Aldama,48,48,TRUE
+Chihuahua,Allende,48,48,TRUE
+Chihuahua,Aquiles Serdán,48,48,TRUE
+Chihuahua,Ascensión,48,48,TRUE
+Chihuahua,Bachíniva,48,48,TRUE
+Chihuahua,Balleza,48,48,TRUE
+Chihuahua,Batopilas,48,48,TRUE
+Chihuahua,Bocoyna,48,48,TRUE
+Chihuahua,Buenaventura,48,48,TRUE
+Chihuahua,Camargo,48,48,TRUE
+Chihuahua,Carichí,48,48,TRUE
+Chihuahua,Casas Grandes,48,48,TRUE
+Chihuahua,Chihuahua,48,48,TRUE
+Chihuahua,Chínipas,48,48,TRUE
+Chihuahua,Coronado,48,48,TRUE
+Chihuahua,Coyame del Sotol,48,48,TRUE
+Chihuahua,Cuauhtémoc,48,48,TRUE
+Chihuahua,Cusihuiriachi,48,48,TRUE
+Chihuahua,Delicias,48,48,TRUE
+Chihuahua,Dr. Belisario Domínguez,48,48,TRUE
+Chihuahua,El Tule,48,48,TRUE
+Chihuahua,Galeana,48,48,TRUE
+Chihuahua,Gran Morelos,48,48,TRUE
+Chihuahua,Guachochi,48,48,TRUE
+Chihuahua,Guadalupe,48,48,TRUE
+Chihuahua,Guadalupe y Calvo,48,48,TRUE
+Chihuahua,Guazapares,48,48,TRUE
+Chihuahua,Guerrero,48,48,TRUE
+Chihuahua,Gómez Farías,48,48,TRUE
+Chihuahua,Hidalgo del Parral,48,48,TRUE
+Chihuahua,Huejotitán,48,48,TRUE
+Chihuahua,Ignacio Zaragoza,48,48,TRUE
+Chihuahua,Janos,48,48,TRUE
+Chihuahua,Jiménez,48,48,TRUE
+Chihuahua,Julimes,48,48,TRUE
+Chihuahua,Juárez,48,48,TRUE
+Chihuahua,La Cruz,48,48,TRUE
+Chihuahua,López,48,48,TRUE
+Chihuahua,Madera,48,48,TRUE
+Chihuahua,Maguarichi,48,48,TRUE
+Chihuahua,Manuel Benavides,48,48,TRUE
+Chihuahua,Matachí,48,48,TRUE
+Chihuahua,Matamoros,48,48,TRUE
+Chihuahua,Meoqui,48,48,TRUE
+Chihuahua,Morelos,48,48,TRUE
+Chihuahua,Moris,48,48,TRUE
+Chihuahua,Namiquipa,48,48,TRUE
+Chihuahua,Nonoava,48,48,TRUE
+Chihuahua,Nuevo Casas Grandes,48,48,TRUE
+Chihuahua,Ocampo,48,48,TRUE
+Chihuahua,Ojinaga,48,48,TRUE
+Chihuahua,Praxedis G. Guerrero,48,48,TRUE
+Chihuahua,Riva Palacio,48,48,TRUE
+Chihuahua,Rosales,48,48,TRUE
+Chihuahua,San Francisco de Borja,48,48,TRUE
+Chihuahua,San Francisco de Conchos,48,48,TRUE
+Chihuahua,San Francisco del Oro,48,48,TRUE
+Chihuahua,Santa Bárbara,48,48,TRUE
+Chihuahua,Santa Isabel,48,48,TRUE
+Chihuahua,Satevó,48,48,TRUE
+Chihuahua,Saucillo,48,48,TRUE
+Chihuahua,Urique,48,48,TRUE
+Chihuahua,Uruachi,48,48,TRUE
+Chihuahua,Valle de Zaragoza,48,48,TRUE
+Ciudad de México,Azcapotzalco,48,48,TRUE
+Ciudad de México,Benito Juárez,48,48,TRUE
+Ciudad de México,Coyoacán,48,48,TRUE
+Ciudad de México,Cuajimalpa de Morelos,48,48,TRUE
+Ciudad de México,Cuauhtémoc,48,48,TRUE
+Ciudad de México,Gustavo A. Madero,48,48,TRUE
+Ciudad de México,Iztacalco,48,48,TRUE
+Ciudad de México,Iztapalapa,48,48,TRUE
+Ciudad de México,La Magdalena Contreras,48,48,TRUE
+Ciudad de México,Miguel Hidalgo,48,48,TRUE
+Ciudad de México,Milpa Alta,48,48,TRUE
+Ciudad de México,Tlalpan,48,48,TRUE
+Ciudad de México,Tláhuac,48,48,TRUE
+Ciudad de México,Venustiano Carranza,48,48,TRUE
+Ciudad de México,Xochimilco,48,48,TRUE
+Ciudad de México,Álvaro Obregón,48,48,TRUE
+Coahuila,Abasolo,48,48,TRUE
+Coahuila,Acuña,48,48,TRUE
+Coahuila,Allende,48,48,TRUE
+Coahuila,Arteaga,48,48,TRUE
+Coahuila,Candela,48,48,TRUE
+Coahuila,Castaños,48,48,TRUE
+Coahuila,Cuatro Ciénegas,48,48,TRUE
+Coahuila,Escobedo,48,48,TRUE
+Coahuila,Francisco I. Madero,48,48,TRUE
+Coahuila,Frontera,48,48,TRUE
+Coahuila,General Cepeda,48,48,TRUE
+Coahuila,Guerrero,48,48,TRUE
+Coahuila,Hidalgo,48,48,TRUE
+Coahuila,Jiménez,48,48,TRUE
+Coahuila,Juárez,48,48,TRUE
+Coahuila,Lamadrid,48,48,TRUE
+Coahuila,Matamoros,48,48,TRUE
+Coahuila,Monclova,48,48,TRUE
+Coahuila,Morelos,48,48,TRUE
+Coahuila,Múzquiz,48,48,TRUE
+Coahuila,Nadadores,48,48,TRUE
+Coahuila,Nava,48,48,TRUE
+Coahuila,Ocampo,48,48,TRUE
+Coahuila,Parras,48,48,TRUE
+Coahuila,Piedras Negras,48,48,TRUE
+Coahuila,Progreso,48,48,TRUE
+Coahuila,Ramos Arizpe,48,48,TRUE
+Coahuila,Sabinas,48,48,TRUE
+Coahuila,Sacramento,48,48,TRUE
+Coahuila,Saltillo,48,48,TRUE
+Coahuila,San Buenaventura,48,48,TRUE
+Coahuila,San Juan de Sabinas,48,48,TRUE
+Coahuila,San Pedro,48,48,TRUE
+Coahuila,Sierra Mojada,48,48,TRUE
+Coahuila,Torreón,48,48,TRUE
+Coahuila,Viesca,48,48,TRUE
+Coahuila,Villa Unión,48,48,TRUE
+Coahuila,Zaragoza,48,48,TRUE
+Colima,Armería,48,48,TRUE
+Colima,Colima,48,48,TRUE
+Colima,Comala,48,48,TRUE
+Colima,Coquimatlán,48,48,TRUE
+Colima,Cuauhtémoc,48,48,TRUE
+Colima,Ixtlahuacán,48,48,TRUE
+Colima,Manzanillo,48,48,TRUE
+Colima,Minatitlán,48,48,TRUE
+Colima,Tecomán,48,48,TRUE
+Colima,Villa de Álvarez,48,48,TRUE
+Durango,Canatlán,48,48,TRUE
+Durango,Canelas,48,48,TRUE
+Durango,Coneto de Comonfort,48,48,TRUE
+Durango,Cuencamé,48,48,TRUE
+Durango,Durango,48,48,TRUE
+Durango,El Oro,48,48,TRUE
+Durango,General Simón Bolívar,48,48,TRUE
+Durango,Guadalupe Victoria,48,48,TRUE
+Durango,Guanaceví,48,48,TRUE
+Durango,Gómez Palacio,48,48,TRUE
+Durango,Hidalgo,48,48,TRUE
+Durango,Indé,48,48,TRUE
+Durango,Lerdo,48,48,TRUE
+Durango,Mapimí,48,48,TRUE
+Durango,Mezquital,48,48,TRUE
+Durango,Nazas,48,48,TRUE
+Durango,Nombre de Dios,48,48,TRUE
+Durango,Nuevo Ideal,48,48,TRUE
+Durango,Ocampo,48,48,TRUE
+Durango,Otáez,48,48,TRUE
+Durango,Peñón Blanco,48,48,TRUE
+Durango,Poanas,48,48,TRUE
+Durango,Pueblo Nuevo,48,48,TRUE
+Durango,Pánuco de Coronado,48,48,TRUE
+Durango,Rodeo,48,48,TRUE
+Durango,San Bernardo,48,48,TRUE
+Durango,San Dimas,48,48,TRUE
+Durango,San Juan de Guadalupe,48,48,TRUE
+Durango,San Juan del Río,48,48,TRUE
+Durango,San Luis del Cordero,48,48,TRUE
+Durango,San Pedro del Gallo,48,48,TRUE
+Durango,Santa Clara,48,48,TRUE
+Durango,Santiago Papasquiaro,48,48,TRUE
+Durango,Súchil,48,48,TRUE
+Durango,Tamazula,48,48,TRUE
+Durango,Tepehuanes,48,48,TRUE
+Durango,Tlahualilo,48,48,TRUE
+Durango,Topia,48,48,TRUE
+Durango,Vicente Guerrero,48,48,TRUE
+Guanajuato,Abasolo,48,48,TRUE
+Guanajuato,Acámbaro,48,48,TRUE
+Guanajuato,Apaseo el Alto,48,48,TRUE
+Guanajuato,Apaseo el Grande,48,48,TRUE
+Guanajuato,Atarjea,48,48,TRUE
+Guanajuato,Celaya,48,48,TRUE
+Guanajuato,Comonfort,48,48,TRUE
+Guanajuato,Coroneo,48,48,TRUE
+Guanajuato,Cortazar,48,48,TRUE
+Guanajuato,Cuerámaro,48,48,TRUE
+Guanajuato,Doctor Mora,48,48,TRUE
+Guanajuato,Guanajuato,48,48,TRUE
+Guanajuato,Huanímaro,48,48,TRUE
+Guanajuato,Irapuato,48,48,TRUE
+Guanajuato,Jaral del Progreso,48,48,TRUE
+Guanajuato,Jerécuaro,48,48,TRUE
+Guanajuato,León,48,48,TRUE
+Guanajuato,Manuel Doblado,48,48,TRUE
+Guanajuato,Moroleón,48,48,TRUE
+Guanajuato,Ocampo,48,48,TRUE
+Guanajuato,Pueblo Nuevo,48,48,TRUE
+Guanajuato,Purísima del Rincón,48,48,TRUE
+Guanajuato,Pénjamo,48,48,TRUE
+Guanajuato,Romita,48,48,TRUE
+Guanajuato,Salamanca,48,48,TRUE
+Guanajuato,Salvatierra,48,48,TRUE
+Guanajuato,San Diego de la Unión,48,48,TRUE
+Guanajuato,San Felipe,48,48,TRUE
+Guanajuato,San Francisco del Rincón,48,48,TRUE
+Guanajuato,San José Iturbide,48,48,TRUE
+Guanajuato,San Luis de la Paz,48,48,TRUE
+Guanajuato,San Miguel de Allende,48,48,TRUE
+Guanajuato,Santa Catarina,48,48,TRUE
+Guanajuato,Santa Cruz de Juventino Rosas,48,48,TRUE
+Guanajuato,Santiago Maravatío,48,48,TRUE
+Guanajuato,Silao de la Victoria,48,48,TRUE
+Guanajuato,Tarandacuao,48,48,TRUE
+Guanajuato,Tarimoro,48,48,TRUE
+Guanajuato,Tierra Blanca,48,48,TRUE
+Guanajuato,Uriangato,48,48,TRUE
+Guanajuato,Valle de Santiago,48,48,TRUE
+Guanajuato,Victoria,48,48,TRUE
+Guanajuato,Villagrán,48,48,TRUE
+Guanajuato,Xichú,48,48,TRUE
+Guanajuato,Yuriria,48,48,TRUE
+Guerrero,Acapulco de Juárez,48,48,TRUE
+Guerrero,Acatepec,48,48,TRUE
+Guerrero,Ahuacuotzingo,48,48,TRUE
+Guerrero,Ajuchitlán del Progreso,48,48,TRUE
+Guerrero,Alcozauca de Guerrero,48,48,TRUE
+Guerrero,Alpoyeca,48,48,TRUE
+Guerrero,Arcelia,48,48,TRUE
+Guerrero,Atenango del Río,48,48,TRUE
+Guerrero,Atlamajalcingo del Monte,48,48,TRUE
+Guerrero,Atlixtac,48,48,TRUE
+Guerrero,Atoyac de Álvarez,48,48,TRUE
+Guerrero,Ayutla de los Libres,48,48,TRUE
+Guerrero,Azoyú,48,48,TRUE
+Guerrero,Benito Juárez,48,48,TRUE
+Guerrero,Buenavista de Cuéllar,48,48,TRUE
+Guerrero,Chilapa de Álvarez,48,48,TRUE
+Guerrero,Chilpancingo de los Bravo,48,48,TRUE
+Guerrero,Coahuayutla de José María Izazaga,48,48,TRUE
+Guerrero,Cochoapa el Grande,48,48,TRUE
+Guerrero,Cocula,48,48,TRUE
+Guerrero,Copala,48,48,TRUE
+Guerrero,Copalillo,48,48,TRUE
+Guerrero,Copanatoyac,48,48,TRUE
+Guerrero,Coyuca de Benítez,48,48,TRUE
+Guerrero,Coyuca de Catalán,48,48,TRUE
+Guerrero,Cuajinicuilapa,48,48,TRUE
+Guerrero,Cualác,48,48,TRUE
+Guerrero,Cuautepec,48,48,TRUE
+Guerrero,Cuetzala del Progreso,48,48,TRUE
+Guerrero,Cutzamala de Pinzón,48,48,TRUE
+Guerrero,Eduardo Neri,48,48,TRUE
+Guerrero,Florencio Villarreal,48,48,TRUE
+Guerrero,General Canuto A. Neri,48,48,TRUE
+Guerrero,General Heliodoro Castillo,48,48,TRUE
+Guerrero,Huamuxtitlán,48,48,TRUE
+Guerrero,Huitzuco de los Figueroa,48,48,TRUE
+Guerrero,Iguala de la Independencia,48,48,TRUE
+Guerrero,Igualapa,48,48,TRUE
+Guerrero,Iliatenco,48,48,TRUE
+Guerrero,Ixcateopan de Cuauhtémoc,48,48,TRUE
+Guerrero,José Joaquín de Herrera,48,48,TRUE
+Guerrero,Juan R. Escudero,48,48,TRUE
+Guerrero,Juchitán,48,48,TRUE
+Guerrero,La Unión de Isidoro Montes de Oca,48,48,TRUE
+Guerrero,Leonardo Bravo,48,48,TRUE
+Guerrero,Malinaltepec,48,48,TRUE
+Guerrero,Marquelia,48,48,TRUE
+Guerrero,Metlatónoc,48,48,TRUE
+Guerrero,Mochitlán,48,48,TRUE
+Guerrero,Mártir de Cuilapan,48,48,TRUE
+Guerrero,Olinalá,48,48,TRUE
+Guerrero,Ometepec,48,48,TRUE
+Guerrero,Pedro Ascencio Alquisiras,48,48,TRUE
+Guerrero,Petatlán,48,48,TRUE
+Guerrero,Pilcaya,48,48,TRUE
+Guerrero,Pungarabato,48,48,TRUE
+Guerrero,Quechultenango,48,48,TRUE
+Guerrero,San Luis Acatlán,48,48,TRUE
+Guerrero,San Marcos,48,48,TRUE
+Guerrero,San Miguel Totolapan,48,48,TRUE
+Guerrero,Taxco de Alarcón,48,48,TRUE
+Guerrero,Tecoanapa,48,48,TRUE
+Guerrero,Teloloapan,48,48,TRUE
+Guerrero,Tepecoacuilco de Trujano,48,48,TRUE
+Guerrero,Tetipac,48,48,TRUE
+Guerrero,Tixtla de Guerrero,48,48,TRUE
+Guerrero,Tlacoachistlahuaca,48,48,TRUE
+Guerrero,Tlacoapa,48,48,TRUE
+Guerrero,Tlalchapa,48,48,TRUE
+Guerrero,Tlalixtaquilla de Maldonado,48,48,TRUE
+Guerrero,Tlapa de Comonfort,48,48,TRUE
+Guerrero,Tlapehuala,48,48,TRUE
+Guerrero,Técpan de Galeana,48,48,TRUE
+Guerrero,Xalpatláhuac,48,48,TRUE
+Guerrero,Xochihuehuetlán,48,48,TRUE
+Guerrero,Xochistlahuaca,48,48,TRUE
+Guerrero,Zapotitlán Tablas,48,48,TRUE
+Guerrero,Zirándaro,48,48,TRUE
+Guerrero,Zitlala,48,48,TRUE
+Hidalgo,Acatlán,48,48,TRUE
+Hidalgo,Acaxochitlán,48,48,TRUE
+Hidalgo,Actopan,48,48,TRUE
+Hidalgo,Agua Blanca de Iturbide,48,48,TRUE
+Hidalgo,Ajacuba,48,48,TRUE
+Hidalgo,Alfajayucan,48,48,TRUE
+Hidalgo,Almoloya,48,48,TRUE
+Hidalgo,Apan,48,48,TRUE
+Hidalgo,Atitalaquia,48,48,TRUE
+Hidalgo,Atlapexco,48,48,TRUE
+Hidalgo,Atotonilco de Tula,48,48,TRUE
+Hidalgo,Atotonilco el Grande,48,48,TRUE
+Hidalgo,Calnali,48,48,TRUE
+Hidalgo,Cardonal,48,48,TRUE
+Hidalgo,Chapantongo,48,48,TRUE
+Hidalgo,Chapulhuacán,48,48,TRUE
+Hidalgo,Chilcuautla,48,48,TRUE
+Hidalgo,Cuautepec de Hinojosa,48,48,TRUE
+Hidalgo,El Arenal,48,48,TRUE
+Hidalgo,Eloxochitlán,48,48,TRUE
+Hidalgo,Emiliano Zapata,48,48,TRUE
+Hidalgo,Epazoyucan,48,48,TRUE
+Hidalgo,Francisco I. Madero,48,48,TRUE
+Hidalgo,Huasca de Ocampo,48,48,TRUE
+Hidalgo,Huautla,48,48,TRUE
+Hidalgo,Huazalingo,48,48,TRUE
+Hidalgo,Huehuetla,48,48,TRUE
+Hidalgo,Huejutla de Reyes,48,48,TRUE
+Hidalgo,Huichapan,48,48,TRUE
+Hidalgo,Ixmiquilpan,48,48,TRUE
+Hidalgo,Jacala de Ledezma,48,48,TRUE
+Hidalgo,Jaltocán,48,48,TRUE
+Hidalgo,Juárez Hidalgo,48,48,TRUE
+Hidalgo,La Misión,48,48,TRUE
+Hidalgo,Lolotla,48,48,TRUE
+Hidalgo,Metepec,48,48,TRUE
+Hidalgo,Metztitlán,48,48,TRUE
+Hidalgo,Mineral de la Reforma,48,48,TRUE
+Hidalgo,Mineral del Chico,48,48,TRUE
+Hidalgo,Mineral del Monte,48,48,TRUE
+Hidalgo,Mixquiahuala de Juárez,48,48,TRUE
+Hidalgo,Molango de Escamilla,48,48,TRUE
+Hidalgo,Nicolás Flores,48,48,TRUE
+Hidalgo,Nopala de Villagrán,48,48,TRUE
+Hidalgo,Omitlán de Juárez,48,48,TRUE
+Hidalgo,Pachuca de Soto,48,48,TRUE
+Hidalgo,Pacula,48,48,TRUE
+Hidalgo,Pisaflores,48,48,TRUE
+Hidalgo,Progreso de Obregón,48,48,TRUE
+Hidalgo,San Agustín Metzquititlán,48,48,TRUE
+Hidalgo,San Agustín Tlaxiaca,48,48,TRUE
+Hidalgo,San Bartolo Tutotepec,48,48,TRUE
+Hidalgo,San Felipe Orizatlán,48,48,TRUE
+Hidalgo,San Salvador,48,48,TRUE
+Hidalgo,Santiago Tulantepec de Lugo Guerrero,48,48,TRUE
+Hidalgo,Santiago de Anaya,48,48,TRUE
+Hidalgo,Singuilucan,48,48,TRUE
+Hidalgo,Tasquillo,48,48,TRUE
+Hidalgo,Tecozautla,48,48,TRUE
+Hidalgo,Tenango de Doria,48,48,TRUE
+Hidalgo,Tepeapulco,48,48,TRUE
+Hidalgo,Tepehuacán de Guerrero,48,48,TRUE
+Hidalgo,Tepeji del Río de Ocampo,48,48,TRUE
+Hidalgo,Tepetitlán,48,48,TRUE
+Hidalgo,Tetepango,48,48,TRUE
+Hidalgo,Tezontepec de Aldama,48,48,TRUE
+Hidalgo,Tianguistengo,48,48,TRUE
+Hidalgo,Tizayuca,48,48,TRUE
+Hidalgo,Tlahuelilpan,48,48,TRUE
+Hidalgo,Tlahuiltepa,48,48,TRUE
+Hidalgo,Tlanalapa,48,48,TRUE
+Hidalgo,Tlanchinol,48,48,TRUE
+Hidalgo,Tlaxcoapan,48,48,TRUE
+Hidalgo,Tolcayuca,48,48,TRUE
+Hidalgo,Tula de Allende,48,48,TRUE
+Hidalgo,Tulancingo de Bravo,48,48,TRUE
+Hidalgo,Villa de Tezontepec,48,48,TRUE
+Hidalgo,Xochiatipan,48,48,TRUE
+Hidalgo,Xochicoatlán,48,48,TRUE
+Hidalgo,Yahualica,48,48,TRUE
+Hidalgo,Zacualtipán de Ángeles,48,48,TRUE
+Hidalgo,Zapotlán de Juárez,48,48,TRUE
+Hidalgo,Zempoala,48,48,TRUE
+Hidalgo,Zimapán,48,48,TRUE
+Jalisco,Acatic,48,48,TRUE
+Jalisco,Acatlán de Juárez,48,48,TRUE
+Jalisco,Ahualulco de Mercado,48,48,TRUE
+Jalisco,Amacueca,48,48,TRUE
+Jalisco,Amatitán,48,48,TRUE
+Jalisco,Ameca,48,48,TRUE
+Jalisco,Arandas,48,48,TRUE
+Jalisco,Atemajac de Brizuela,48,48,TRUE
+Jalisco,Atengo,48,48,TRUE
+Jalisco,Atenguillo,48,48,TRUE
+Jalisco,Atotonilco el Alto,48,48,TRUE
+Jalisco,Atoyac,48,48,TRUE
+Jalisco,Autlán de Navarro,48,48,TRUE
+Jalisco,Ayotlán,48,48,TRUE
+Jalisco,Ayutla,48,48,TRUE
+Jalisco,Bolaños,48,48,TRUE
+Jalisco,Cabo Corrientes,48,48,TRUE
+Jalisco,Casimiro Castillo,48,48,TRUE
+Jalisco,Cañadas de Obregón,48,48,TRUE
+Jalisco,Chapala,48,48,TRUE
+Jalisco,Chimaltitán,48,48,TRUE
+Jalisco,Chiquilistlán,48,48,TRUE
+Jalisco,Cihuatlán,48,48,TRUE
+Jalisco,Cocula,48,48,TRUE
+Jalisco,Colotlán,48,48,TRUE
+Jalisco,Concepción de Buenos Aires,48,48,TRUE
+Jalisco,Cuautitlán de García Barragán,48,48,TRUE
+Jalisco,Cuautla,48,48,TRUE
+Jalisco,Cuquío,48,48,TRUE
+Jalisco,Degollado,48,48,TRUE
+Jalisco,Ejutla,48,48,TRUE
+Jalisco,El Arenal,48,48,TRUE
+Jalisco,El Grullo,48,48,TRUE
+Jalisco,El Limón,48,48,TRUE
+Jalisco,El Salto,48,48,TRUE
+Jalisco,Encarnación de Díaz,48,48,TRUE
+Jalisco,Etzatlán,48,48,TRUE
+Jalisco,Guachinango,48,48,TRUE
+Jalisco,Guadalajara,48,48,TRUE
+Jalisco,Gómez Farías,48,48,TRUE
+Jalisco,Hostotipaquillo,48,48,TRUE
+Jalisco,Huejuquilla el Alto,48,48,TRUE
+Jalisco,Huejúcar,48,48,TRUE
+Jalisco,Ixtlahuacán de los Membrillos,48,48,TRUE
+Jalisco,Ixtlahuacán del Río,48,48,TRUE
+Jalisco,Jalostotitlán,48,48,TRUE
+Jalisco,Jamay,48,48,TRUE
+Jalisco,Jesús María,48,48,TRUE
+Jalisco,Jilotlán de los Dolores,48,48,TRUE
+Jalisco,Jocotepec,48,48,TRUE
+Jalisco,Juanacatlán,48,48,TRUE
+Jalisco,Juchitlán,48,48,TRUE
+Jalisco,La Barca,48,48,TRUE
+Jalisco,La Huerta,48,48,TRUE
+Jalisco,La Manzanilla de la Paz,48,48,TRUE
+Jalisco,Lagos de Moreno,48,48,TRUE
+Jalisco,Magdalena,48,48,TRUE
+Jalisco,Mascota,48,48,TRUE
+Jalisco,Mazamitla,48,48,TRUE
+Jalisco,Mexticacán,48,48,TRUE
+Jalisco,Mezquitic,48,48,TRUE
+Jalisco,Mixtlán,48,48,TRUE
+Jalisco,Ocotlán,48,48,TRUE
+Jalisco,Ojuelos de Jalisco,48,48,TRUE
+Jalisco,Pihuamo,48,48,TRUE
+Jalisco,Poncitlán,48,48,TRUE
+Jalisco,Puerto Vallarta,48,48,TRUE
+Jalisco,Quitupan,48,48,TRUE
+Jalisco,San Cristóbal de la Barranca,48,48,TRUE
+Jalisco,San Diego de Alejandría,48,48,TRUE
+Jalisco,San Gabriel,48,48,TRUE
+Jalisco,San Ignacio Cerro Gordo,48,48,TRUE
+Jalisco,San Juan de los Lagos,48,48,TRUE
+Jalisco,San Juanito de Escobedo,48,48,TRUE
+Jalisco,San Julián,48,48,TRUE
+Jalisco,San Marcos,48,48,TRUE
+Jalisco,San Martín Hidalgo,48,48,TRUE
+Jalisco,San Martín de Bolaños,48,48,TRUE
+Jalisco,San Miguel el Alto,48,48,TRUE
+Jalisco,San Pedro Tlaquepaque,48,48,TRUE
+Jalisco,San Sebastián del Oeste,48,48,TRUE
+Jalisco,Santa María de los Ángeles,48,48,TRUE
+Jalisco,Santa María del Oro,48,48,TRUE
+Jalisco,Sayula,48,48,TRUE
+Jalisco,Tala,48,48,TRUE
+Jalisco,Talpa de Allende,48,48,TRUE
+Jalisco,Tamazula de Gordiano,48,48,TRUE
+Jalisco,Tapalpa,48,48,TRUE
+Jalisco,Tecalitlán,48,48,TRUE
+Jalisco,Techaluta de Montenegro,48,48,TRUE
+Jalisco,Tecolotlán,48,48,TRUE
+Jalisco,Tenamaxtlán,48,48,TRUE
+Jalisco,Teocaltiche,48,48,TRUE
+Jalisco,Teocuitatlán de Corona,48,48,TRUE
+Jalisco,Tepatitlán de Morelos,48,48,TRUE
+Jalisco,Tequila,48,48,TRUE
+Jalisco,Teuchitlán,48,48,TRUE
+Jalisco,Tizapán el Alto,48,48,TRUE
+Jalisco,Tlajomulco de Zúñiga,48,48,TRUE
+Jalisco,Tolimán,48,48,TRUE
+Jalisco,Tomatlán,48,48,TRUE
+Jalisco,Tonalá,48,48,TRUE
+Jalisco,Tonaya,48,48,TRUE
+Jalisco,Tonila,48,48,TRUE
+Jalisco,Totatiche,48,48,TRUE
+Jalisco,Tototlán,48,48,TRUE
+Jalisco,Tuxcacuesco,48,48,TRUE
+Jalisco,Tuxcueca,48,48,TRUE
+Jalisco,Tuxpan,48,48,TRUE
+Jalisco,Unión de San Antonio,48,48,TRUE
+Jalisco,Unión de Tula,48,48,TRUE
+Jalisco,Valle de Guadalupe,48,48,TRUE
+Jalisco,Valle de Juárez,48,48,TRUE
+Jalisco,Villa Corona,48,48,TRUE
+Jalisco,Villa Guerrero,48,48,TRUE
+Jalisco,Villa Hidalgo,48,48,TRUE
+Jalisco,Villa Purificación,48,48,TRUE
+Jalisco,Yahualica de González Gallo,48,48,TRUE
+Jalisco,Zacoalco de Torres,48,48,TRUE
+Jalisco,Zapopan,48,48,TRUE
+Jalisco,Zapotiltic,48,48,TRUE
+Jalisco,Zapotitlán de Vadillo,48,48,TRUE
+Jalisco,Zapotlanejo,48,48,TRUE
+Jalisco,Zapotlán del Rey,48,48,TRUE
+Jalisco,Zapotlán el Grande,48,48,TRUE
+Michoacán,Acuitzio,48,48,TRUE
+Michoacán,Aguililla,48,48,TRUE
+Michoacán,Angamacutiro,48,48,TRUE
+Michoacán,Angangueo,48,48,TRUE
+Michoacán,Apatzingán,48,48,TRUE
+Michoacán,Aporo,48,48,TRUE
+Michoacán,Aquila,48,48,TRUE
+Michoacán,Ario,48,48,TRUE
+Michoacán,Arteaga,48,48,TRUE
+Michoacán,Briseñas,48,48,TRUE
+Michoacán,Buenavista,48,48,TRUE
+Michoacán,Carácuaro,48,48,TRUE
+Michoacán,Charapan,48,48,TRUE
+Michoacán,Charo,48,48,TRUE
+Michoacán,Chavinda,48,48,TRUE
+Michoacán,Cherán,48,48,TRUE
+Michoacán,Chilchota,48,48,TRUE
+Michoacán,Chinicuila,48,48,TRUE
+Michoacán,Chucándiro,48,48,TRUE
+Michoacán,Churintzio,48,48,TRUE
+Michoacán,Churumuco,48,48,TRUE
+Michoacán,Coahuayana,48,48,TRUE
+Michoacán,Coalcomán de Vázquez Pallares,48,48,TRUE
+Michoacán,Coeneo,48,48,TRUE
+Michoacán,Cojumatlán de Régules,48,48,TRUE
+Michoacán,Contepec,48,48,TRUE
+Michoacán,Copándaro,48,48,TRUE
+Michoacán,Cotija,48,48,TRUE
+Michoacán,Cuitzeo,48,48,TRUE
+Michoacán,Ecuandureo,48,48,TRUE
+Michoacán,Epitacio Huerta,48,48,TRUE
+Michoacán,Erongarícuaro,48,48,TRUE
+Michoacán,Gabriel Zamora,48,48,TRUE
+Michoacán,Hidalgo,48,48,TRUE
+Michoacán,Huandacareo,48,48,TRUE
+Michoacán,Huaniqueo,48,48,TRUE
+Michoacán,Huetamo,48,48,TRUE
+Michoacán,Huiramba,48,48,TRUE
+Michoacán,Indaparapeo,48,48,TRUE
+Michoacán,Irimbo,48,48,TRUE
+Michoacán,Ixtlán,48,48,TRUE
+Michoacán,Jacona,48,48,TRUE
+Michoacán,Jiménez,48,48,TRUE
+Michoacán,Jiquilpan,48,48,TRUE
+Michoacán,José Sixto Verduzco,48,48,TRUE
+Michoacán,Jungapeo,48,48,TRUE
+Michoacán,Juárez,48,48,TRUE
+Michoacán,La Huacana,48,48,TRUE
+Michoacán,La Piedad,48,48,TRUE
+Michoacán,Lagunillas,48,48,TRUE
+Michoacán,Los Reyes,48,48,TRUE
+Michoacán,Lázaro Cárdenas,48,48,TRUE
+Michoacán,Madero,48,48,TRUE
+Michoacán,Maravatío,48,48,TRUE
+Michoacán,Marcos Castellanos,48,48,TRUE
+Michoacán,Morelia,48,48,TRUE
+Michoacán,Morelos,48,48,TRUE
+Michoacán,Múgica,48,48,TRUE
+Michoacán,Nahuatzen,48,48,TRUE
+Michoacán,Nocupétaro,48,48,TRUE
+Michoacán,Nuevo Parangaricutiro,48,48,TRUE
+Michoacán,Nuevo Urecho,48,48,TRUE
+Michoacán,Numarán,48,48,TRUE
+Michoacán,Ocampo,48,48,TRUE
+Michoacán,Pajacuarán,48,48,TRUE
+Michoacán,Panindícuaro,48,48,TRUE
+Michoacán,Paracho,48,48,TRUE
+Michoacán,Parácuaro,48,48,TRUE
+Michoacán,Penjamillo,48,48,TRUE
+Michoacán,Peribán,48,48,TRUE
+Michoacán,Puruándiro,48,48,TRUE
+Michoacán,Purépero,48,48,TRUE
+Michoacán,Pátzcuaro,48,48,TRUE
+Michoacán,Queréndaro,48,48,TRUE
+Michoacán,Quiroga,48,48,TRUE
+Michoacán,Sahuayo,48,48,TRUE
+Michoacán,Salvador Escalante,48,48,TRUE
+Michoacán,San Lucas,48,48,TRUE
+Michoacán,Santa Ana Maya,48,48,TRUE
+Michoacán,Senguio,48,48,TRUE
+Michoacán,Susupuato,48,48,TRUE
+Michoacán,Tacámbaro,48,48,TRUE
+Michoacán,Tancítaro,48,48,TRUE
+Michoacán,Tangamandapio,48,48,TRUE
+Michoacán,Tangancícuaro,48,48,TRUE
+Michoacán,Tanhuato,48,48,TRUE
+Michoacán,Taretan,48,48,TRUE
+Michoacán,Tarímbaro,48,48,TRUE
+Michoacán,Tepalcatepec,48,48,TRUE
+Michoacán,Tingambato,48,48,TRUE
+Michoacán,Tingüindín,48,48,TRUE
+Michoacán,Tiquicheo de Nicolás Romero,48,48,TRUE
+Michoacán,Tlalpujahua,48,48,TRUE
+Michoacán,Tlazazalca,48,48,TRUE
+Michoacán,Tocumbo,48,48,TRUE
+Michoacán,Tumbiscatío,48,48,TRUE
+Michoacán,Turicato,48,48,TRUE
+Michoacán,Tuxpan,48,48,TRUE
+Michoacán,Tuzantla,48,48,TRUE
+Michoacán,Tzintzuntzan,48,48,TRUE
+Michoacán,Tzitzio,48,48,TRUE
+Michoacán,Uruapan,48,48,TRUE
+Michoacán,Venustiano Carranza,48,48,TRUE
+Michoacán,Villamar,48,48,TRUE
+Michoacán,Vista Hermosa,48,48,TRUE
+Michoacán,Yurécuaro,48,48,TRUE
+Michoacán,Zacapu,48,48,TRUE
+Michoacán,Zamora,48,48,TRUE
+Michoacán,Zinapécuaro,48,48,TRUE
+Michoacán,Zináparo,48,48,TRUE
+Michoacán,Ziracuaretiro,48,48,TRUE
+Michoacán,Zitácuaro,48,48,TRUE
+Michoacán,Álvaro Obregón,48,48,TRUE
+Morelos,Amacuzac,48,48,TRUE
+Morelos,Atlatlahucan,48,48,TRUE
+Morelos,Axochiapan,48,48,TRUE
+Morelos,Ayala,48,48,TRUE
+Morelos,Coatlán del Río,48,48,TRUE
+Morelos,Cuautla,48,48,TRUE
+Morelos,Cuernavaca,48,48,TRUE
+Morelos,Emiliano Zapata,48,48,TRUE
+Morelos,Huitzilac,48,48,TRUE
+Morelos,Jantetelco,48,48,TRUE
+Morelos,Jiutepec,48,48,TRUE
+Morelos,Jojutla,48,48,TRUE
+Morelos,Jonacatepec,48,48,TRUE
+Morelos,Mazatepec,48,48,TRUE
+Morelos,Miacatlán,48,48,TRUE
+Morelos,Ocuituco,48,48,TRUE
+Morelos,Puente de Ixtla,48,48,TRUE
+Morelos,Temixco,48,48,TRUE
+Morelos,Temoac,48,48,TRUE
+Morelos,Tepalcingo,48,48,TRUE
+Morelos,Tepoztlán,48,48,TRUE
+Morelos,Tetecala,48,48,TRUE
+Morelos,Tetela del Volcán,48,48,TRUE
+Morelos,Tlalnepantla,48,48,TRUE
+Morelos,Tlaltizapán de Zapata,48,48,TRUE
+Morelos,Tlaquiltenango,48,48,TRUE
+Morelos,Tlayacapan,48,48,TRUE
+Morelos,Totolapan,48,48,TRUE
+Morelos,Xochitepec,48,48,TRUE
+Morelos,Yautepec,48,48,TRUE
+Morelos,Yecapixtla,48,48,TRUE
+México,Acambay de Ruíz Castañeda,48,48,TRUE
+México,Acolman,48,48,TRUE
+México,Aculco,48,48,TRUE
+México,Almoloya de Alquisiras,48,48,TRUE
+México,Almoloya de Juárez,48,48,TRUE
+México,Almoloya del Río,48,48,TRUE
+México,Amanalco,48,48,TRUE
+México,Amatepec,48,48,TRUE
+México,Amecameca,48,48,TRUE
+México,Apaxco,48,48,TRUE
+México,Atenco,48,48,TRUE
+México,Atizapán,48,48,TRUE
+México,Atizapán de Zaragoza,48,48,TRUE
+México,Atlacomulco,48,48,TRUE
+México,Atlautla,48,48,TRUE
+México,Axapusco,48,48,TRUE
+México,Ayapango,48,48,TRUE
+México,Calimaya,48,48,TRUE
+México,Capulhuac,48,48,TRUE
+México,Chalco,48,48,TRUE
+México,Chapa de Mota,48,48,TRUE
+México,Chapultepec,48,48,TRUE
+México,Chiautla,48,48,TRUE
+México,Chicoloapan,48,48,TRUE
+México,Chiconcuac,48,48,TRUE
+México,Chimalhuacán,48,48,TRUE
+México,Coacalco de Berriozábal,48,48,TRUE
+México,Coatepec Harinas,48,48,TRUE
+México,Cocotitlán,48,48,TRUE
+México,Coyotepec,48,48,TRUE
+México,Cuautitlán,48,48,TRUE
+México,Cuautitlán Izcalli,48,48,TRUE
+México,Donato Guerra,48,48,TRUE
+México,Ecatepec de Morelos,48,48,TRUE
+México,Ecatzingo,48,48,TRUE
+México,El Oro,48,48,TRUE
+México,Huehuetoca,48,48,TRUE
+México,Hueypoxtla,48,48,TRUE
+México,Huixquilucan,48,48,TRUE
+México,Isidro Fabela,48,48,TRUE
+México,Ixtapaluca,48,48,TRUE
+México,Ixtapan de la Sal,48,48,TRUE
+México,Ixtapan del Oro,48,48,TRUE
+México,Ixtlahuaca,48,48,TRUE
+México,Jaltenco,48,48,TRUE
+México,Jilotepec,48,48,TRUE
+México,Jilotzingo,48,48,TRUE
+México,Jiquipilco,48,48,TRUE
+México,Jocotitlán,48,48,TRUE
+México,Joquicingo,48,48,TRUE
+México,Juchitepec,48,48,TRUE
+México,La Paz,48,48,TRUE
+México,Lerma,48,48,TRUE
+México,Luvianos,48,48,TRUE
+México,Malinalco,48,48,TRUE
+México,Melchor Ocampo,48,48,TRUE
+México,Metepec,48,48,TRUE
+México,Mexicaltzingo,48,48,TRUE
+México,Morelos,48,48,TRUE
+México,Naucalpan de Juárez,48,48,TRUE
+México,Nextlalpan,48,48,TRUE
+México,Nezahualcóyotl,48,48,TRUE
+México,Nicolás Romero,48,48,TRUE
+México,Nopaltepec,48,48,TRUE
+México,Ocoyoacac,48,48,TRUE
+México,Ocuilan,48,48,TRUE
+México,Otumba,48,48,TRUE
+México,Otzoloapan,48,48,TRUE
+México,Otzolotepec,48,48,TRUE
+México,Ozumba,48,48,TRUE
+México,Papalotla,48,48,TRUE
+México,Polotitlán,48,48,TRUE
+México,Rayón,48,48,TRUE
+México,San Antonio la Isla,48,48,TRUE
+México,San Felipe del Progreso,48,48,TRUE
+México,San José del Rincón,48,48,TRUE
+México,San Martín de las Pirámides,48,48,TRUE
+México,San Mateo Atenco,48,48,TRUE
+México,San Simón de Guerrero,48,48,TRUE
+México,Santo Tomás,48,48,TRUE
+México,Soyaniquilpan de Juárez,48,48,TRUE
+México,Sultepec,48,48,TRUE
+México,Tecámac,48,48,TRUE
+México,Tejupilco,48,48,TRUE
+México,Temamatla,48,48,TRUE
+México,Temascalapa,48,48,TRUE
+México,Temascalcingo,48,48,TRUE
+México,Temascaltepec,48,48,TRUE
+México,Temoaya,48,48,TRUE
+México,Tenancingo,48,48,TRUE
+México,Tenango del Aire,48,48,TRUE
+México,Tenango del Valle,48,48,TRUE
+México,Teoloyucán,48,48,TRUE
+México,Teotihuacán,48,48,TRUE
+México,Tepetlaoxtoc,48,48,TRUE
+México,Tepetlixpa,48,48,TRUE
+México,Tepotzotlán,48,48,TRUE
+México,Tequixquiac,48,48,TRUE
+México,Texcaltitlán,48,48,TRUE
+México,Texcalyacac,48,48,TRUE
+México,Texcoco,48,48,TRUE
+México,Tezoyuca,48,48,TRUE
+México,Tianguistenco,48,48,TRUE
+México,Timilpan,48,48,TRUE
+México,Tlalmanalco,48,48,TRUE
+México,Tlalnepantla de Baz,48,48,TRUE
+México,Tlatlaya,48,48,TRUE
+México,Toluca,48,48,TRUE
+México,Tonanitla,48,48,TRUE
+México,Tonatico,48,48,TRUE
+México,Tultepec,48,48,TRUE
+México,Tultitlán,48,48,TRUE
+México,Valle de Bravo,48,48,TRUE
+México,Valle de Chalco Solidaridad,48,48,TRUE
+México,Villa Guerrero,48,48,TRUE
+México,Villa Victoria,48,48,TRUE
+México,Villa de Allende,48,48,TRUE
+México,Villa del Carbón,48,48,TRUE
+México,Xalatlaco,48,48,TRUE
+México,Xonacatlán,48,48,TRUE
+México,Zacazonapan,48,48,TRUE
+México,Zacualpan,48,48,TRUE
+México,Zinacantepec,48,48,TRUE
+México,Zumpahuacán,48,48,TRUE
+México,Zumpango,48,48,TRUE
+Nayarit,Acaponeta,48,48,TRUE
+Nayarit,Ahuacatlán,48,48,TRUE
+Nayarit,Amatlán de Cañas,48,48,TRUE
+Nayarit,Bahía de Banderas,48,48,TRUE
+Nayarit,Compostela,48,48,TRUE
+Nayarit,Del Nayar,48,48,TRUE
+Nayarit,Huajicori,48,48,TRUE
+Nayarit,Ixtlán del Río,48,48,TRUE
+Nayarit,Jala,48,48,TRUE
+Nayarit,La Yesca,48,48,TRUE
+Nayarit,Rosamorada,48,48,TRUE
+Nayarit,Ruíz,48,48,TRUE
+Nayarit,San Blas,48,48,TRUE
+Nayarit,San Pedro Lagunillas,48,48,TRUE
+Nayarit,Santa María del Oro,48,48,TRUE
+Nayarit,Santiago Ixcuintla,48,48,TRUE
+Nayarit,Tecuala,48,48,TRUE
+Nayarit,Tepic,48,48,TRUE
+Nayarit,Tuxpan,48,48,TRUE
+Nayarit,Xalisco,48,48,TRUE
+Nuevo León,Abasolo,48,48,TRUE
+Nuevo León,Agualeguas,48,48,TRUE
+Nuevo León,Allende,48,48,TRUE
+Nuevo León,Anáhuac,48,48,TRUE
+Nuevo León,Apodaca,48,48,TRUE
+Nuevo León,Aramberri,48,48,TRUE
+Nuevo León,Bustamante,48,48,TRUE
+Nuevo León,Cadereyta Jiménez,48,48,TRUE
+Nuevo León,Cerralvo,48,48,TRUE
+Nuevo León,China,48,48,TRUE
+Nuevo León,Ciénega de Flores,48,48,TRUE
+Nuevo León,Doctor Arroyo,48,48,TRUE
+Nuevo León,Doctor Coss,48,48,TRUE
+Nuevo León,Doctor González,48,48,TRUE
+Nuevo León,El Carmen,48,48,TRUE
+Nuevo León,Galeana,48,48,TRUE
+Nuevo León,García,48,48,TRUE
+Nuevo León,General Bravo,48,48,TRUE
+Nuevo León,General Escobedo,48,48,TRUE
+Nuevo León,General Terán,48,48,TRUE
+Nuevo León,General Treviño,48,48,TRUE
+Nuevo León,General Zaragoza,48,48,TRUE
+Nuevo León,General Zuazua,48,48,TRUE
+Nuevo León,Guadalupe,48,48,TRUE
+Nuevo León,Hidalgo,48,48,TRUE
+Nuevo León,Higueras,48,48,TRUE
+Nuevo León,Hualahuises,48,48,TRUE
+Nuevo León,Iturbide,48,48,TRUE
+Nuevo León,Juárez,48,48,TRUE
+Nuevo León,Lampazos de Naranjo,48,48,TRUE
+Nuevo León,Linares,48,48,TRUE
+Nuevo León,Los Aldamas,48,48,TRUE
+Nuevo León,Los Herreras,48,48,TRUE
+Nuevo León,Los Ramones,48,48,TRUE
+Nuevo León,Marín,48,48,TRUE
+Nuevo León,Melchor Ocampo,48,48,TRUE
+Nuevo León,Mier y Noriega,48,48,TRUE
+Nuevo León,Mina,48,48,TRUE
+Nuevo León,Montemorelos,48,48,TRUE
+Nuevo León,Monterrey,48,48,TRUE
+Nuevo León,Parás,48,48,TRUE
+Nuevo León,Pesquería,48,48,TRUE
+Nuevo León,Rayones,48,48,TRUE
+Nuevo León,Sabinas Hidalgo,48,48,TRUE
+Nuevo León,Salinas Victoria,48,48,TRUE
+Nuevo León,San Nicolás de los Garza,48,48,TRUE
+Nuevo León,San Pedro Garza García,48,48,TRUE
+Nuevo León,Santa Catarina,48,48,TRUE
+Nuevo León,Santiago,48,48,TRUE
+Nuevo León,Vallecillo,48,48,TRUE
+Nuevo León,Villaldama,48,48,TRUE
+Oaxaca,Abejones,48,48,TRUE
+Oaxaca,Acatlán de Pérez Figueroa,48,48,TRUE
+Oaxaca,Asunción Cacalotepec,48,48,TRUE
+Oaxaca,Asunción Cuyotepeji,48,48,TRUE
+Oaxaca,Asunción Ixtaltepec,48,48,TRUE
+Oaxaca,Asunción Nochixtlán,48,48,TRUE
+Oaxaca,Asunción Ocotlán,48,48,TRUE
+Oaxaca,Asunción Tlacolulita,48,48,TRUE
+Oaxaca,Ayoquezco de Aldama,48,48,TRUE
+Oaxaca,Ayotzintepec,48,48,TRUE
+Oaxaca,Calihualá,48,48,TRUE
+Oaxaca,Candelaria Loxicha,48,48,TRUE
+Oaxaca,Capulálpam de Méndez,48,48,TRUE
+Oaxaca,Chahuites,48,48,TRUE
+Oaxaca,Chalcatongo de Hidalgo,48,48,TRUE
+Oaxaca,Chiquihuitlán de Benito Juárez,48,48,TRUE
+Oaxaca,Ciudad Ixtepec,48,48,TRUE
+Oaxaca,Ciénega de Zimatlán,48,48,TRUE
+Oaxaca,Coatecas Altas,48,48,TRUE
+Oaxaca,Coicoyán de las Flores,48,48,TRUE
+Oaxaca,Concepción Buenavista,48,48,TRUE
+Oaxaca,Concepción Pápalo,48,48,TRUE
+Oaxaca,Constancia del Rosario,48,48,TRUE
+Oaxaca,Cosolapa,48,48,TRUE
+Oaxaca,Cosoltepec,48,48,TRUE
+Oaxaca,Cuilápam de Guerrero,48,48,TRUE
+Oaxaca,Cuyamecalco Villa de Zaragoza,48,48,TRUE
+Oaxaca,El Barrio de la Soledad,48,48,TRUE
+Oaxaca,El Espinal,48,48,TRUE
+Oaxaca,Eloxochitlán de Flores Magón,48,48,TRUE
+Oaxaca,Fresnillo de Trujano,48,48,TRUE
+Oaxaca,Guadalupe Etla,48,48,TRUE
+Oaxaca,Guadalupe de Ramírez,48,48,TRUE
+Oaxaca,Guelatao de Juárez,48,48,TRUE
+Oaxaca,Guevea de Humboldt,48,48,TRUE
+Oaxaca,Heroica Ciudad de Ejutla de Crespo,48,48,TRUE
+Oaxaca,Heroica Ciudad de Huajuapan de León,48,48,TRUE
+Oaxaca,Heroica Ciudad de Tlaxiaco,48,48,TRUE
+Oaxaca,Heroica Villa Tezoatlán de Segura y Luna,48,48,TRUE
+Oaxaca,Huautepec,48,48,TRUE
+Oaxaca,Huautla de Jiménez,48,48,TRUE
+Oaxaca,Ixpantepec Nieves,48,48,TRUE
+Oaxaca,Ixtlán de Juárez,48,48,TRUE
+Oaxaca,La Compañía,48,48,TRUE
+Oaxaca,La Pe,48,48,TRUE
+Oaxaca,La Reforma,48,48,TRUE
+Oaxaca,La Trinidad Vista Hermosa,48,48,TRUE
+Oaxaca,Loma Bonita,48,48,TRUE
+Oaxaca,Magdalena Apasco,48,48,TRUE
+Oaxaca,Magdalena Jaltepec,48,48,TRUE
+Oaxaca,Magdalena Mixtepec,48,48,TRUE
+Oaxaca,Magdalena Ocotlán,48,48,TRUE
+Oaxaca,Magdalena Peñasco,48,48,TRUE
+Oaxaca,Magdalena Teitipac,48,48,TRUE
+Oaxaca,Magdalena Tequisistlán,48,48,TRUE
+Oaxaca,Magdalena Tlacotepec,48,48,TRUE
+Oaxaca,Magdalena Yodocono de Porfirio Díaz,48,48,TRUE
+Oaxaca,Magdalena Zahuatlán,48,48,TRUE
+Oaxaca,Mariscala de Juárez,48,48,TRUE
+Oaxaca,Matías Romero Avendaño,48,48,TRUE
+Oaxaca,Mazatlán Villa de Flores,48,48,TRUE
+Oaxaca,Mesones Hidalgo,48,48,TRUE
+Oaxaca,Mixistlán de la Reforma,48,48,TRUE
+Oaxaca,Monjas,48,48,TRUE
+Oaxaca,Mártires de Tacubaya,48,48,TRUE
+Oaxaca,Natividad,48,48,TRUE
+Oaxaca,Nazareno Etla,48,48,TRUE
+Oaxaca,Nejapa de Madero,48,48,TRUE
+Oaxaca,Oaxaca de Juárez,48,48,TRUE
+Oaxaca,Ocotlán de Morelos,48,48,TRUE
+Oaxaca,Pinotepa de Don Luis,48,48,TRUE
+Oaxaca,Pluma Hidalgo,48,48,TRUE
+Oaxaca,Putla Villa de Guerrero,48,48,TRUE
+Oaxaca,Reforma de Pineda,48,48,TRUE
+Oaxaca,Reyes Etla,48,48,TRUE
+Oaxaca,Rojas de Cuauhtémoc,48,48,TRUE
+Oaxaca,Salina Cruz,48,48,TRUE
+Oaxaca,San Agustín Amatengo,48,48,TRUE
+Oaxaca,San Agustín Atenango,48,48,TRUE
+Oaxaca,San Agustín Chayuco,48,48,TRUE
+Oaxaca,San Agustín Etla,48,48,TRUE
+Oaxaca,San Agustín Loxicha,48,48,TRUE
+Oaxaca,San Agustín Tlacotepec,48,48,TRUE
+Oaxaca,San Agustín Yatareni,48,48,TRUE
+Oaxaca,San Agustín de las Juntas,48,48,TRUE
+Oaxaca,San Andrés Cabecera Nueva,48,48,TRUE
+Oaxaca,San Andrés Dinicuiti,48,48,TRUE
+Oaxaca,San Andrés Huaxpaltepec,48,48,TRUE
+Oaxaca,San Andrés Ixtlahuaca,48,48,TRUE
+Oaxaca,San Andrés Lagunas,48,48,TRUE
+Oaxaca,San Andrés Nuxiño,48,48,TRUE
+Oaxaca,San Andrés Paxtlán,48,48,TRUE
+Oaxaca,San Andrés Sinaxtla,48,48,TRUE
+Oaxaca,San Andrés Solaga,48,48,TRUE
+Oaxaca,San Andrés Tepetlapa,48,48,TRUE
+Oaxaca,San Andrés Yaá,48,48,TRUE
+Oaxaca,San Andrés Zabache,48,48,TRUE
+Oaxaca,San Andrés Zautla,48,48,TRUE
+Oaxaca,San Antonino Castillo Velasco,48,48,TRUE
+Oaxaca,San Antonino Monte Verde,48,48,TRUE
+Oaxaca,San Antonino el Alto,48,48,TRUE
+Oaxaca,San Antonio Acutla,48,48,TRUE
+Oaxaca,San Antonio Huitepec,48,48,TRUE
+Oaxaca,San Antonio Nanahuatípam,48,48,TRUE
+Oaxaca,San Antonio Sinicahua,48,48,TRUE
+Oaxaca,San Antonio Tepetlapa,48,48,TRUE
+Oaxaca,San Antonio de la Cal,48,48,TRUE
+Oaxaca,San Baltazar Chichicápam,48,48,TRUE
+Oaxaca,San Baltazar Loxicha,48,48,TRUE
+Oaxaca,San Baltazar Yatzachi el Bajo,48,48,TRUE
+Oaxaca,San Bartolo Coyotepec,48,48,TRUE
+Oaxaca,San Bartolo Soyaltepec,48,48,TRUE
+Oaxaca,San Bartolo Yautepec,48,48,TRUE
+Oaxaca,San Bartolomé Ayautla,48,48,TRUE
+Oaxaca,San Bartolomé Loxicha,48,48,TRUE
+Oaxaca,San Bartolomé Quialana,48,48,TRUE
+Oaxaca,San Bartolomé Yucuañe,48,48,TRUE
+Oaxaca,San Bartolomé Zoogocho,48,48,TRUE
+Oaxaca,San Bernardo Mixtepec,48,48,TRUE
+Oaxaca,San Carlos Yautepec,48,48,TRUE
+Oaxaca,San Cristóbal Amatlán,48,48,TRUE
+Oaxaca,San Cristóbal Amoltepec,48,48,TRUE
+Oaxaca,San Cristóbal Lachirioag,48,48,TRUE
+Oaxaca,San Cristóbal Suchixtlahuaca,48,48,TRUE
+Oaxaca,San Dionisio Ocotepec,48,48,TRUE
+Oaxaca,San Dionisio Ocotlán,48,48,TRUE
+Oaxaca,San Dionisio del Mar,48,48,TRUE
+Oaxaca,San Esteban Atatlahuca,48,48,TRUE
+Oaxaca,San Felipe Jalapa de Díaz,48,48,TRUE
+Oaxaca,San Felipe Usila,48,48,TRUE
+Oaxaca,San Francisco Cahuacuá,48,48,TRUE
+Oaxaca,San Francisco Cajonos,48,48,TRUE
+Oaxaca,San Francisco Chapulapa,48,48,TRUE
+Oaxaca,San Francisco Chindúa,48,48,TRUE
+Oaxaca,San Francisco Huehuetlán,48,48,TRUE
+Oaxaca,San Francisco Ixhuatán,48,48,TRUE
+Oaxaca,San Francisco Jaltepetongo,48,48,TRUE
+Oaxaca,San Francisco Lachigoló,48,48,TRUE
+Oaxaca,San Francisco Logueche,48,48,TRUE
+Oaxaca,San Francisco Nuxaño,48,48,TRUE
+Oaxaca,San Francisco Ozolotepec,48,48,TRUE
+Oaxaca,San Francisco Sola,48,48,TRUE
+Oaxaca,San Francisco Telixtlahuaca,48,48,TRUE
+Oaxaca,San Francisco Teopan,48,48,TRUE
+Oaxaca,San Francisco Tlapancingo,48,48,TRUE
+Oaxaca,San Francisco del Mar,48,48,TRUE
+Oaxaca,San Gabriel Mixtepec,48,48,TRUE
+Oaxaca,San Ildefonso Amatlán,48,48,TRUE
+Oaxaca,San Ildefonso Sola,48,48,TRUE
+Oaxaca,San Ildefonso Villa Alta,48,48,TRUE
+Oaxaca,San Jacinto Amilpas,48,48,TRUE
+Oaxaca,San Jacinto Tlacotepec,48,48,TRUE
+Oaxaca,San Jerónimo Coatlán,48,48,TRUE
+Oaxaca,San Jerónimo Silacayoapilla,48,48,TRUE
+Oaxaca,San Jerónimo Sosola,48,48,TRUE
+Oaxaca,San Jerónimo Taviche,48,48,TRUE
+Oaxaca,San Jerónimo Tlacochahuaya,48,48,TRUE
+Oaxaca,San Jorge Nuchita,48,48,TRUE
+Oaxaca,San José Ayuquila,48,48,TRUE
+Oaxaca,San José Chiltepec,48,48,TRUE
+Oaxaca,San José Estancia Grande,48,48,TRUE
+Oaxaca,San José Independencia,48,48,TRUE
+Oaxaca,San José Lachiguiri,48,48,TRUE
+Oaxaca,San José Tenango,48,48,TRUE
+Oaxaca,San José del Peñasco,48,48,TRUE
+Oaxaca,San José del Progreso,48,48,TRUE
+Oaxaca,San Juan Achiutla,48,48,TRUE
+Oaxaca,San Juan Atepec,48,48,TRUE
+Oaxaca,San Juan Bautista Atatlahuca,48,48,TRUE
+Oaxaca,San Juan Bautista Coixtlahuaca,48,48,TRUE
+Oaxaca,San Juan Bautista Cuicatlán,48,48,TRUE
+Oaxaca,San Juan Bautista Guelache,48,48,TRUE
+Oaxaca,San Juan Bautista Jayacatlán,48,48,TRUE
+Oaxaca,San Juan Bautista Lo de Soto,48,48,TRUE
+Oaxaca,San Juan Bautista Suchitepec,48,48,TRUE
+Oaxaca,San Juan Bautista Tlachichilco,48,48,TRUE
+Oaxaca,San Juan Bautista Tlacoatzintepec,48,48,TRUE
+Oaxaca,San Juan Bautista Tuxtepec,48,48,TRUE
+Oaxaca,San Juan Bautista Valle Nacional,48,48,TRUE
+Oaxaca,San Juan Cacahuatepec,48,48,TRUE
+Oaxaca,San Juan Chicomezúchil,48,48,TRUE
+Oaxaca,San Juan Chilateca,48,48,TRUE
+Oaxaca,San Juan Cieneguilla,48,48,TRUE
+Oaxaca,San Juan Coatzóspam,48,48,TRUE
+Oaxaca,San Juan Colorado,48,48,TRUE
+Oaxaca,San Juan Comaltepec,48,48,TRUE
+Oaxaca,San Juan Cotzocón,48,48,TRUE
+Oaxaca,San Juan Diuxi,48,48,TRUE
+Oaxaca,San Juan Evangelista Analco,48,48,TRUE
+Oaxaca,San Juan Guelavía,48,48,TRUE
+Oaxaca,San Juan Guichicovi,48,48,TRUE
+Oaxaca,San Juan Ihualtepec,48,48,TRUE
+Oaxaca,San Juan Juquila Mixes,48,48,TRUE
+Oaxaca,San Juan Juquila Vijanos,48,48,TRUE
+Oaxaca,San Juan Lachao,48,48,TRUE
+Oaxaca,San Juan Lachigalla,48,48,TRUE
+Oaxaca,San Juan Lajarcia,48,48,TRUE
+Oaxaca,San Juan Lalana,48,48,TRUE
+Oaxaca,San Juan Mazatlán,48,48,TRUE
+Oaxaca,San Juan Ozolotepec,48,48,TRUE
+Oaxaca,San Juan Petlapa,48,48,TRUE
+Oaxaca,San Juan Quiahije,48,48,TRUE
+Oaxaca,San Juan Quiotepec,48,48,TRUE
+Oaxaca,San Juan Sayultepec,48,48,TRUE
+Oaxaca,San Juan Tabaá,48,48,TRUE
+Oaxaca,San Juan Tamazola,48,48,TRUE
+Oaxaca,San Juan Teita,48,48,TRUE
+Oaxaca,San Juan Teitipac,48,48,TRUE
+Oaxaca,San Juan Tepeuxila,48,48,TRUE
+Oaxaca,San Juan Teposcolula,48,48,TRUE
+Oaxaca,San Juan Yaeé,48,48,TRUE
+Oaxaca,San Juan Yatzona,48,48,TRUE
+Oaxaca,San Juan Yucuita,48,48,TRUE
+Oaxaca,San Juan de los Cués,48,48,TRUE
+Oaxaca,San Juan del Estado,48,48,TRUE
+Oaxaca,San Juan del Río,48,48,TRUE
+Oaxaca,San Juan Ñumí,48,48,TRUE
+Oaxaca,San Lorenzo,48,48,TRUE
+Oaxaca,San Lorenzo Albarradas,48,48,TRUE
+Oaxaca,San Lorenzo Cacaotepec,48,48,TRUE
+Oaxaca,San Lorenzo Cuaunecuiltitla,48,48,TRUE
+Oaxaca,San Lorenzo Texmelucan,48,48,TRUE
+Oaxaca,San Lorenzo Victoria,48,48,TRUE
+Oaxaca,San Lucas Camotlán,48,48,TRUE
+Oaxaca,San Lucas Ojitlán,48,48,TRUE
+Oaxaca,San Lucas Quiaviní,48,48,TRUE
+Oaxaca,San Lucas Zoquiápam,48,48,TRUE
+Oaxaca,San Luis Amatlán,48,48,TRUE
+Oaxaca,San Marcial Ozolotepec,48,48,TRUE
+Oaxaca,San Marcos Arteaga,48,48,TRUE
+Oaxaca,San Martín Huamelúlpam,48,48,TRUE
+Oaxaca,San Martín Itunyoso,48,48,TRUE
+Oaxaca,San Martín Lachilá,48,48,TRUE
+Oaxaca,San Martín Peras,48,48,TRUE
+Oaxaca,San Martín Tilcajete,48,48,TRUE
+Oaxaca,San Martín Toxpalan,48,48,TRUE
+Oaxaca,San Martín Zacatepec,48,48,TRUE
+Oaxaca,San Mateo Cajonos,48,48,TRUE
+Oaxaca,San Mateo Etlatongo,48,48,TRUE
+Oaxaca,San Mateo Nejápam,48,48,TRUE
+Oaxaca,San Mateo Peñasco,48,48,TRUE
+Oaxaca,San Mateo Piñas,48,48,TRUE
+Oaxaca,San Mateo Río Hondo,48,48,TRUE
+Oaxaca,San Mateo Sindihui,48,48,TRUE
+Oaxaca,San Mateo Tlapiltepec,48,48,TRUE
+Oaxaca,San Mateo Yoloxochitlán,48,48,TRUE
+Oaxaca,San Mateo del Mar,48,48,TRUE
+Oaxaca,San Melchor Betaza,48,48,TRUE
+Oaxaca,San Miguel Achiutla,48,48,TRUE
+Oaxaca,San Miguel Ahuehuetitlán,48,48,TRUE
+Oaxaca,San Miguel Aloápam,48,48,TRUE
+Oaxaca,San Miguel Amatitlán,48,48,TRUE
+Oaxaca,San Miguel Amatlán,48,48,TRUE
+Oaxaca,San Miguel Chicahua,48,48,TRUE
+Oaxaca,San Miguel Chimalapa,48,48,TRUE
+Oaxaca,San Miguel Coatlán,48,48,TRUE
+Oaxaca,San Miguel Ejutla,48,48,TRUE
+Oaxaca,San Miguel Huautla,48,48,TRUE
+Oaxaca,San Miguel Mixtepec,48,48,TRUE
+Oaxaca,San Miguel Panixtlahuaca,48,48,TRUE
+Oaxaca,San Miguel Peras,48,48,TRUE
+Oaxaca,San Miguel Piedras,48,48,TRUE
+Oaxaca,San Miguel Quetzaltepec,48,48,TRUE
+Oaxaca,San Miguel Santa Flor,48,48,TRUE
+Oaxaca,San Miguel Soyaltepec,48,48,TRUE
+Oaxaca,San Miguel Suchixtepec,48,48,TRUE
+Oaxaca,San Miguel Tecomatlán,48,48,TRUE
+Oaxaca,San Miguel Tenango,48,48,TRUE
+Oaxaca,San Miguel Tequixtepec,48,48,TRUE
+Oaxaca,San Miguel Tilquiápam,48,48,TRUE
+Oaxaca,San Miguel Tlacamama,48,48,TRUE
+Oaxaca,San Miguel Tlacotepec,48,48,TRUE
+Oaxaca,San Miguel Tulancingo,48,48,TRUE
+Oaxaca,San Miguel Yotao,48,48,TRUE
+Oaxaca,San Miguel del Puerto,48,48,TRUE
+Oaxaca,San Miguel del Río,48,48,TRUE
+Oaxaca,San Miguel el Grande,48,48,TRUE
+Oaxaca,San Nicolás,48,48,TRUE
+Oaxaca,San Nicolás Hidalgo,48,48,TRUE
+Oaxaca,San Pablo Coatlán,48,48,TRUE
+Oaxaca,San Pablo Cuatro Venados,48,48,TRUE
+Oaxaca,San Pablo Etla,48,48,TRUE
+Oaxaca,San Pablo Huitzo,48,48,TRUE
+Oaxaca,San Pablo Huixtepec,48,48,TRUE
+Oaxaca,San Pablo Macuiltianguis,48,48,TRUE
+Oaxaca,San Pablo Tijaltepec,48,48,TRUE
+Oaxaca,San Pablo Villa de Mitla,48,48,TRUE
+Oaxaca,San Pablo Yaganiza,48,48,TRUE
+Oaxaca,San Pedro Amuzgos,48,48,TRUE
+Oaxaca,San Pedro Apóstol,48,48,TRUE
+Oaxaca,San Pedro Atoyac,48,48,TRUE
+Oaxaca,San Pedro Cajonos,48,48,TRUE
+Oaxaca,San Pedro Comitancillo,48,48,TRUE
+Oaxaca,San Pedro Coxcaltepec Cántaros,48,48,TRUE
+Oaxaca,San Pedro Huamelula,48,48,TRUE
+Oaxaca,San Pedro Huilotepec,48,48,TRUE
+Oaxaca,San Pedro Ixcatlán,48,48,TRUE
+Oaxaca,San Pedro Ixtlahuaca,48,48,TRUE
+Oaxaca,San Pedro Jaltepetongo,48,48,TRUE
+Oaxaca,San Pedro Jicayán,48,48,TRUE
+Oaxaca,San Pedro Jocotipac,48,48,TRUE
+Oaxaca,San Pedro Juchatengo,48,48,TRUE
+Oaxaca,San Pedro Molinos,48,48,TRUE
+Oaxaca,San Pedro Mártir,48,48,TRUE
+Oaxaca,San Pedro Mártir Quiechapa,48,48,TRUE
+Oaxaca,San Pedro Mártir Yucuxaco,48,48,TRUE
+Oaxaca,San Pedro Nopala,48,48,TRUE
+Oaxaca,San Pedro Ocopetatillo,48,48,TRUE
+Oaxaca,San Pedro Ocotepec,48,48,TRUE
+Oaxaca,San Pedro Pochutla,48,48,TRUE
+Oaxaca,San Pedro Quiatoni,48,48,TRUE
+Oaxaca,San Pedro Tapanatepec,48,48,TRUE
+Oaxaca,San Pedro Taviche,48,48,TRUE
+Oaxaca,San Pedro Teozacoalco,48,48,TRUE
+Oaxaca,San Pedro Teutila,48,48,TRUE
+Oaxaca,San Pedro Tidaá,48,48,TRUE
+Oaxaca,San Pedro Topiltepec,48,48,TRUE
+Oaxaca,San Pedro Yaneri,48,48,TRUE
+Oaxaca,San Pedro Yucunama,48,48,TRUE
+Oaxaca,San Pedro Yólox,48,48,TRUE
+Oaxaca,San Pedro el Alto,48,48,TRUE
+Oaxaca,San Pedro y San Pablo Ayutla,48,48,TRUE
+Oaxaca,San Pedro y San Pablo Teposcolula,48,48,TRUE
+Oaxaca,San Pedro y San Pablo Tequixtepec,48,48,TRUE
+Oaxaca,San Raymundo Jalpan,48,48,TRUE
+Oaxaca,San Sebastián Abasolo,48,48,TRUE
+Oaxaca,San Sebastián Coatlán,48,48,TRUE
+Oaxaca,San Sebastián Ixcapa,48,48,TRUE
+Oaxaca,San Sebastián Nicananduta,48,48,TRUE
+Oaxaca,San Sebastián Río Hondo,48,48,TRUE
+Oaxaca,San Sebastián Tecomaxtlahuaca,48,48,TRUE
+Oaxaca,San Sebastián Teitipac,48,48,TRUE
+Oaxaca,San Sebastián Tutla,48,48,TRUE
+Oaxaca,San Simón Almolongas,48,48,TRUE
+Oaxaca,San Simón Zahuatlán,48,48,TRUE
+Oaxaca,San Vicente Coatlán,48,48,TRUE
+Oaxaca,San Vicente Lachixío,48,48,TRUE
+Oaxaca,San Vicente Nuñú,48,48,TRUE
+Oaxaca,Santa Ana,48,48,TRUE
+Oaxaca,Santa Ana Ateixtlahuaca,48,48,TRUE
+Oaxaca,Santa Ana Cuauhtémoc,48,48,TRUE
+Oaxaca,Santa Ana Tavela,48,48,TRUE
+Oaxaca,Santa Ana Tlapacoyan,48,48,TRUE
+Oaxaca,Santa Ana Yareni,48,48,TRUE
+Oaxaca,Santa Ana Zegache,48,48,TRUE
+Oaxaca,Santa Ana del Valle,48,48,TRUE
+Oaxaca,Santa Catalina Quierí,48,48,TRUE
+Oaxaca,Santa Catarina Cuixtla,48,48,TRUE
+Oaxaca,Santa Catarina Ixtepeji,48,48,TRUE
+Oaxaca,Santa Catarina Juquila,48,48,TRUE
+Oaxaca,Santa Catarina Lachatao,48,48,TRUE
+Oaxaca,Santa Catarina Loxicha,48,48,TRUE
+Oaxaca,Santa Catarina Mechoacán,48,48,TRUE
+Oaxaca,Santa Catarina Minas,48,48,TRUE
+Oaxaca,Santa Catarina Quiané,48,48,TRUE
+Oaxaca,Santa Catarina Quioquitani,48,48,TRUE
+Oaxaca,Santa Catarina Tayata,48,48,TRUE
+Oaxaca,Santa Catarina Ticuá,48,48,TRUE
+Oaxaca,Santa Catarina Yosonotú,48,48,TRUE
+Oaxaca,Santa Catarina Zapoquila,48,48,TRUE
+Oaxaca,Santa Cruz Acatepec,48,48,TRUE
+Oaxaca,Santa Cruz Amilpas,48,48,TRUE
+Oaxaca,Santa Cruz Itundujia,48,48,TRUE
+Oaxaca,Santa Cruz Mixtepec,48,48,TRUE
+Oaxaca,Santa Cruz Nundaco,48,48,TRUE
+Oaxaca,Santa Cruz Papalutla,48,48,TRUE
+Oaxaca,Santa Cruz Tacache de Mina,48,48,TRUE
+Oaxaca,Santa Cruz Tacahua,48,48,TRUE
+Oaxaca,Santa Cruz Tayata,48,48,TRUE
+Oaxaca,Santa Cruz Xitla,48,48,TRUE
+Oaxaca,Santa Cruz Xoxocotlán,48,48,TRUE
+Oaxaca,Santa Cruz Zenzontepec,48,48,TRUE
+Oaxaca,Santa Cruz de Bravo,48,48,TRUE
+Oaxaca,Santa Gertrudis,48,48,TRUE
+Oaxaca,Santa Inés Yatzeche,48,48,TRUE
+Oaxaca,Santa Inés de Zaragoza,48,48,TRUE
+Oaxaca,Santa Inés del Monte,48,48,TRUE
+Oaxaca,Santa Lucía Miahuatlán,48,48,TRUE
+Oaxaca,Santa Lucía Monteverde,48,48,TRUE
+Oaxaca,Santa Lucía Ocotlán,48,48,TRUE
+Oaxaca,Santa Lucía del Camino,48,48,TRUE
+Oaxaca,Santa Magdalena Jicotlán,48,48,TRUE
+Oaxaca,Santa María Alotepec,48,48,TRUE
+Oaxaca,Santa María Apazco,48,48,TRUE
+Oaxaca,Santa María Atzompa,48,48,TRUE
+Oaxaca,Santa María Camotlán,48,48,TRUE
+Oaxaca,Santa María Chachoápam,48,48,TRUE
+Oaxaca,Santa María Chilchotla,48,48,TRUE
+Oaxaca,Santa María Chimalapa,48,48,TRUE
+Oaxaca,Santa María Colotepec,48,48,TRUE
+Oaxaca,Santa María Cortijo,48,48,TRUE
+Oaxaca,Santa María Coyotepec,48,48,TRUE
+Oaxaca,Santa María Ecatepec,48,48,TRUE
+Oaxaca,Santa María Guelacé,48,48,TRUE
+Oaxaca,Santa María Guienagati,48,48,TRUE
+Oaxaca,Santa María Huatulco,48,48,TRUE
+Oaxaca,Santa María Huazolotitlán,48,48,TRUE
+Oaxaca,Santa María Ipalapa,48,48,TRUE
+Oaxaca,Santa María Ixcatlán,48,48,TRUE
+Oaxaca,Santa María Jacatepec,48,48,TRUE
+Oaxaca,Santa María Jalapa del Marqués,48,48,TRUE
+Oaxaca,Santa María Jaltianguis,48,48,TRUE
+Oaxaca,Santa María Lachixío,48,48,TRUE
+Oaxaca,Santa María Mixtequilla,48,48,TRUE
+Oaxaca,Santa María Nativitas,48,48,TRUE
+Oaxaca,Santa María Nduayaco,48,48,TRUE
+Oaxaca,Santa María Ozolotepec,48,48,TRUE
+Oaxaca,Santa María Petapa,48,48,TRUE
+Oaxaca,Santa María Peñoles,48,48,TRUE
+Oaxaca,Santa María Pápalo,48,48,TRUE
+Oaxaca,Santa María Quiegolani,48,48,TRUE
+Oaxaca,Santa María Sola,48,48,TRUE
+Oaxaca,Santa María Tataltepec,48,48,TRUE
+Oaxaca,Santa María Tecomavaca,48,48,TRUE
+Oaxaca,Santa María Temaxcalapa,48,48,TRUE
+Oaxaca,Santa María Temaxcaltepec,48,48,TRUE
+Oaxaca,Santa María Teopoxco,48,48,TRUE
+Oaxaca,Santa María Tepantlali,48,48,TRUE
+Oaxaca,Santa María Texcatitlán,48,48,TRUE
+Oaxaca,Santa María Tlahuitoltepec,48,48,TRUE
+Oaxaca,Santa María Tlalixtac,48,48,TRUE
+Oaxaca,Santa María Tonameca,48,48,TRUE
+Oaxaca,Santa María Totolapilla,48,48,TRUE
+Oaxaca,Santa María Xadani,48,48,TRUE
+Oaxaca,Santa María Yalina,48,48,TRUE
+Oaxaca,Santa María Yavesía,48,48,TRUE
+Oaxaca,Santa María Yolotepec,48,48,TRUE
+Oaxaca,Santa María Yosoyúa,48,48,TRUE
+Oaxaca,Santa María Yucuhiti,48,48,TRUE
+Oaxaca,Santa María Zacatepec,48,48,TRUE
+Oaxaca,Santa María Zaniza,48,48,TRUE
+Oaxaca,Santa María Zoquitlán,48,48,TRUE
+Oaxaca,Santa María del Rosario,48,48,TRUE
+Oaxaca,Santa María del Tule,48,48,TRUE
+Oaxaca,Santa María la Asunción,48,48,TRUE
+Oaxaca,Santiago Amoltepec,48,48,TRUE
+Oaxaca,Santiago Apoala,48,48,TRUE
+Oaxaca,Santiago Apóstol,48,48,TRUE
+Oaxaca,Santiago Astata,48,48,TRUE
+Oaxaca,Santiago Atitlán,48,48,TRUE
+Oaxaca,Santiago Ayuquililla,48,48,TRUE
+Oaxaca,Santiago Cacaloxtepec,48,48,TRUE
+Oaxaca,Santiago Camotlán,48,48,TRUE
+Oaxaca,Santiago Comaltepec,48,48,TRUE
+Oaxaca,Santiago Huajolotitlán,48,48,TRUE
+Oaxaca,Santiago Huauclilla,48,48,TRUE
+Oaxaca,Santiago Ihuitlán Plumas,48,48,TRUE
+Oaxaca,Santiago Ixcuintepec,48,48,TRUE
+Oaxaca,Santiago Ixtayutla,48,48,TRUE
+Oaxaca,Santiago Jamiltepec,48,48,TRUE
+Oaxaca,Santiago Jocotepec,48,48,TRUE
+Oaxaca,Santiago Juxtlahuaca,48,48,TRUE
+Oaxaca,Santiago Lachiguiri,48,48,TRUE
+Oaxaca,Santiago Lalopa,48,48,TRUE
+Oaxaca,Santiago Laollaga,48,48,TRUE
+Oaxaca,Santiago Laxopa,48,48,TRUE
+Oaxaca,Santiago Llano Grande,48,48,TRUE
+Oaxaca,Santiago Matatlán,48,48,TRUE
+Oaxaca,Santiago Miltepec,48,48,TRUE
+Oaxaca,Santiago Minas,48,48,TRUE
+Oaxaca,Santiago Nacaltepec,48,48,TRUE
+Oaxaca,Santiago Nejapilla,48,48,TRUE
+Oaxaca,Santiago Niltepec,48,48,TRUE
+Oaxaca,Santiago Nundiche,48,48,TRUE
+Oaxaca,Santiago Nuyoó,48,48,TRUE
+Oaxaca,Santiago Pinotepa Nacional,48,48,TRUE
+Oaxaca,Santiago Suchilquitongo,48,48,TRUE
+Oaxaca,Santiago Tamazola,48,48,TRUE
+Oaxaca,Santiago Tapextla,48,48,TRUE
+Oaxaca,Santiago Tenango,48,48,TRUE
+Oaxaca,Santiago Tepetlapa,48,48,TRUE
+Oaxaca,Santiago Tetepec,48,48,TRUE
+Oaxaca,Santiago Texcalcingo,48,48,TRUE
+Oaxaca,Santiago Textitlán,48,48,TRUE
+Oaxaca,Santiago Tilantongo,48,48,TRUE
+Oaxaca,Santiago Tillo,48,48,TRUE
+Oaxaca,Santiago Tlazoyaltepec,48,48,TRUE
+Oaxaca,Santiago Xanica,48,48,TRUE
+Oaxaca,Santiago Xiacuí,48,48,TRUE
+Oaxaca,Santiago Yaitepec,48,48,TRUE
+Oaxaca,Santiago Yaveo,48,48,TRUE
+Oaxaca,Santiago Yolomécatl,48,48,TRUE
+Oaxaca,Santiago Yosondúa,48,48,TRUE
+Oaxaca,Santiago Yucuyachi,48,48,TRUE
+Oaxaca,Santiago Zacatepec,48,48,TRUE
+Oaxaca,Santiago Zoochila,48,48,TRUE
+Oaxaca,Santiago del Río,48,48,TRUE
+Oaxaca,Santo Domingo Albarradas,48,48,TRUE
+Oaxaca,Santo Domingo Armenta,48,48,TRUE
+Oaxaca,Santo Domingo Chihuitán,48,48,TRUE
+Oaxaca,Santo Domingo Ingenio,48,48,TRUE
+Oaxaca,Santo Domingo Ixcatlán,48,48,TRUE
+Oaxaca,Santo Domingo Nuxaá,48,48,TRUE
+Oaxaca,Santo Domingo Ozolotepec,48,48,TRUE
+Oaxaca,Santo Domingo Petapa,48,48,TRUE
+Oaxaca,Santo Domingo Roayaga,48,48,TRUE
+Oaxaca,Santo Domingo Tehuantepec,48,48,TRUE
+Oaxaca,Santo Domingo Teojomulco,48,48,TRUE
+Oaxaca,Santo Domingo Tepuxtepec,48,48,TRUE
+Oaxaca,Santo Domingo Tlatayápam,48,48,TRUE
+Oaxaca,Santo Domingo Tomaltepec,48,48,TRUE
+Oaxaca,Santo Domingo Tonalá,48,48,TRUE
+Oaxaca,Santo Domingo Xagacía,48,48,TRUE
+Oaxaca,Santo Domingo Yanhuitlán,48,48,TRUE
+Oaxaca,Santo Domingo Yodohino,48,48,TRUE
+Oaxaca,Santo Domingo Zanatepec,48,48,TRUE
+Oaxaca,Santo Domingo de Morelos,48,48,TRUE
+Oaxaca,Santo Tomás Jalieza,48,48,TRUE
+Oaxaca,Santo Tomás Mazaltepec,48,48,TRUE
+Oaxaca,Santo Tomás Ocotepec,48,48,TRUE
+Oaxaca,Santo Tomás Tamazulapan,48,48,TRUE
+Oaxaca,Santos Reyes Nopala,48,48,TRUE
+Oaxaca,Santos Reyes Pápalo,48,48,TRUE
+Oaxaca,Santos Reyes Tepejillo,48,48,TRUE
+Oaxaca,Santos Reyes Yucuná,48,48,TRUE
+Oaxaca,Silacayoápam,48,48,TRUE
+Oaxaca,Sitio de Xitlapehua,48,48,TRUE
+Oaxaca,Soledad Etla,48,48,TRUE
+Oaxaca,Tanetze de Zaragoza,48,48,TRUE
+Oaxaca,Taniche,48,48,TRUE
+Oaxaca,Tataltepec de Valdés,48,48,TRUE
+Oaxaca,Teococuilco de Marcos Pérez,48,48,TRUE
+Oaxaca,Teotitlán de Flores Magón,48,48,TRUE
+Oaxaca,Teotitlán del Valle,48,48,TRUE
+Oaxaca,Teotongo,48,48,TRUE
+Oaxaca,Tepelmeme Villa de Morelos,48,48,TRUE
+Oaxaca,Tlacolula de Matamoros,48,48,TRUE
+Oaxaca,Tlacotepec Plumas,48,48,TRUE
+Oaxaca,Tlalixtac de Cabrera,48,48,TRUE
+Oaxaca,Totontepec Villa de Morelos,48,48,TRUE
+Oaxaca,Trinidad Zaachila,48,48,TRUE
+Oaxaca,Unión Hidalgo,48,48,TRUE
+Oaxaca,Valerio Trujano,48,48,TRUE
+Oaxaca,Villa Díaz Ordaz,48,48,TRUE
+Oaxaca,Villa Sola de Vega,48,48,TRUE
+Oaxaca,Villa Talea de Castro,48,48,TRUE
+Oaxaca,Villa Tejúpam de la Unión,48,48,TRUE
+Oaxaca,Villa de Chilapa de Díaz,48,48,TRUE
+Oaxaca,Villa de Etla,48,48,TRUE
+Oaxaca,Villa de Tamazulápam del Progreso,48,48,TRUE
+Oaxaca,Villa de Tututepec de Melchor Ocampo,48,48,TRUE
+Oaxaca,Villa de Zaachila,48,48,TRUE
+Oaxaca,Yaxe,48,48,TRUE
+Oaxaca,Yogana,48,48,TRUE
+Oaxaca,Yutanduchi de Guerrero,48,48,TRUE
+Oaxaca,Zapotitlán Lagunas,48,48,TRUE
+Oaxaca,Zapotitlán Palmas,48,48,TRUE
+Oaxaca,Zimatlán de Álvarez,48,48,TRUE
+Puebla,Acajete,48,48,TRUE
+Puebla,Acateno,48,48,TRUE
+Puebla,Acatlán,48,48,TRUE
+Puebla,Acatzingo,48,48,TRUE
+Puebla,Acteopan,48,48,TRUE
+Puebla,Ahuacatlán,48,48,TRUE
+Puebla,Ahuatlán,48,48,TRUE
+Puebla,Ahuazotepec,48,48,TRUE
+Puebla,Ahuehuetitla,48,48,TRUE
+Puebla,Ajalpan,48,48,TRUE
+Puebla,Albino Zertuche,48,48,TRUE
+Puebla,Aljojuca,48,48,TRUE
+Puebla,Altepexi,48,48,TRUE
+Puebla,Amixtlán,48,48,TRUE
+Puebla,Amozoc,48,48,TRUE
+Puebla,Aquixtla,48,48,TRUE
+Puebla,Atempan,48,48,TRUE
+Puebla,Atexcal,48,48,TRUE
+Puebla,Atlequizayan,48,48,TRUE
+Puebla,Atlixco,48,48,TRUE
+Puebla,Atoyatempan,48,48,TRUE
+Puebla,Atzala,48,48,TRUE
+Puebla,Atzitzihuacán,48,48,TRUE
+Puebla,Atzitzintla,48,48,TRUE
+Puebla,Axutla,48,48,TRUE
+Puebla,Ayotoxco de Guerrero,48,48,TRUE
+Puebla,Calpan,48,48,TRUE
+Puebla,Caltepec,48,48,TRUE
+Puebla,Camocuautla,48,48,TRUE
+Puebla,Caxhuacan,48,48,TRUE
+Puebla,Cañada Morelos,48,48,TRUE
+Puebla,Chalchicomula de Sesma,48,48,TRUE
+Puebla,Chapulco,48,48,TRUE
+Puebla,Chiautla,48,48,TRUE
+Puebla,Chiautzingo,48,48,TRUE
+Puebla,Chichiquila,48,48,TRUE
+Puebla,Chiconcuautla,48,48,TRUE
+Puebla,Chietla,48,48,TRUE
+Puebla,Chigmecatitlán,48,48,TRUE
+Puebla,Chignahuapan,48,48,TRUE
+Puebla,Chignautla,48,48,TRUE
+Puebla,Chila,48,48,TRUE
+Puebla,Chila de la Sal,48,48,TRUE
+Puebla,Chilchotla,48,48,TRUE
+Puebla,Chinantla,48,48,TRUE
+Puebla,Coatepec,48,48,TRUE
+Puebla,Coatzingo,48,48,TRUE
+Puebla,Cohetzala,48,48,TRUE
+Puebla,Cohuecan,48,48,TRUE
+Puebla,Coronango,48,48,TRUE
+Puebla,Coxcatlán,48,48,TRUE
+Puebla,Coyomeapan,48,48,TRUE
+Puebla,Coyotepec,48,48,TRUE
+Puebla,Cuapiaxtla de Madero,48,48,TRUE
+Puebla,Cuautempan,48,48,TRUE
+Puebla,Cuautinchán,48,48,TRUE
+Puebla,Cuautlancingo,48,48,TRUE
+Puebla,Cuayuca de Andrade,48,48,TRUE
+Puebla,Cuetzalan del Progreso,48,48,TRUE
+Puebla,Cuyoaco,48,48,TRUE
+Puebla,Domingo Arenas,48,48,TRUE
+Puebla,Eloxochitlán,48,48,TRUE
+Puebla,Epatlán,48,48,TRUE
+Puebla,Esperanza,48,48,TRUE
+Puebla,Francisco Z. Mena,48,48,TRUE
+Puebla,General Felipe Ángeles,48,48,TRUE
+Puebla,Guadalupe,48,48,TRUE
+Puebla,Guadalupe Victoria,48,48,TRUE
+Puebla,Hermenegildo Galeana,48,48,TRUE
+Puebla,Honey,48,48,TRUE
+Puebla,Huaquechula,48,48,TRUE
+Puebla,Huatlatlauca,48,48,TRUE
+Puebla,Huauchinango,48,48,TRUE
+Puebla,Huehuetla,48,48,TRUE
+Puebla,Huehuetlán el Chico,48,48,TRUE
+Puebla,Huehuetlán el Grande,48,48,TRUE
+Puebla,Huejotzingo,48,48,TRUE
+Puebla,Hueyapan,48,48,TRUE
+Puebla,Hueytamalco,48,48,TRUE
+Puebla,Hueytlalpan,48,48,TRUE
+Puebla,Huitzilan de Serdán,48,48,TRUE
+Puebla,Huitziltepec,48,48,TRUE
+Puebla,Ixcamilpa de Guerrero,48,48,TRUE
+Puebla,Ixcaquixtla,48,48,TRUE
+Puebla,Ixtacamaxtitlán,48,48,TRUE
+Puebla,Ixtepec,48,48,TRUE
+Puebla,Izúcar de Matamoros,48,48,TRUE
+Puebla,Jalpan,48,48,TRUE
+Puebla,Jolalpan,48,48,TRUE
+Puebla,Jonotla,48,48,TRUE
+Puebla,Jopala,48,48,TRUE
+Puebla,Juan C. Bonilla,48,48,TRUE
+Puebla,Juan Galindo,48,48,TRUE
+Puebla,Juan N. Méndez,48,48,TRUE
+Puebla,La Magdalena Tlatlauquitepec,48,48,TRUE
+Puebla,Lafragua,48,48,TRUE
+Puebla,Libres,48,48,TRUE
+Puebla,Los Reyes de Juárez,48,48,TRUE
+Puebla,Mazapiltepec de Juárez,48,48,TRUE
+Puebla,Mixtla,48,48,TRUE
+Puebla,Molcaxac,48,48,TRUE
+Puebla,Naupan,48,48,TRUE
+Puebla,Nauzontla,48,48,TRUE
+Puebla,Nealtican,48,48,TRUE
+Puebla,Nicolás Bravo,48,48,TRUE
+Puebla,Nopalucan,48,48,TRUE
+Puebla,Ocotepec,48,48,TRUE
+Puebla,Ocoyucan,48,48,TRUE
+Puebla,Olintla,48,48,TRUE
+Puebla,Oriental,48,48,TRUE
+Puebla,Pahuatlán,48,48,TRUE
+Puebla,Palmar de Bravo,48,48,TRUE
+Puebla,Pantepec,48,48,TRUE
+Puebla,Petlalcingo,48,48,TRUE
+Puebla,Piaxtla,48,48,TRUE
+Puebla,Puebla,48,48,TRUE
+Puebla,Quecholac,48,48,TRUE
+Puebla,Quimixtlán,48,48,TRUE
+Puebla,Rafael Lara Grajales,48,48,TRUE
+Puebla,San Andrés Cholula,48,48,TRUE
+Puebla,San Antonio Cañada,48,48,TRUE
+Puebla,San Diego la Mesa Tochimiltzingo,48,48,TRUE
+Puebla,San Felipe Teotlalcingo,48,48,TRUE
+Puebla,San Felipe Tepatlán,48,48,TRUE
+Puebla,San Gabriel Chilac,48,48,TRUE
+Puebla,San Gregorio Atzompa,48,48,TRUE
+Puebla,San Jerónimo Tecuanipan,48,48,TRUE
+Puebla,San Jerónimo Xayacatlán,48,48,TRUE
+Puebla,San José Chiapa,48,48,TRUE
+Puebla,San José Miahuatlán,48,48,TRUE
+Puebla,San Juan Atenco,48,48,TRUE
+Puebla,San Juan Atzompa,48,48,TRUE
+Puebla,San Martín Texmelucan,48,48,TRUE
+Puebla,San Martín Totoltepec,48,48,TRUE
+Puebla,San Matías Tlalancaleca,48,48,TRUE
+Puebla,San Miguel Ixitlán,48,48,TRUE
+Puebla,San Miguel Xoxtla,48,48,TRUE
+Puebla,San Nicolás Buenos Aires,48,48,TRUE
+Puebla,San Nicolás de los Ranchos,48,48,TRUE
+Puebla,San Pablo Anicano,48,48,TRUE
+Puebla,San Pedro Cholula,48,48,TRUE
+Puebla,San Pedro Yeloixtlahuaca,48,48,TRUE
+Puebla,San Salvador Huixcolotla,48,48,TRUE
+Puebla,San Salvador el Seco,48,48,TRUE
+Puebla,San Salvador el Verde,48,48,TRUE
+Puebla,San Sebastián Tlacotepec,48,48,TRUE
+Puebla,Santa Catarina Tlaltempan,48,48,TRUE
+Puebla,Santa Inés Ahuatempan,48,48,TRUE
+Puebla,Santa Isabel Cholula,48,48,TRUE
+Puebla,Santiago Miahuatlán,48,48,TRUE
+Puebla,Santo Tomás Hueyotlipan,48,48,TRUE
+Puebla,Soltepec,48,48,TRUE
+Puebla,Tecali de Herrera,48,48,TRUE
+Puebla,Tecamachalco,48,48,TRUE
+Puebla,Tecomatlán,48,48,TRUE
+Puebla,Tehuacán,48,48,TRUE
+Puebla,Tehuitzingo,48,48,TRUE
+Puebla,Tenampulco,48,48,TRUE
+Puebla,Teopantlán,48,48,TRUE
+Puebla,Teotlalco,48,48,TRUE
+Puebla,Tepanco de López,48,48,TRUE
+Puebla,Tepango de Rodríguez,48,48,TRUE
+Puebla,Tepatlaxco de Hidalgo,48,48,TRUE
+Puebla,Tepeaca,48,48,TRUE
+Puebla,Tepemaxalco,48,48,TRUE
+Puebla,Tepeojuma,48,48,TRUE
+Puebla,Tepetzintla,48,48,TRUE
+Puebla,Tepexco,48,48,TRUE
+Puebla,Tepexi de Rodríguez,48,48,TRUE
+Puebla,Tepeyahualco,48,48,TRUE
+Puebla,Tepeyahualco de Cuauhtémoc,48,48,TRUE
+Puebla,Tetela de Ocampo,48,48,TRUE
+Puebla,Teteles de Avila Castillo,48,48,TRUE
+Puebla,Teziutlán,48,48,TRUE
+Puebla,Tianguismanalco,48,48,TRUE
+Puebla,Tlachichuca,48,48,TRUE
+Puebla,Tlacotepec de Benito Juárez,48,48,TRUE
+Puebla,Tlacuilotepec,48,48,TRUE
+Puebla,Tlahuapan,48,48,TRUE
+Puebla,Tlaltenango,48,48,TRUE
+Puebla,Tlanepantla,48,48,TRUE
+Puebla,Tlaola,48,48,TRUE
+Puebla,Tlapacoya,48,48,TRUE
+Puebla,Tlapanalá,48,48,TRUE
+Puebla,Tlatlauquitepec,48,48,TRUE
+Puebla,Tlaxco,48,48,TRUE
+Puebla,Tochimilco,48,48,TRUE
+Puebla,Tochtepec,48,48,TRUE
+Puebla,Totoltepec de Guerrero,48,48,TRUE
+Puebla,Tulcingo,48,48,TRUE
+Puebla,Tuzamapan de Galeana,48,48,TRUE
+Puebla,Tzicatlacoyan,48,48,TRUE
+Puebla,Venustiano Carranza,48,48,TRUE
+Puebla,Vicente Guerrero,48,48,TRUE
+Puebla,Xayacatlán de Bravo,48,48,TRUE
+Puebla,Xicotepec,48,48,TRUE
+Puebla,Xicotlán,48,48,TRUE
+Puebla,Xiutetelco,48,48,TRUE
+Puebla,Xochiapulco,48,48,TRUE
+Puebla,Xochiltepec,48,48,TRUE
+Puebla,Xochitlán Todos Santos,48,48,TRUE
+Puebla,Xochitlán de Vicente Suárez,48,48,TRUE
+Puebla,Yaonáhuac,48,48,TRUE
+Puebla,Yehualtepec,48,48,TRUE
+Puebla,Zacapala,48,48,TRUE
+Puebla,Zacapoaxtla,48,48,TRUE
+Puebla,Zacatlán,48,48,TRUE
+Puebla,Zapotitlán,48,48,TRUE
+Puebla,Zapotitlán de Méndez,48,48,TRUE
+Puebla,Zaragoza,48,48,TRUE
+Puebla,Zautla,48,48,TRUE
+Puebla,Zihuateutla,48,48,TRUE
+Puebla,Zinacatepec,48,48,TRUE
+Puebla,Zongozotla,48,48,TRUE
+Puebla,Zoquiapan,48,48,TRUE
+Puebla,Zoquitlán,48,48,TRUE
+Querétaro,Amealco de Bonfil,48,48,TRUE
+Querétaro,Arroyo Seco,48,48,TRUE
+Querétaro,Cadereyta de Montes,48,48,TRUE
+Querétaro,Colón,48,48,TRUE
+Querétaro,Corregidora,48,48,TRUE
+Querétaro,El Marqués,48,48,TRUE
+Querétaro,Ezequiel Montes,48,48,TRUE
+Querétaro,Huimilpan,48,48,TRUE
+Querétaro,Jalpan de Serra,48,48,TRUE
+Querétaro,Landa de Matamoros,48,48,TRUE
+Querétaro,Pedro Escobedo,48,48,TRUE
+Querétaro,Peñamiller,48,48,TRUE
+Querétaro,Pinal de Amoles,48,48,TRUE
+Querétaro,Querétaro,48,48,TRUE
+Querétaro,San Joaquín,48,48,TRUE
+Querétaro,San Juan del Río,48,48,TRUE
+Querétaro,Tequisquiapan,48,48,TRUE
+Querétaro,Tolimán,48,48,TRUE
+Quintana Roo,Benito Juárez,48,48,TRUE
+Quintana Roo,Cozumel,48,48,TRUE
+Quintana Roo,Felipe Carrillo Puerto,48,48,TRUE
+Quintana Roo,Isla Mujeres,48,48,TRUE
+Quintana Roo,José María Morelos,48,48,TRUE
+Quintana Roo,Lázaro Cárdenas,48,48,TRUE
+Quintana Roo,Othón P. Blanco,48,48,TRUE
+Quintana Roo,Solidaridad,48,48,TRUE
+Quintana Roo,Tulum,48,48,TRUE
+San Luis Potosí,Alaquines,48,48,TRUE
+San Luis Potosí,Aquismón,48,48,TRUE
+San Luis Potosí,Armadillo de los Infante,48,48,TRUE
+San Luis Potosí,Axtla de Terrazas,48,48,TRUE
+San Luis Potosí,Catorce,48,48,TRUE
+San Luis Potosí,Cedral,48,48,TRUE
+San Luis Potosí,Cerritos,48,48,TRUE
+San Luis Potosí,Cerro de San Pedro,48,48,TRUE
+San Luis Potosí,Charcas,48,48,TRUE
+San Luis Potosí,Ciudad Fernández,48,48,TRUE
+San Luis Potosí,Ciudad Valles,48,48,TRUE
+San Luis Potosí,Ciudad del Maíz,48,48,TRUE
+San Luis Potosí,Coxcatlán,48,48,TRUE
+San Luis Potosí,Cárdenas,48,48,TRUE
+San Luis Potosí,Ebano,48,48,TRUE
+San Luis Potosí,El Naranjo,48,48,TRUE
+San Luis Potosí,Guadalcázar,48,48,TRUE
+San Luis Potosí,Huehuetlán,48,48,TRUE
+San Luis Potosí,Lagunillas,48,48,TRUE
+San Luis Potosí,Matehuala,48,48,TRUE
+San Luis Potosí,Matlapa,48,48,TRUE
+San Luis Potosí,Mexquitic de Carmona,48,48,TRUE
+San Luis Potosí,Moctezuma,48,48,TRUE
+San Luis Potosí,Rayón,48,48,TRUE
+San Luis Potosí,Rioverde,48,48,TRUE
+San Luis Potosí,Salinas,48,48,TRUE
+San Luis Potosí,San Antonio,48,48,TRUE
+San Luis Potosí,San Ciro de Acosta,48,48,TRUE
+San Luis Potosí,San Luis Potosí,48,48,TRUE
+San Luis Potosí,San Martín Chalchicuautla,48,48,TRUE
+San Luis Potosí,San Nicolás Tolentino,48,48,TRUE
+San Luis Potosí,San Vicente Tancuayalab,48,48,TRUE
+San Luis Potosí,Santa Catarina,48,48,TRUE
+San Luis Potosí,Santa María del Río,48,48,TRUE
+San Luis Potosí,Santo Domingo,48,48,TRUE
+San Luis Potosí,Soledad de Graciano Sánchez,48,48,TRUE
+San Luis Potosí,Tamasopo,48,48,TRUE
+San Luis Potosí,Tamazunchale,48,48,TRUE
+San Luis Potosí,Tampacán,48,48,TRUE
+San Luis Potosí,Tampamolón Corona,48,48,TRUE
+San Luis Potosí,Tamuín,48,48,TRUE
+San Luis Potosí,Tancanhuitz,48,48,TRUE
+San Luis Potosí,Tanlajás,48,48,TRUE
+San Luis Potosí,Tanquián de Escobedo,48,48,TRUE
+San Luis Potosí,Tierra Nueva,48,48,TRUE
+San Luis Potosí,Vanegas,48,48,TRUE
+San Luis Potosí,Venado,48,48,TRUE
+San Luis Potosí,Villa Hidalgo,48,48,TRUE
+San Luis Potosí,Villa Juárez,48,48,TRUE
+San Luis Potosí,Villa de Arista,48,48,TRUE
+San Luis Potosí,Villa de Arriaga,48,48,TRUE
+San Luis Potosí,Villa de Guadalupe,48,48,TRUE
+San Luis Potosí,Villa de Ramos,48,48,TRUE
+San Luis Potosí,Villa de Reyes,48,48,TRUE
+San Luis Potosí,Villa de la Paz,48,48,TRUE
+San Luis Potosí,Xilitla,48,48,TRUE
+San Luis Potosí,Zaragoza,48,48,TRUE
+Sinaloa,Ahome,48,48,TRUE
+Sinaloa,Angostura,48,48,TRUE
+Sinaloa,Badiraguato,48,48,TRUE
+Sinaloa,Choix,48,48,TRUE
+Sinaloa,Concordia,48,48,TRUE
+Sinaloa,Cosalá,48,48,TRUE
+Sinaloa,Culiacán,48,48,TRUE
+Sinaloa,El Fuerte,48,48,TRUE
+Sinaloa,Elota,48,48,TRUE
+Sinaloa,Escuinapa,48,48,TRUE
+Sinaloa,Guasave,48,48,TRUE
+Sinaloa,Mazatlán,48,48,TRUE
+Sinaloa,Mocorito,48,48,TRUE
+Sinaloa,Navolato,48,48,TRUE
+Sinaloa,Rosario,48,48,TRUE
+Sinaloa,Salvador Alvarado,48,48,TRUE
+Sinaloa,San Ignacio,48,48,TRUE
+Sinaloa,Sinaloa,48,48,TRUE
+Sonora,Aconchi,48,48,TRUE
+Sonora,Agua Prieta,48,48,TRUE
+Sonora,Alamos,48,48,TRUE
+Sonora,Altar,48,48,TRUE
+Sonora,Arivechi,48,48,TRUE
+Sonora,Arizpe,48,48,TRUE
+Sonora,Atil,48,48,TRUE
+Sonora,Bacadéhuachi,48,48,TRUE
+Sonora,Bacanora,48,48,TRUE
+Sonora,Bacerac,48,48,TRUE
+Sonora,Bacoachi,48,48,TRUE
+Sonora,Banámichi,48,48,TRUE
+Sonora,Bavispe,48,48,TRUE
+Sonora,Baviácora,48,48,TRUE
+Sonora,Benito Juárez,48,48,TRUE
+Sonora,Benjamín Hill,48,48,TRUE
+Sonora,Bácum,48,48,TRUE
+Sonora,Caborca,48,48,TRUE
+Sonora,Cajeme,48,48,TRUE
+Sonora,Cananea,48,48,TRUE
+Sonora,Carbó,48,48,TRUE
+Sonora,Cucurpe,48,48,TRUE
+Sonora,Cumpas,48,48,TRUE
+Sonora,Divisaderos,48,48,TRUE
+Sonora,Empalme,48,48,TRUE
+Sonora,Etchojoa,48,48,TRUE
+Sonora,Fronteras,48,48,TRUE
+Sonora,General Plutarco Elías Calles,48,48,TRUE
+Sonora,Granados,48,48,TRUE
+Sonora,Guaymas,48,48,TRUE
+Sonora,Hermosillo,48,48,TRUE
+Sonora,Huachinera,48,48,TRUE
+Sonora,Huatabampo,48,48,TRUE
+Sonora,Huásabas,48,48,TRUE
+Sonora,Huépac,48,48,TRUE
+Sonora,Imuris,48,48,TRUE
+Sonora,La Colorada,48,48,TRUE
+Sonora,Magdalena,48,48,TRUE
+Sonora,Mazatán,48,48,TRUE
+Sonora,Moctezuma,48,48,TRUE
+Sonora,Naco,48,48,TRUE
+Sonora,Nacozari de García,48,48,TRUE
+Sonora,Navojoa,48,48,TRUE
+Sonora,Nogales,48,48,TRUE
+Sonora,Nácori Chico,48,48,TRUE
+Sonora,Onavas,48,48,TRUE
+Sonora,Opodepe,48,48,TRUE
+Sonora,Oquitoa,48,48,TRUE
+Sonora,Pitiquito,48,48,TRUE
+Sonora,Puerto Peñasco,48,48,TRUE
+Sonora,Quiriego,48,48,TRUE
+Sonora,Rayón,48,48,TRUE
+Sonora,Rosario,48,48,TRUE
+Sonora,Sahuaripa,48,48,TRUE
+Sonora,San Felipe de Jesús,48,48,TRUE
+Sonora,San Ignacio Río Muerto,48,48,TRUE
+Sonora,San Javier,48,48,TRUE
+Sonora,San Luis Río Colorado,48,48,TRUE
+Sonora,San Miguel de Horcasitas,48,48,TRUE
+Sonora,San Pedro de la Cueva,48,48,TRUE
+Sonora,Santa Ana,48,48,TRUE
+Sonora,Santa Cruz,48,48,TRUE
+Sonora,Soyopa,48,48,TRUE
+Sonora,Suaqui Grande,48,48,TRUE
+Sonora,Sáric,48,48,TRUE
+Sonora,Tepache,48,48,TRUE
+Sonora,Trincheras,48,48,TRUE
+Sonora,Tubutama,48,48,TRUE
+Sonora,Ures,48,48,TRUE
+Sonora,Villa Hidalgo,48,48,TRUE
+Sonora,Villa Pesqueira,48,48,TRUE
+Sonora,Yécora,48,48,TRUE
+Tabasco,Balancán,48,48,TRUE
+Tabasco,Centla,48,48,TRUE
+Tabasco,Centro,48,48,TRUE
+Tabasco,Comalcalco,48,48,TRUE
+Tabasco,Cunduacán,48,48,TRUE
+Tabasco,Cárdenas,48,48,TRUE
+Tabasco,Emiliano Zapata,48,48,TRUE
+Tabasco,Huimanguillo,48,48,TRUE
+Tabasco,Jalapa,48,48,TRUE
+Tabasco,Jalpa de Méndez,48,48,TRUE
+Tabasco,Jonuta,48,48,TRUE
+Tabasco,Macuspana,48,48,TRUE
+Tabasco,Nacajuca,48,48,TRUE
+Tabasco,Paraíso,48,48,TRUE
+Tabasco,Tacotalpa,48,48,TRUE
+Tabasco,Teapa,48,48,TRUE
+Tabasco,Tenosique,48,48,TRUE
+Tamaulipas,Abasolo,48,48,TRUE
+Tamaulipas,Aldama,48,48,TRUE
+Tamaulipas,Altamira,48,48,TRUE
+Tamaulipas,Antiguo Morelos,48,48,TRUE
+Tamaulipas,Burgos,48,48,TRUE
+Tamaulipas,Bustamante,48,48,TRUE
+Tamaulipas,Camargo,48,48,TRUE
+Tamaulipas,Casas,48,48,TRUE
+Tamaulipas,Ciudad Madero,48,48,TRUE
+Tamaulipas,Cruillas,48,48,TRUE
+Tamaulipas,El Mante,48,48,TRUE
+Tamaulipas,González,48,48,TRUE
+Tamaulipas,Guerrero,48,48,TRUE
+Tamaulipas,Gustavo Díaz Ordaz,48,48,TRUE
+Tamaulipas,Gómez Farías,48,48,TRUE
+Tamaulipas,Güémez,48,48,TRUE
+Tamaulipas,Hidalgo,48,48,TRUE
+Tamaulipas,Jaumave,48,48,TRUE
+Tamaulipas,Jiménez,48,48,TRUE
+Tamaulipas,Llera,48,48,TRUE
+Tamaulipas,Mainero,48,48,TRUE
+Tamaulipas,Matamoros,48,48,TRUE
+Tamaulipas,Mier,48,48,TRUE
+Tamaulipas,Miguel Alemán,48,48,TRUE
+Tamaulipas,Miquihuana,48,48,TRUE
+Tamaulipas,Méndez,48,48,TRUE
+Tamaulipas,Nuevo Laredo,48,48,TRUE
+Tamaulipas,Nuevo Morelos,48,48,TRUE
+Tamaulipas,Ocampo,48,48,TRUE
+Tamaulipas,Padilla,48,48,TRUE
+Tamaulipas,Palmillas,48,48,TRUE
+Tamaulipas,Reynosa,48,48,TRUE
+Tamaulipas,Río Bravo,48,48,TRUE
+Tamaulipas,San Carlos,48,48,TRUE
+Tamaulipas,San Fernando,48,48,TRUE
+Tamaulipas,San Nicolás,48,48,TRUE
+Tamaulipas,Soto la Marina,48,48,TRUE
+Tamaulipas,Tampico,48,48,TRUE
+Tamaulipas,Tula,48,48,TRUE
+Tamaulipas,Valle Hermoso,48,48,TRUE
+Tamaulipas,Victoria,48,48,TRUE
+Tamaulipas,Villagrán,48,48,TRUE
+Tamaulipas,Xicoténcatl,48,48,TRUE
+Tlaxcala,Acuamanala de Miguel Hidalgo,48,48,TRUE
+Tlaxcala,Amaxac de Guerrero,48,48,TRUE
+Tlaxcala,Apetatitlán de Antonio Carvajal,48,48,TRUE
+Tlaxcala,Apizaco,48,48,TRUE
+Tlaxcala,Atlangatepec,48,48,TRUE
+Tlaxcala,Benito Juárez,48,48,TRUE
+Tlaxcala,Calpulalpan,48,48,TRUE
+Tlaxcala,Chiautempan,48,48,TRUE
+Tlaxcala,Contla de Juan Cuamatzi,48,48,TRUE
+Tlaxcala,Cuapiaxtla,48,48,TRUE
+Tlaxcala,Cuaxomulco,48,48,TRUE
+Tlaxcala,El Carmen Tequexquitla,48,48,TRUE
+Tlaxcala,Emiliano Zapata,48,48,TRUE
+Tlaxcala,Españita,48,48,TRUE
+Tlaxcala,Huamantla,48,48,TRUE
+Tlaxcala,Hueyotlipan,48,48,TRUE
+Tlaxcala,Ixtacuixtla de Mariano Matamoros,48,48,TRUE
+Tlaxcala,Ixtenco,48,48,TRUE
+Tlaxcala,La Magdalena Tlaltelulco,48,48,TRUE
+Tlaxcala,Lázaro Cárdenas,48,48,TRUE
+Tlaxcala,Mazatecochco de José María Morelos,48,48,TRUE
+Tlaxcala,Muñoz de Domingo Arenas,48,48,TRUE
+Tlaxcala,Nanacamilpa de Mariano Arista,48,48,TRUE
+Tlaxcala,Natívitas,48,48,TRUE
+Tlaxcala,Panotla,48,48,TRUE
+Tlaxcala,Papalotla de Xicohténcatl,48,48,TRUE
+Tlaxcala,San Francisco Tetlanohcan,48,48,TRUE
+Tlaxcala,San Jerónimo Zacualpan,48,48,TRUE
+Tlaxcala,San José Teacalco,48,48,TRUE
+Tlaxcala,San Juan Huactzinco,48,48,TRUE
+Tlaxcala,San Lorenzo Axocomanitla,48,48,TRUE
+Tlaxcala,San Lucas Tecopilco,48,48,TRUE
+Tlaxcala,San Pablo del Monte,48,48,TRUE
+Tlaxcala,Sanctórum de Lázaro Cárdenas,48,48,TRUE
+Tlaxcala,Santa Ana Nopalucan,48,48,TRUE
+Tlaxcala,Santa Apolonia Teacalco,48,48,TRUE
+Tlaxcala,Santa Catarina Ayometla,48,48,TRUE
+Tlaxcala,Santa Cruz Quilehtla,48,48,TRUE
+Tlaxcala,Santa Cruz Tlaxcala,48,48,TRUE
+Tlaxcala,Santa Isabel Xiloxoxtla,48,48,TRUE
+Tlaxcala,Tenancingo,48,48,TRUE
+Tlaxcala,Teolocholco,48,48,TRUE
+Tlaxcala,Tepetitla de Lardizábal,48,48,TRUE
+Tlaxcala,Tepeyanco,48,48,TRUE
+Tlaxcala,Terrenate,48,48,TRUE
+Tlaxcala,Tetla de la Solidaridad,48,48,TRUE
+Tlaxcala,Tetlatlahuca,48,48,TRUE
+Tlaxcala,Tlaxcala,48,48,TRUE
+Tlaxcala,Tlaxco,48,48,TRUE
+Tlaxcala,Tocatlán,48,48,TRUE
+Tlaxcala,Totolac,48,48,TRUE
+Tlaxcala,Tzompantepec,48,48,TRUE
+Tlaxcala,Xaloztoc,48,48,TRUE
+Tlaxcala,Xaltocan,48,48,TRUE
+Tlaxcala,Xicohtzinco,48,48,TRUE
+Tlaxcala,Zacatelco,48,48,TRUE
+Veracruz,Acajete,48,48,TRUE
+Veracruz,Acatlán,48,48,TRUE
+Veracruz,Acayucan,48,48,TRUE
+Veracruz,Actopan,48,48,TRUE
+Veracruz,Acula,48,48,TRUE
+Veracruz,Acultzingo,48,48,TRUE
+Veracruz,Agua Dulce,48,48,TRUE
+Veracruz,Alpatláhuac,48,48,TRUE
+Veracruz,Alto Lucero de Gutiérrez Barrios,48,48,TRUE
+Veracruz,Altotonga,48,48,TRUE
+Veracruz,Alvarado,48,48,TRUE
+Veracruz,Amatitlán,48,48,TRUE
+Veracruz,Amatlán de los Reyes,48,48,TRUE
+Veracruz,Angel R. Cabada,48,48,TRUE
+Veracruz,Apazapan,48,48,TRUE
+Veracruz,Aquila,48,48,TRUE
+Veracruz,Astacinga,48,48,TRUE
+Veracruz,Atlahuilco,48,48,TRUE
+Veracruz,Atoyac,48,48,TRUE
+Veracruz,Atzacan,48,48,TRUE
+Veracruz,Atzalan,48,48,TRUE
+Veracruz,Ayahualulco,48,48,TRUE
+Veracruz,Banderilla,48,48,TRUE
+Veracruz,Benito Juárez,48,48,TRUE
+Veracruz,Boca del Río,48,48,TRUE
+Veracruz,Calcahualco,48,48,TRUE
+Veracruz,Camarón de Tejeda,48,48,TRUE
+Veracruz,Camerino Z. Mendoza,48,48,TRUE
+Veracruz,Carlos A. Carrillo,48,48,TRUE
+Veracruz,Carrillo Puerto,48,48,TRUE
+Veracruz,Castillo de Teayo,48,48,TRUE
+Veracruz,Catemaco,48,48,TRUE
+Veracruz,Cerro Azul,48,48,TRUE
+Veracruz,Chacaltianguis,48,48,TRUE
+Veracruz,Chalma,48,48,TRUE
+Veracruz,Chiconamel,48,48,TRUE
+Veracruz,Chiconquiaco,48,48,TRUE
+Veracruz,Chicontepec,48,48,TRUE
+Veracruz,Chinameca,48,48,TRUE
+Veracruz,Chinampa de Gorostiza,48,48,TRUE
+Veracruz,Chocamán,48,48,TRUE
+Veracruz,Chontla,48,48,TRUE
+Veracruz,Chumatlán,48,48,TRUE
+Veracruz,Citlaltépetl,48,48,TRUE
+Veracruz,Coacoatzintla,48,48,TRUE
+Veracruz,Coahuitlán,48,48,TRUE
+Veracruz,Coatepec,48,48,TRUE
+Veracruz,Coatzacoalcos,48,48,TRUE
+Veracruz,Coatzintla,48,48,TRUE
+Veracruz,Coetzala,48,48,TRUE
+Veracruz,Colipa,48,48,TRUE
+Veracruz,Comapa,48,48,TRUE
+Veracruz,Cosamaloapan de Carpio,48,48,TRUE
+Veracruz,Cosautlán de Carvajal,48,48,TRUE
+Veracruz,Coscomatepec,48,48,TRUE
+Veracruz,Cosoleacaque,48,48,TRUE
+Veracruz,Cotaxtla,48,48,TRUE
+Veracruz,Coxquihui,48,48,TRUE
+Veracruz,Coyutla,48,48,TRUE
+Veracruz,Cuichapa,48,48,TRUE
+Veracruz,Cuitláhuac,48,48,TRUE
+Veracruz,Córdoba,48,48,TRUE
+Veracruz,El Higo,48,48,TRUE
+Veracruz,Emiliano Zapata,48,48,TRUE
+Veracruz,Espinal,48,48,TRUE
+Veracruz,Filomeno Mata,48,48,TRUE
+Veracruz,Fortín,48,48,TRUE
+Veracruz,Gutiérrez Zamora,48,48,TRUE
+Veracruz,Hidalgotitlán,48,48,TRUE
+Veracruz,Huatusco,48,48,TRUE
+Veracruz,Huayacocotla,48,48,TRUE
+Veracruz,Hueyapan de Ocampo,48,48,TRUE
+Veracruz,Ignacio de la Llave,48,48,TRUE
+Veracruz,Ilamatlán,48,48,TRUE
+Veracruz,Isla,48,48,TRUE
+Veracruz,Ixcatepec,48,48,TRUE
+Veracruz,Ixhuacán de los Reyes,48,48,TRUE
+Veracruz,Ixhuatlancillo,48,48,TRUE
+Veracruz,Ixhuatlán de Madero,48,48,TRUE
+Veracruz,Ixhuatlán del Café,48,48,TRUE
+Veracruz,Ixhuatlán del Sureste,48,48,TRUE
+Veracruz,Ixmatlahuacan,48,48,TRUE
+Veracruz,Ixtaczoquitlán,48,48,TRUE
+Veracruz,Jalacingo,48,48,TRUE
+Veracruz,Jalcomulco,48,48,TRUE
+Veracruz,Jamapa,48,48,TRUE
+Veracruz,Jesús Carranza,48,48,TRUE
+Veracruz,Jilotepec,48,48,TRUE
+Veracruz,José Azueta,48,48,TRUE
+Veracruz,Juan Rodríguez Clara,48,48,TRUE
+Veracruz,Juchique de Ferrer,48,48,TRUE
+Veracruz,Jáltipan,48,48,TRUE
+Veracruz,La Antigua,48,48,TRUE
+Veracruz,La Perla,48,48,TRUE
+Veracruz,Landero y Coss,48,48,TRUE
+Veracruz,Las Choapas,48,48,TRUE
+Veracruz,Las Minas,48,48,TRUE
+Veracruz,Las Vigas de Ramírez,48,48,TRUE
+Veracruz,Lerdo de Tejada,48,48,TRUE
+Veracruz,Los Reyes,48,48,TRUE
+Veracruz,Magdalena,48,48,TRUE
+Veracruz,Maltrata,48,48,TRUE
+Veracruz,Manlio Fabio Altamirano,48,48,TRUE
+Veracruz,Mariano Escobedo,48,48,TRUE
+Veracruz,Martínez de la Torre,48,48,TRUE
+Veracruz,Mecatlán,48,48,TRUE
+Veracruz,Mecayapan,48,48,TRUE
+Veracruz,Medellín,48,48,TRUE
+Veracruz,Miahuatlán,48,48,TRUE
+Veracruz,Minatitlán,48,48,TRUE
+Veracruz,Misantla,48,48,TRUE
+Veracruz,Mixtla de Altamirano,48,48,TRUE
+Veracruz,Moloacán,48,48,TRUE
+Veracruz,Nanchital de Lázaro Cárdenas del Río,48,48,TRUE
+Veracruz,Naolinco,48,48,TRUE
+Veracruz,Naranjal,48,48,TRUE
+Veracruz,Naranjos Amatlán,48,48,TRUE
+Veracruz,Nautla,48,48,TRUE
+Veracruz,Nogales,48,48,TRUE
+Veracruz,Oluta,48,48,TRUE
+Veracruz,Omealca,48,48,TRUE
+Veracruz,Orizaba,48,48,TRUE
+Veracruz,Otatitlán,48,48,TRUE
+Veracruz,Oteapan,48,48,TRUE
+Veracruz,Ozuluama de Mascareñas,48,48,TRUE
+Veracruz,Pajapan,48,48,TRUE
+Veracruz,Papantla,48,48,TRUE
+Veracruz,Paso de Ovejas,48,48,TRUE
+Veracruz,Paso del Macho,48,48,TRUE
+Veracruz,Perote,48,48,TRUE
+Veracruz,Platón Sánchez,48,48,TRUE
+Veracruz,Playa Vicente,48,48,TRUE
+Veracruz,Poza Rica de Hidalgo,48,48,TRUE
+Veracruz,Pueblo Viejo,48,48,TRUE
+Veracruz,Puente Nacional,48,48,TRUE
+Veracruz,Pánuco,48,48,TRUE
+Veracruz,Rafael Delgado,48,48,TRUE
+Veracruz,Rafael Lucio,48,48,TRUE
+Veracruz,Río Blanco,48,48,TRUE
+Veracruz,Saltabarranca,48,48,TRUE
+Veracruz,San Andrés Tenejapan,48,48,TRUE
+Veracruz,San Andrés Tuxtla,48,48,TRUE
+Veracruz,San Juan Evangelista,48,48,TRUE
+Veracruz,San Rafael,48,48,TRUE
+Veracruz,Santiago Sochiapan,48,48,TRUE
+Veracruz,Santiago Tuxtla,48,48,TRUE
+Veracruz,Sayula de Alemán,48,48,TRUE
+Veracruz,Sochiapa,48,48,TRUE
+Veracruz,Soconusco,48,48,TRUE
+Veracruz,Soledad Atzompa,48,48,TRUE
+Veracruz,Soledad de Doblado,48,48,TRUE
+Veracruz,Soteapan,48,48,TRUE
+Veracruz,Tamalín,48,48,TRUE
+Veracruz,Tamiahua,48,48,TRUE
+Veracruz,Tampico Alto,48,48,TRUE
+Veracruz,Tancoco,48,48,TRUE
+Veracruz,Tantima,48,48,TRUE
+Veracruz,Tantoyuca,48,48,TRUE
+Veracruz,Tatahuicapan de Juárez,48,48,TRUE
+Veracruz,Tatatila,48,48,TRUE
+Veracruz,Tecolutla,48,48,TRUE
+Veracruz,Tehuipango,48,48,TRUE
+Veracruz,Tempoal,48,48,TRUE
+Veracruz,Tenampa,48,48,TRUE
+Veracruz,Tenochtitlán,48,48,TRUE
+Veracruz,Teocelo,48,48,TRUE
+Veracruz,Tepatlaxco,48,48,TRUE
+Veracruz,Tepetlán,48,48,TRUE
+Veracruz,Tepetzintla,48,48,TRUE
+Veracruz,Tequila,48,48,TRUE
+Veracruz,Texcatepec,48,48,TRUE
+Veracruz,Texhuacán,48,48,TRUE
+Veracruz,Texistepec,48,48,TRUE
+Veracruz,Tezonapa,48,48,TRUE
+Veracruz,Tierra Blanca,48,48,TRUE
+Veracruz,Tihuatlán,48,48,TRUE
+Veracruz,Tlachichilco,48,48,TRUE
+Veracruz,Tlacojalpan,48,48,TRUE
+Veracruz,Tlacolulan,48,48,TRUE
+Veracruz,Tlacotalpan,48,48,TRUE
+Veracruz,Tlacotepec de Mejía,48,48,TRUE
+Veracruz,Tlalixcoyan,48,48,TRUE
+Veracruz,Tlalnelhuayocan,48,48,TRUE
+Veracruz,Tlaltetela,48,48,TRUE
+Veracruz,Tlapacoyan,48,48,TRUE
+Veracruz,Tlaquilpa,48,48,TRUE
+Veracruz,Tlilapan,48,48,TRUE
+Veracruz,Tomatlán,48,48,TRUE
+Veracruz,Tonayán,48,48,TRUE
+Veracruz,Totutla,48,48,TRUE
+Veracruz,Tres Valles,48,48,TRUE
+Veracruz,Tuxtilla,48,48,TRUE
+Veracruz,Ursulo Galván,48,48,TRUE
+Veracruz,Uxpanapa,48,48,TRUE
+Veracruz,Vega de Alatorre,48,48,TRUE
+Veracruz,Veracruz,48,48,TRUE
+Veracruz,Villa Aldama,48,48,TRUE
+Veracruz,Xalapa,48,48,TRUE
+Veracruz,Xico,48,48,TRUE
+Veracruz,Xoxocotla,48,48,TRUE
+Veracruz,Yanga,48,48,TRUE
+Veracruz,Yecuatla,48,48,TRUE
+Veracruz,Zacualpan,48,48,TRUE
+Veracruz,Zaragoza,48,48,TRUE
+Veracruz,Zentla,48,48,TRUE
+Veracruz,Zongolica,48,48,TRUE
+Veracruz,Zontecomatlán de López y Fuentes,48,48,TRUE
+Veracruz,Zozocolco de Hidalgo,48,48,TRUE
+Yucatán,Abalá,48,48,TRUE
+Yucatán,Acanceh,48,48,TRUE
+Yucatán,Akil,48,48,TRUE
+Yucatán,Baca,48,48,TRUE
+Yucatán,Bokobá,48,48,TRUE
+Yucatán,Buctzotz,48,48,TRUE
+Yucatán,Cacalchén,48,48,TRUE
+Yucatán,Calotmul,48,48,TRUE
+Yucatán,Cansahcab,48,48,TRUE
+Yucatán,Cantamayec,48,48,TRUE
+Yucatán,Celestún,48,48,TRUE
+Yucatán,Cenotillo,48,48,TRUE
+Yucatán,Chacsinkín,48,48,TRUE
+Yucatán,Chankom,48,48,TRUE
+Yucatán,Chapab,48,48,TRUE
+Yucatán,Chemax,48,48,TRUE
+Yucatán,Chichimilá,48,48,TRUE
+Yucatán,Chicxulub Pueblo,48,48,TRUE
+Yucatán,Chikindzonot,48,48,TRUE
+Yucatán,Chocholá,48,48,TRUE
+Yucatán,Chumayel,48,48,TRUE
+Yucatán,Conkal,48,48,TRUE
+Yucatán,Cuncunul,48,48,TRUE
+Yucatán,Cuzamá,48,48,TRUE
+Yucatán,Dzemul,48,48,TRUE
+Yucatán,Dzidzantún,48,48,TRUE
+Yucatán,Dzilam González,48,48,TRUE
+Yucatán,Dzilam de Bravo,48,48,TRUE
+Yucatán,Dzitás,48,48,TRUE
+Yucatán,Dzoncauich,48,48,TRUE
+Yucatán,Dzán,48,48,TRUE
+Yucatán,Espita,48,48,TRUE
+Yucatán,Halachó,48,48,TRUE
+Yucatán,Hocabá,48,48,TRUE
+Yucatán,Hoctún,48,48,TRUE
+Yucatán,Homún,48,48,TRUE
+Yucatán,Huhí,48,48,TRUE
+Yucatán,Hunucmá,48,48,TRUE
+Yucatán,Ixil,48,48,TRUE
+Yucatán,Izamal,48,48,TRUE
+Yucatán,Kanasín,48,48,TRUE
+Yucatán,Kantunil,48,48,TRUE
+Yucatán,Kaua,48,48,TRUE
+Yucatán,Kinchil,48,48,TRUE
+Yucatán,Kopomá,48,48,TRUE
+Yucatán,Mama,48,48,TRUE
+Yucatán,Maní,48,48,TRUE
+Yucatán,Maxcanú,48,48,TRUE
+Yucatán,Mayapán,48,48,TRUE
+Yucatán,Mocochá,48,48,TRUE
+Yucatán,Motul,48,48,TRUE
+Yucatán,Muna,48,48,TRUE
+Yucatán,Muxupip,48,48,TRUE
+Yucatán,Mérida,48,48,TRUE
+Yucatán,Opichén,48,48,TRUE
+Yucatán,Oxkutzcab,48,48,TRUE
+Yucatán,Panabá,48,48,TRUE
+Yucatán,Peto,48,48,TRUE
+Yucatán,Progreso,48,48,TRUE
+Yucatán,Quintana Roo,48,48,TRUE
+Yucatán,Río Lagartos,48,48,TRUE
+Yucatán,Sacalum,48,48,TRUE
+Yucatán,Samahil,48,48,TRUE
+Yucatán,San Felipe,48,48,TRUE
+Yucatán,Sanahcat,48,48,TRUE
+Yucatán,Santa Elena,48,48,TRUE
+Yucatán,Seyé,48,48,TRUE
+Yucatán,Sinanché,48,48,TRUE
+Yucatán,Sotuta,48,48,TRUE
+Yucatán,Sucilá,48,48,TRUE
+Yucatán,Sudzal,48,48,TRUE
+Yucatán,Suma,48,48,TRUE
+Yucatán,Tahdziú,48,48,TRUE
+Yucatán,Tahmek,48,48,TRUE
+Yucatán,Teabo,48,48,TRUE
+Yucatán,Tecoh,48,48,TRUE
+Yucatán,Tekal de Venegas,48,48,TRUE
+Yucatán,Tekantó,48,48,TRUE
+Yucatán,Tekax,48,48,TRUE
+Yucatán,Tekit,48,48,TRUE
+Yucatán,Tekom,48,48,TRUE
+Yucatán,Telchac Pueblo,48,48,TRUE
+Yucatán,Telchac Puerto,48,48,TRUE
+Yucatán,Temax,48,48,TRUE
+Yucatán,Temozón,48,48,TRUE
+Yucatán,Tepakán,48,48,TRUE
+Yucatán,Tetiz,48,48,TRUE
+Yucatán,Teya,48,48,TRUE
+Yucatán,Ticul,48,48,TRUE
+Yucatán,Timucuy,48,48,TRUE
+Yucatán,Tinum,48,48,TRUE
+Yucatán,Tixcacalcupul,48,48,TRUE
+Yucatán,Tixkokob,48,48,TRUE
+Yucatán,Tixmehuac,48,48,TRUE
+Yucatán,Tixpéhual,48,48,TRUE
+Yucatán,Tizimín,48,48,TRUE
+Yucatán,Tunkás,48,48,TRUE
+Yucatán,Tzucacab,48,48,TRUE
+Yucatán,Uayma,48,48,TRUE
+Yucatán,Ucú,48,48,TRUE
+Yucatán,Umán,48,48,TRUE
+Yucatán,Valladolid,48,48,TRUE
+Yucatán,Xocchel,48,48,TRUE
+Yucatán,Yaxcabá,48,48,TRUE
+Yucatán,Yaxkukul,48,48,TRUE
+Yucatán,Yobaín,48,48,TRUE
+Zacatecas,Apozol,48,48,TRUE
+Zacatecas,Apulco,48,48,TRUE
+Zacatecas,Atolinga,48,48,TRUE
+Zacatecas,Benito Juárez,48,48,TRUE
+Zacatecas,Calera,48,48,TRUE
+Zacatecas,Cañitas de Felipe Pescador,48,48,TRUE
+Zacatecas,Chalchihuites,48,48,TRUE
+Zacatecas,Concepción del Oro,48,48,TRUE
+Zacatecas,Cuauhtémoc,48,48,TRUE
+Zacatecas,El Plateado de Joaquín Amaro,48,48,TRUE
+Zacatecas,El Salvador,48,48,TRUE
+Zacatecas,Fresnillo,48,48,TRUE
+Zacatecas,Genaro Codina,48,48,TRUE
+Zacatecas,General Enrique Estrada,48,48,TRUE
+Zacatecas,General Francisco R. Murguía,48,48,TRUE
+Zacatecas,General Pánfilo Natera,48,48,TRUE
+Zacatecas,Guadalupe,48,48,TRUE
+Zacatecas,Huanusco,48,48,TRUE
+Zacatecas,Jalpa,48,48,TRUE
+Zacatecas,Jerez,48,48,TRUE
+Zacatecas,Jiménez del Teul,48,48,TRUE
+Zacatecas,Juan Aldama,48,48,TRUE
+Zacatecas,Juchipila,48,48,TRUE
+Zacatecas,Loreto,48,48,TRUE
+Zacatecas,Luis Moya,48,48,TRUE
+Zacatecas,Mazapil,48,48,TRUE
+Zacatecas,Melchor Ocampo,48,48,TRUE
+Zacatecas,Mezquital del Oro,48,48,TRUE
+Zacatecas,Miguel Auza,48,48,TRUE
+Zacatecas,Momax,48,48,TRUE
+Zacatecas,Monte Escobedo,48,48,TRUE
+Zacatecas,Morelos,48,48,TRUE
+Zacatecas,Moyahua de Estrada,48,48,TRUE
+Zacatecas,Nochistlán de Mejía,48,48,TRUE
+Zacatecas,Noria de Ángeles,48,48,TRUE
+Zacatecas,Ojocaliente,48,48,TRUE
+Zacatecas,Pinos,48,48,TRUE
+Zacatecas,Pánuco,48,48,TRUE
+Zacatecas,Río Grande,48,48,TRUE
+Zacatecas,Sain Alto,48,48,TRUE
+Zacatecas,Santa María de la Paz,48,48,TRUE
+Zacatecas,Sombrerete,48,48,TRUE
+Zacatecas,Susticacán,48,48,TRUE
+Zacatecas,Tabasco,48,48,TRUE
+Zacatecas,Tepechitlán,48,48,TRUE
+Zacatecas,Tepetongo,48,48,TRUE
+Zacatecas,Tlaltenango de Sánchez Román,48,48,TRUE
+Zacatecas,Trancoso,48,48,TRUE
+Zacatecas,Trinidad García de la Cadena,48,48,TRUE
+Zacatecas,Valparaíso,48,48,TRUE
+Zacatecas,Vetagrande,48,48,TRUE
+Zacatecas,Villa García,48,48,TRUE
+Zacatecas,Villa González Ortega,48,48,TRUE
+Zacatecas,Villa Hidalgo,48,48,TRUE
+Zacatecas,Villa de Cos,48,48,TRUE
+Zacatecas,Villanueva,48,48,TRUE
+Zacatecas,Zacatecas,48,48,TRUE
