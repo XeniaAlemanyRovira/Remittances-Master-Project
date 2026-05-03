@@ -1,0 +1,2 @@
+partition,cohort_events,year,quarter,cohort_time_index,cohort_treated_states,att,se,ci_lo,ci_hi,p_val,sig
+10-20,2017_M7.1_matzaco; 2017_M8.2_chiapas,2017,3,19,3,-0.12550524144812208,0.08336766464864818,-0.2889058641594725,0.03789538126322836,0.13221030023484928,
