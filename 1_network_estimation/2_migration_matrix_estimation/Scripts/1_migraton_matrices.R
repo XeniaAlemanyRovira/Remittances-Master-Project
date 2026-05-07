@@ -1,7 +1,48 @@
-# This script reads the cleaned yearly state files, reconciles municipality-state
-# pairs to the official INEGI municipality catalog, drops rows that cannot be
-# matched safely, and exports clean yearly migration matrices plus validation
-# reports.
+########################################################################################################## SUMMARY OF THE SCRIPT ########################### ##############################################################################
+
+# This script:
+# 1. Reads the cleaned yearly state files
+# 2. Reconciles municipality-state
+# 3. Pairs to the official INEGI municipality catalog
+# 4. Drops rows that cannot be matched safely
+# 5. Exports clean yearly migration matrices plus validation reports.
+
+#---------------------------------------------------------------------------#
+
+# Environment Setup: It dynamically identifies the project root so the script works on any machine without manually changing directory paths.
+
+# Data Normalization: It creates custom functions to "clean" text (removing accents, fixing casing, expanding abbreviations like "Gral" to "General") to ensure that "Ciudad de México" and "DISTRITO FEDERAL" are treated as the same entity.
+
+# Heuristic Matching: It uses a "scoring" system to find the best available data folder and uses tribble tables to manually fix known typos in the raw data (e.g., fixing "Guerero" to "Guerrero").
+
+# Catalog Alignment: It reads an official INEGI (Mexico's Statistical Institute) Excel file and joins it with the migration data to ensure every municipality is valid and has a canonical name.
+
+# Output Generation: It loops through years 2010–2024, processing state-level migration files from the US and consolidating them into clean matrices.
+
+############################################################################
+# DATA FLOW SUMMARY
+# 
+# INPUT PATHS:
+# 1. Migration Data: Searches for yearly .xlsx files in prioritized candidates:
+#    - [Root]/2_SQL_database/Data_clean_updated/MCAS/Estados_US/Edos_USA_[Year]
+#    - [Root]/Data_clean_updated/MCAS/Estados_US/Edos_USA_[Year]
+#    - [Root]/1_network_estimation/1_data_cleaning/Data_clean/MCAS/Estados_US/...
+# 2. Official Catalog (INEGI):
+#    - [Root]/Data/catun_municipio/catun_municipio/AGEEML_2026318759531.xlsx
+#
+# OUTPUT PATHS:
+# 1. Migration Matrices: 
+#    - [Root]/1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2/
+# 2. Validation Reports: 
+#    - [Root]/1_network_estimation/2_migration_matrix_estimation/validation reports/
+# 3. Final Clean Data: 
+#    - [Root]/1_network_estimation/2_migration_matrix_estimation/clean final data/
+#
+# LOGIC:
+# The script reconciles non-standardized municipality names from US consular 
+# records against the official INEGI catalog using fuzzy matching keys and 
+# manual override tables for known spelling errors.
+############################################################################
 
 rm(list = ls())
 
@@ -58,9 +99,9 @@ score_matrix_input_dir <- function(path, years) {
 
 resolve_matrix_input_dir <- function(candidates, years) {
   scores <- purrr::map_dbl(candidates, score_matrix_input_dir, years = years)
-  best_idx <- which.max(scores)
+  best_idx <- which(scores >= 0)[1]
 
-  if (!length(best_idx) || is.infinite(scores[best_idx]) || scores[best_idx] < 0) {
+  if (is.na(best_idx)) {
     stop("Could not find a cleaned input directory with yearly state xlsx files.")
   }
 
@@ -292,6 +333,10 @@ read_inegi_catalog <- function(path) {
 
 message("Reading yearly cleaned files...")
 
+# -----------------------------------------------------------------------------------#
+
+# Load the data that we are going to use
+
 panel <- purrr::map_dfr(years, function(yr) {
   yr_dir <- file.path(base_dir, paste0("Edos_USA_", yr))
   files <- list.files(yr_dir, pattern = "\\.xlsx$", full.names = TRUE, ignore.case = TRUE)
@@ -305,7 +350,31 @@ panel <- purrr::map_dfr(years, function(yr) {
 }) %>%
   arrange(year, us_state, mx_state, mx_municipality)
 
+# Load the offial Municipality names data 
 official_tbl <- read_inegi_catalog(official_file)
+
+############################################################################
+# DATA PROCESSING STEP:
+# 
+# 1. BATCH IMPORT: 
+#    - Loops through years 2010-2024.
+#    - Locates subfolders (e.g., "Edos_USA_2010").
+#    - Reads every US State .xlsx file within those folders.
+#
+# 2. CONSOLIDATION:
+#    - Aggregates thousands of individual spreadsheets into one 
+#      long-format master dataframe ('panel').
+#    - Sorts the master data for consistency.
+#
+# 3. REFERENCE LOADING:
+#    - Imports the INEGI municipality catalog ('official_tbl') to act 
+#      as the 'source of truth' for geographic validation.
+############################################################################
+
+##### 
+# official_tbl -- official municipality names at 2026
+# panel -- year | state | mx_state | mx_municipality | n_matriculas (dimension: year x us_state x mx_state x mx_municipality = 635318 observations * 5 variables)
+#####
 
 observed_pairs <- panel %>%
   distinct(mx_state, mx_municipality) %>%
@@ -540,12 +609,71 @@ clean_universe <- clean_panel %>%
 
 us_state_universe <- sort(unique(panel$us_state))
 
+# outputs: 
+
+# us_state_universe -- sorted vector of all US states observed in the panel data (length: 51, including "District Of Columbia")
+
+# clean_universe -- dataframe of unique (mx_state, mx_municipality) pairs that are present in the cleaned panel after mapping to official names (dimension: 2443 rows x 2 variables)
+
+# clean_panel -- the main cleaned panel dataframe with official municipality names and original names for reference (dimension: 634,000+ rows x 7 variables)
+
+# mapping_report -- a detailed report of the mapping process for each unique (mx_state, mx_municipality) pair, including resolution status and candidate states (dimension: 2443 rows x 11 variables)
+
+# unresolved_pairs -- a subset of mapping_report where validation_status is not "resolved", indicating pairs that could not be confidently mapped to the official catalog (dimension: 123 rows x 11 variables)
+
+#----------------------------------------------------------------------------#
+
+known_missing_states <- tribble(
+  ~year, ~us_state,      ~known_missing_reason,
+  2013L, "Florida",     "Set to NA because the source workbook has no municipality-level rows",
+  2024L, "Connecticut", "Set to NA because the source workbook has no municipality-level rows"
+)
+
+state_file_audit <- expand_grid(
+  year = years,
+  us_state = us_state_universe
+) %>%
+  left_join(
+    purrr::map_dfr(years, function(yr) {
+      yr_dir <- file.path(base_dir, paste0("Edos_USA_", yr))
+      files <- list.files(yr_dir, pattern = "\\.xlsx$", full.names = TRUE, ignore.case = TRUE)
+      tibble(
+        year = yr,
+        us_state = purrr::map_chr(files, parse_us_state),
+        cleaned_input_file = basename(files)
+      )
+    }),
+    by = c("year", "us_state")
+  ) %>%
+  left_join(
+    panel %>%
+      count(year, us_state, name = "panel_rows"),
+    by = c("year", "us_state")
+  ) %>%
+  left_join(
+    clean_panel %>%
+      count(year, us_state, name = "clean_panel_rows"),
+    by = c("year", "us_state")
+  ) %>%
+  left_join(known_missing_states, by = c("year", "us_state")) %>%
+  mutate(
+    cleaned_input_file_exists = !is.na(cleaned_input_file),
+    panel_rows = replace_na(panel_rows, 0L),
+    clean_panel_rows = replace_na(clean_panel_rows, 0L),
+    forced_to_na_in_matrix = !is.na(known_missing_reason),
+    audit_status = case_when(
+      !cleaned_input_file_exists ~ "missing_from_cleaned_input_folder",
+      panel_rows == 0 ~ "file_present_but_no_rows_read",
+      clean_panel_rows == 0 ~ "rows_read_but_all_dropped_in_validation",
+      forced_to_na_in_matrix ~ "present_in_clean_panel_but_forced_to_na",
+      TRUE ~ "ok"
+    )
+  ) %>%
+  arrange(year, us_state)
+
 set_known_missing_states_to_na <- function(df, yr) {
   if (yr == 2013 && "Florida" %in% names(df)) {
     df <- mutate(df, Florida = NA_real_)
-  }
-  if (yr == 2020 && "Alaska" %in% names(df)) {
-    df <- mutate(df, Alaska = NA_real_)
   }
   if (yr == 2024 && "Connecticut" %in% names(df)) {
     df <- mutate(df, Connecticut = NA_real_)
@@ -606,11 +734,13 @@ walk2(matrices, names(matrices), function(df, name) {
 write_csv(mapping_report, file.path(validation_dir, "municipality_mapping_report.csv"))
 write_csv(unresolved_pairs, file.path(validation_dir, "municipality_unresolved_report.csv"))
 write_csv(dropped_panel_rows, file.path(validation_dir, "dropped_panel_rows.csv"))
+write_csv(state_file_audit, file.path(validation_dir, "state_file_audit.csv"))
 write_xlsx(
   list(
     municipality_mapping_report = mapping_report,
     municipality_unresolved_report = unresolved_pairs,
-    dropped_panel_rows = dropped_panel_rows
+    dropped_panel_rows = dropped_panel_rows,
+    state_file_audit = state_file_audit
   ),
   path = file.path(validation_dir, "municipality_validation_report.xlsx")
 )
