@@ -1,13 +1,13 @@
 
 #setwd("C:/Users/T14/7Programming/Python/Thesis")
 
-# Overwrites Data_clean
-unlink("Data_clean", recursive = TRUE)
-
 # Config
 years       <- 2010:2024
 source_base <- "Data/MCAS/Estados_US"
-dest_base   <- "Data_clean/MCAS/Estados_US"
+dest_base   <- "1_network_estimation/1_data_cleaning/Data_clean/MCAS/Estados_US"
+
+# Overwrites the cleaned MCAS data used by the next scripts
+unlink(dest_base, recursive = TRUE)
 
 dir.create(dest_base, showWarnings = FALSE, recursive = TRUE)
 

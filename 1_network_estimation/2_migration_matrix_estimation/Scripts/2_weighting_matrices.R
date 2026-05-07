@@ -1,18 +1,23 @@
-# This script reads the cross-sectional xlsx files, provides the weighting matrix
-# for each year and the final weighting matrix
+# ==============================================================================
+# SCRIPT: Migration Weighting Matrix Estimation & Robustness Checks
+# ==============================================================================
 
 rm(list = ls())
 
 library(tidyverse)
 library(readxl)
 library(writexl)
+library(corrplot)
+library(lsa)
+library(ggplot2)
+library(scales)
 
-# Config
+# --- Config ---
 input_dir <- "1_network_estimation/2_migration_matrix_estimation/yearly_migration_matrices_2"
 output_dir <- "1_network_estimation/2_migration_matrix_estimation/migration_weighting_matrices_2"
 years    <- 2010:2024
 
-# Function that loads each years migration matrix
+# --- Function that loads each years migration matrix ---
 matrices <- map(years, function(yr) {
   path <- file.path(input_dir, paste0("MIGRATION_MATRIX_", yr, ".xlsx"))
   if (!file.exists(path)) {
@@ -20,15 +25,12 @@ matrices <- map(years, function(yr) {
     return(NULL)
   }
   read_excel(path) %>%
-    select(-Total) %>% # drops Total column
-    filter(mx_state != "Total") # drops Total row
+    select(-any_of("Total")) %>% # drops Total column if exists
+    filter(mx_state != "Total")   # drops Total row
 }) %>%
   set_names(paste0("MIGRATION_MATRIX_", years))
 
-# Compute the weighting matrix by computing the share of each US State - MX
-# municipality combination over the total immigration flow
-
-# 1 - Compute raw weighting matrices for all years
+# --- 1 - Compute raw weighting matrices for all years ---
 weighting_matrices_raw <- map(matrices, function(df) {
   total <- df %>%
     summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
@@ -37,12 +39,48 @@ weighting_matrices_raw <- map(matrices, function(df) {
     mutate(across(where(is.numeric), ~ . / total))
 })
 
-# 2 - Compute average weights per missing state (exluding also Covid years)
+# --- 1.2 - ROW NORMALIZATION (Each Mexican Municipality sums to 1) ---
+weighting_matrices_rows <- map(matrices, function(df) {
+  df_clean <- df %>% filter(mx_state != "Total") %>% select(-any_of("Total"))
+  
+  df_clean %>%
+    mutate(row_sum = rowSums(across(where(is.numeric)), na.rm = TRUE)) %>%
+    mutate(across(where(is.numeric) & !all_of("row_sum"), 
+                  ~ if_else(row_sum > 0, . / row_sum, 0))) %>%
+    select(-row_sum)
+})
+
+# --- 1.3 - COLUMN NORMALIZATION (Each US State sums to 1) ---
+weighting_matrices_cols <- map(matrices, function(df) {
+  df_clean <- df %>% filter(mx_state != "Total") %>% select(-any_of("Total"))
+
+  df_clean %>%
+    mutate(across(where(is.numeric), ~ {
+      col_sum <- sum(.x, na.rm = TRUE)
+      if (col_sum > 0) .x / col_sum else 0
+    }))
+})
+
+# --- Robustness check: Verify column-normalized matrices ---
+column_sums_check <- weighting_matrices_cols %>%
+  imap_dfr(~ {
+    col_sums <- colSums(select(.x, where(is.numeric)), na.rm = TRUE)
+    tibble(matrix = .y, column = names(col_sums), sum = col_sums, is_one = near(col_sums, 1, tol = 1e-8))
+  })
+View(column_sums_check)
+
+# --- Robustness check: Verify row-normalized matrices ---
+row_sums_check <- weighting_matrices_rows %>%
+  imap_dfr(~ {
+    row_sums <- rowSums(select(.x, where(is.numeric)), na.rm = TRUE)
+    tibble(matrix = .y, mx_state = .x$mx_state, mx_municipality = .x$mx_municipality, sum = row_sums, is_one = near(row_sums, 1, tol = 1e-8))
+  })
+View(row_sums_check)
+
+# --- 2 - Compute average weights per missing state ---
 compute_avg_weight <- function(state_col, excl_years) {
-  weighting_matrices_raw[
-    paste0("MIGRATION_MATRIX_", setdiff(years, excl_years))
-  ] %>%
-    map(~ select(.x, mx_state, mx_municipality, all_of(state_col))) %>%
+  weighting_matrices_raw[paste0("MIGRATION_MATRIX_", setdiff(years, excl_years))] %>%
+    map(~ select(.x, mx_state, mx_municipality, any_of(state_col))) %>%
     reduce(full_join, by = c("mx_state", "mx_municipality")) %>%
     mutate(avg = rowMeans(across(where(is.numeric)), na.rm = TRUE)) %>%
     summarise(total_avg_weight = sum(avg, na.rm = TRUE)) %>%
@@ -53,90 +91,182 @@ florida_total_avg_weight     <- compute_avg_weight("Florida",     c(2013, 2020, 
 alaska_total_avg_weight      <- compute_avg_weight("Alaska",      c(2020, 2021))
 connecticut_total_avg_weight <- compute_avg_weight("Connecticut", c(2024, 2020, 2021))
 
-message("Average Florida total weight:     ", round(florida_total_avg_weight,     4))
-message("Average Alaska total weight:      ", round(alaska_total_avg_weight,      4))
-message("Average Connecticut total weight: ", round(connecticut_total_avg_weight, 4))
+# --- CORRELATION CHECK ---
+yearly_weights_wide <- map_dfr(names(weighting_matrices_raw), function(name) {
+  weighting_matrices_raw[[name]] %>%
+    mutate(year = name) %>%
+    select(mx_state, mx_municipality, year, where(is.numeric)) %>%
+    pivot_longer(cols = where(is.numeric), names_to = "us_state", values_to = "weight") %>%
+    unite("pair", mx_state, mx_municipality, us_state)
+}) %>%
+  pivot_wider(names_from = year, values_from = weight) %>%
+  select(-pair)
 
-# 3 - Compute the denominator with the mean imputation for missing states
+cor_matrix <- cor(yearly_weights_wide, use = "pairwise.complete.obs")
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", addCoef.col = "black", number.cex = 0.7, title = "Year-to-Year Correlation", mar = c(0,0,1,0))
+
+# --- STRUCTURAL DRIFT CHECK ---
+drift_analysis <- tibble(
+  year_pair = paste0(years[-1], " vs ", years[-length(years)]),
+  distance = map_dbl(2:length(years), function(i) {
+    curr <- yearly_weights_wide[[i]]; prev <- yearly_weights_wide[[i-1]]
+    sqrt(sum((curr - prev)^2, na.rm = TRUE))
+  })
+)
+ggplot(drift_analysis, aes(x = year_pair, y = distance, group = 1)) + geom_line(color = "red") + geom_point() + theme_minimal()
+
+# --- COSINE SIMILARITY CHECK ---
+cosine_check <- map_dfr(2:ncol(yearly_weights_wide), function(i) {
+  vec1 <- yearly_weights_wide[[i]]; vec2 <- yearly_weights_wide[[i-1]]
+  valid_indices <- which(!is.na(vec1) & !is.na(vec2))
+  sim <- lsa::cosine(vec1[valid_indices], vec2[valid_indices])
+  tibble(pair = paste0(names(yearly_weights_wide)[i], " vs ", names(yearly_weights_wide)[i-1]), similarity = as.numeric(sim))
+})
+
+# --- TOTAL VOLUME CHECK ---
+annual_totals <- map_dfr(names(matrices), function(name) {
+  grand_total <- matrices[[name]] %>% select(where(is.numeric)) %>% as.matrix() %>% sum(na.rm = TRUE)
+  tibble(year = as.numeric(gsub("MIGRATION_MATRIX_", "", name)), total_migrants = grand_total)
+})
+
+ggplot(annual_totals, aes(x = year, y = total_migrants)) + geom_line(color = "steelblue") + geom_point() + scale_y_continuous(labels = comma) + theme_minimal()
+
+# --- GROWTH CHANGE CHECK ---
+annual_totals <- annual_totals %>% mutate(pct_change = (total_migrants - lag(total_migrants)) / lag(total_migrants) * 100)
+avg_growth_pre_covid <- annual_totals %>% filter(year < 2020) %>% pull(pct_change) %>% mean(na.rm = TRUE)
+
+# --- 3 - Compute the denominator with the mean imputation for missing states ---
 get_observed_total <- function(yr) {
-  matrices[[paste0("MIGRATION_MATRIX_", yr)]] %>%
-    summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
-    sum()
+  matrices[[paste0("MIGRATION_MATRIX_", yr)]] %>% summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>% sum()
 }
 
 total_2013_imputed <- get_observed_total(2013) / (1 - florida_total_avg_weight)
 total_2020_imputed <- get_observed_total(2020) / (1 - alaska_total_avg_weight)
 total_2024_imputed <- get_observed_total(2024) / (1 - connecticut_total_avg_weight)
 
-message("Observed 2013 total: ", round(get_observed_total(2013)))
-message("Imputed  2013 total: ", round(total_2013_imputed))
-message("Observed 2020 total: ", round(get_observed_total(2020)))
-message("Imputed  2020 total: ", round(total_2020_imputed))
-message("Observed 2024 total: ", round(get_observed_total(2024)))
-message("Imputed  2024 total: ", round(total_2024_imputed))
-
-# 4 - Compute the final weighting matrices for each year
+# --- 4 - Compute final weighting matrices ---
 weighting_matrices <- imap(matrices, function(df, name) {
-  
   total <- case_when(
     name == "MIGRATION_MATRIX_2013" ~ total_2013_imputed,
     name == "MIGRATION_MATRIX_2020" ~ total_2020_imputed,
     name == "MIGRATION_MATRIX_2024" ~ total_2024_imputed,
-    TRUE ~ df %>%
-      summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
-      sum()
+    TRUE ~ df %>% summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>% sum()
   )
-  
-  df %>%
-    mutate(across(where(is.numeric), ~ . / total))
-}) %>%
-  set_names(paste0("WEIGHTING_MATRIX_", years))
+  df %>% mutate(across(where(is.numeric), ~ . / total))
+}) %>% set_names(paste0("WEIGHTING_MATRIX_", years))
 
-# 5 - Sanity check only for Florida
-# Non-Florida weight and Florida average weight should sum up to 1 in 2013
-non_florida_sum_2013 <- weighting_matrices[["WEIGHTING_MATRIX_2013"]] %>%
-  select(-Florida) %>%
-  summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
-  sum()
-non_florida_sum_2013 + florida_total_avg_weight
-
-# Sanity check of every weighting matrix
-# Note that for 2013, 2020, 2024 it is normal for the weights to not be exactly
-# 1 since we have NAs in Florida, Alaska, and Connecticut respectively (though
-# the ones in Alaska are negligible)
-weighting_matrices %>%
-  imap_dfr(~ tibble(
-    year  = str_extract(.y, "\\d+"),
-    total = .x %>%
-      filter(mx_municipality != "Total") %>%   # exclude total row if present
-      summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
-      sum()
-  ))
-
-# Average weighting matrix (excluding Covid years 2020 and 2021)
+# --- Average weighting matrix (Excluding Covid) ---
 avg_weighting_matrix <- weighting_matrices %>%
   imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
   bind_rows() %>%
   filter(!year %in% c(2020, 2021)) %>%
   select(-year) %>%
   group_by(mx_state, mx_municipality) %>%
-  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop") %>%
-  arrange(mx_state, mx_municipality)
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
 
-# Sanity check
-avg_weighting_matrix %>%
-  summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
-  sum()
-
-# Directory for the exported datasets
-if (dir.exists(output_dir)) {
-  unlink(output_dir, recursive = TRUE)
-}
+# --- Export ---
+if (dir.exists(output_dir)) unlink(output_dir, recursive = TRUE)
 dir.create(output_dir)
+walk2(weighting_matrices, names(weighting_matrices), function(df, name) write_xlsx(df, path = file.path(output_dir, paste0(name, ".xlsx"))))
+write_xlsx(avg_weighting_matrix, path = file.path(output_dir, "AVG_WEIGHTING_MATRIX.xlsx"))
 
-# Export each matrix as an xlsx file
-walk2(weighting_matrices, names(weighting_matrices), function(df, name) {
-  write_xlsx(df, path = file.path(output_dir, paste0(name, ".xlsx")))
+# --- FINAL ROBUSTNESS CHECK (FIXED) ---
+avg_numeric_cols <- names(avg_weighting_matrix %>% select(where(is.numeric)))
+
+deviation_results <- imap_dfr(weighting_matrices, function(df, name) {
+  
+  # FIX: Intersect columns to avoid "Florida/Alaska" missing errors in specific years
+  common_cols <- intersect(names(df), avg_numeric_cols)
+  
+  year_vec <- df %>% filter(mx_municipality != "Total") %>% 
+    select(all_of(common_cols)) %>% as.matrix() %>% as.vector()
+  
+  avg_vec <- avg_weighting_matrix %>% 
+    select(all_of(common_cols)) %>% as.matrix() %>% as.vector()
+  
+  valid_idx <- which(!is.na(year_vec) & !is.na(avg_vec))
+  
+  tibble(
+    year_label = name,
+    year = as.integer(stringr::str_extract(name, "\\d+")),
+    euclidean_dist = sqrt(sum((year_vec[valid_idx] - avg_vec[valid_idx])^2)),
+    cosine_similarity = as.numeric(lsa::cosine(year_vec[valid_idx], avg_vec[valid_idx]))
+  )
 })
 
-write_xlsx(avg_weighting_matrix, path = file.path(output_dir, "AVG_WEIGHTING_MATRIX.xlsx"))
+# Final Visualizations
+ggplot(deviation_results, aes(x = year, y = cosine_similarity)) + geom_line() + geom_point(aes(color = year %in% c(2020, 2021))) + theme_minimal()
+ggplot(deviation_results, aes(x = year, y = euclidean_dist)) + geom_col(aes(fill = year %in% c(2020, 2021))) + theme_minimal()
+
+# Check that the total weight of every matrix is equal to 1
+matrix_total_checks <- weighting_matrices %>%
+  imap_dfr(~ tibble(
+    matrix = .y,
+    total = .x %>%
+      filter(mx_municipality != "Total") %>%
+      summarise(across(where(is.numeric), ~ sum(., na.rm = TRUE))) %>%
+      sum(),
+    is_equal_to_one = near(total, 1, tol = 1e-8)
+  ))
+
+print(matrix_total_checks)
+
+if (any(!matrix_total_checks$is_equal_to_one)) {
+  failed_matrices <- matrix_total_checks %>%
+    filter(!is_equal_to_one) %>%
+    pull(matrix)
+  
+  stop(
+    "The following weighting matrices do not sum to 1: ",
+    paste(failed_matrices, collapse = ", ")
+  )
+}
+
+# There are three years that do not exactly sum to one but they sum up almost to 1, that is because we are imputing the average weight of that problematic state on the problematic year.
+
+# The 2020 Alaska not summing to 1 is due to the data not containing the state directly. 
+
+# The other two years (2013 and 2024) are caused by an error in the data. For both years, the municipality dataset that should give the information is not by municipality but by sex. Therefore, the code cannot extract the information from it. 
+
+# --- EXPORT AVERAGES FOR RAW, ROW, AND COLUMN NORMALIZATIONS ---
+
+# 1. Average of Raw Weighting Matrices (Global normalization)
+avg_raw_matrix <- weighting_matrices_raw %>%
+  imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
+  bind_rows() %>%
+  filter(!year %in% c(2020, 2021)) %>%
+  select(-year) %>%
+  group_by(mx_state, mx_municipality) %>%
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+
+# 2. Average of Row Weighting Matrices (Each row sums to 1)
+avg_row_matrix <- weighting_matrices_rows %>%
+  imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
+  bind_rows() %>%
+  filter(!year %in% c(2020, 2021)) %>%
+  select(-year) %>%
+  group_by(mx_state, mx_municipality) %>%
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+
+# 3. Average of Column Weighting Matrices (Each column sums to 1)
+avg_col_matrix <- weighting_matrices_cols %>%
+  imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
+  bind_rows() %>%
+  filter(!year %in% c(2020, 2021)) %>%
+  select(-year) %>%
+  group_by(mx_state, mx_municipality) %>%
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+
+# Exporting the three summary matrices
+write_xlsx(avg_raw_matrix, path = file.path(output_dir, "FINAL_AVG_RAW_MATRIX.xlsx"))
+write_xlsx(avg_row_matrix, path = file.path(output_dir, "FINAL_AVG_ROW_MATRIX.xlsx"))
+write_xlsx(avg_col_matrix, path = file.path(output_dir, "FINAL_AVG_COL_MATRIX.xlsx"))
+
+message("Success: Average Raw, Row, and Column matrices exported to ", output_dir)
+
+###
+# Main outputs: 
+# - FINAL_AVG_RAW_MATRIX.xlsx
+# - FINAL_AVG_ROW_MATRIX.xlsx
+# - FINAL_AVG_COL_MATRIX.xlsx
+###

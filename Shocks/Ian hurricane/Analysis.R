@@ -1,9 +1,4 @@
 # Hurricane Ian and US-to-Mexico remittances ----
-#
-# Identification idea:
-#   Compare Florida-origin remittance flows to the same Mexican municipality
-#   against flows from other US states, before and after Hurricane Ian.
-
 
 suppressPackageStartupMessages({
   library(data.table)
@@ -22,7 +17,7 @@ setFixest_notes(FALSE)
 # Paths ----
 
 analysis_dir <- "./Shocks/Ian hurricane"
-data_file <- "./1_network_estimation/4_remittance_calibration/output/calibrated_remittance_flows_master_2013q1_2024q4.csv"
+data_file <- "./1_network_estimation/4_remittance_calibration/output/calibrated_remittance_flows_master_2013q1_2024q4_usd.csv"
 
 output_dir <- file.path(analysis_dir, "outputs")
 plot_dir <- file.path(output_dir, "plots")
@@ -77,7 +72,11 @@ mx_region_lookup <- data.table(
 remittances_time_series <- fread(data_file)
 setDT(remittances_time_series)
 
-remittances_time_series[, period_date := as.Date(period_date)]
+remittances_time_series[, remittances_musd := remittances_usd / 1e6]
+remittances_time_series[
+  ,
+  period_date := as.Date(sprintf("%d-%02d-01", year, (quarter - 1L) * 3L + 1L))
+]
 remittances_time_series[, quarter_index := year * 4L + quarter]
 remittances_time_series[, mx_municipality_id := paste(mx_state, mx_municipality, sep = " - ")]
 

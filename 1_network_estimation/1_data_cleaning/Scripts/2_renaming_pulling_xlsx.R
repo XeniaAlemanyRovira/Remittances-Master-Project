@@ -11,7 +11,7 @@ library(writexl)
 source("1_network_estimation/1_data_cleaning/Scripts/1_folder_cleaning.R")
 
 # Config
-estados_dir <- file.path("1_network_estimation","Data_clean", "MCAS", "Estados_US")
+estados_dir <- file.path("1_network_estimation", "1_data_cleaning", "Data_clean", "MCAS", "Estados_US")
 
 states <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California",
             "Colorado", "Connecticut", "Delaware", "District of Columbia",

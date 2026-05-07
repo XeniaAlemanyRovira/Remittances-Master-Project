@@ -1,326 +1,655 @@
-# Calibrate quarterly US-state to Mexican-municipality remittance flows
-# using the migration weighting matrices and cleaned Banxico margins.
+# =============================================================================
+# Construct quarterly US-state to Mexican-municipality remittance flows
+# using ONLY origin-state outflow data + migration weighting matrix.
+#
+# Municipality inflow data is used ONLY as a validation check:
+#   - Compare municipality share distributions between the two sources.
+#   - Plot Florida total remittances over time from both datasets.
+# =============================================================================
 
 rm(list = ls())
-
 library(tidyverse)
 library(readxl)
 
+# -----------------------------------------------------------------------------
+# 1. Path Management
+# -----------------------------------------------------------------------------
 get_script_path <- function() {
   cmd_args <- commandArgs(trailingOnly = FALSE)
-  file_arg <- grep("^--file=", cmd_args, value = TRUE)
-
-  if (length(file_arg) > 0) {
+  file_arg  <- grep("^--file=", cmd_args, value = TRUE)
+  if (length(file_arg) > 0)
     return(normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = TRUE))
-  }
-
   this_file <- tryCatch(
     normalizePath(sys.frame(1)$ofile, winslash = "/", mustWork = TRUE),
     error = function(...) NA_character_
   )
-
-  if (!is.na(this_file)) {
-    return(this_file)
-  }
-
+  if (!is.na(this_file)) return(this_file)
   normalizePath(
-    file.path(
-      getwd(),
-      "1_network_estimation",
-      "4_remittance_calibration",
-      "scripts",
-      "1_calibrate_remittance_flows.R"
-    ),
-    winslash = "/",
-    mustWork = FALSE
+    file.path(getwd(), "1_network_estimation", "4_remittance_calibration",
+              "scripts", "1_calibrate_remittance_flows.R"),
+    winslash = "/", mustWork = FALSE
   )
 }
 
-script_path <- get_script_path()
-repo_root <- normalizePath(file.path(dirname(script_path), "..", "..", ".."), winslash = "/", mustWork = TRUE)
+script_path  <- get_script_path()
+repo_root    <- normalizePath(file.path(dirname(script_path), "..", "..", ".."),
+                               winslash = "/", mustWork = TRUE)
+path_in_repo <- function(...) normalizePath(file.path(repo_root, ...), winslash = "/", mustWork = FALSE)
 
-path_in_repo <- function(...) {
-  normalizePath(file.path(repo_root, ...), winslash = "/", mustWork = FALSE)
-}
-
+# -----------------------------------------------------------------------------
+# 2. Helper Functions
+# -----------------------------------------------------------------------------
 normalize_origin_state <- function(x) {
   dplyr::case_when(
-    x == "Carolina Del Norte" ~ "North Carolina",
-    x == "Carolina Del Sur" ~ "South Carolina",
-    x == "Dakota Del Norte" ~ "North Dakota",
-    x == "Dakota Del Sur" ~ "South Dakota",
-    x == "Mississipi" ~ "Mississippi",
-    x == "Misuri" ~ "Missouri",
-    x == "Nueva Jersey" ~ "New Jersey",
-    x == "Nueva York" ~ "New York",
-    x == "Nuevo Hampshire" ~ "New Hampshire",
-    x == "Nuevo Mexico" ~ "New Mexico",
-    x == "Pensilvania" ~ "Pennsylvania",
+    x == "Carolina Del Norte"                                        ~ "North Carolina",
+    x == "Carolina Del Sur"                                          ~ "South Carolina",
+    x == "Dakota Del Norte"                                          ~ "North Dakota",
+    x == "Dakota Del Sur"                                            ~ "South Dakota",
+    x == "Mississipi"                                                ~ "Mississippi",
+    x == "Misuri"                                                    ~ "Missouri",
+    x == "Nueva Jersey"                                              ~ "New Jersey",
+    x == "Nueva York"                                                ~ "New York",
+    x == "Nuevo Hampshire"                                           ~ "New Hampshire",
+    x == "Nuevo Mexico"                                              ~ "New Mexico",
+    x == "Pensilvania"                                               ~ "Pennsylvania",
     x %in% c("Washington, D.c.", "Washington, D.C.", "Washington Dc") ~ "District Of Columbia",
-    TRUE ~ x
+    TRUE                                                             ~ x
   )
 }
 
-ipfp_matrix <- function(seed_matrix, row_targets, col_targets, tol = 1e-8, max_iter = 5000) {
-  fitted <- seed_matrix
-  last_gap <- Inf
-
-  for (iter in seq_len(max_iter)) {
-    row_sums <- rowSums(fitted)
-    row_factors <- ifelse(row_targets > 0, row_targets / pmax(row_sums, .Machine$double.eps), 0)
-    fitted <- sweep(fitted, 1, row_factors, "*")
-
-    col_sums <- colSums(fitted)
-    col_factors <- ifelse(col_targets > 0, col_targets / pmax(col_sums, .Machine$double.eps), 0)
-    fitted <- sweep(fitted, 2, col_factors, "*")
-
-    row_gap <- max(abs(rowSums(fitted) - row_targets))
-    col_gap <- max(abs(colSums(fitted) - col_targets))
-    last_gap <- max(row_gap, col_gap)
-
-    if (last_gap < tol) {
-      return(list(
-        fitted = fitted,
-        iterations = iter,
-        converged = TRUE,
-        max_gap = last_gap
-      ))
-    }
-  }
-
-  list(
-    fitted = fitted,
-    iterations = max_iter,
-    converged = FALSE,
-    max_gap = last_gap
-  )
-}
-
+# Append-safe CSV writer (suppresses header on subsequent writes)
 write_or_append_csv <- function(df, path, append_mode) {
   if (!append_mode) {
     readr::write_csv(df, path)
   } else {
-    readr::write_csv(df, path, append = TRUE)
+    readr::write_csv(df, path, append = TRUE, col_names = FALSE)
   }
 }
 
-weights_dir <- path_in_repo("1_network_estimation", "2_migration_matrix_estimation", "migration_weighting_matrices_2")
+# -----------------------------------------------------------------------------
+# 3. Directory and Path Setup
+# -----------------------------------------------------------------------------
+weights_dir <- path_in_repo("1_network_estimation", "2_migration_matrix_estimation",
+                             "migration_weighting_matrices_2")
 banxico_dir <- path_in_repo("1_network_estimation", "3_banxico_cleaning", "output")
-output_dir <- path_in_repo("1_network_estimation", "4_remittance_calibration", "output")
-
+output_dir  <- path_in_repo("1_network_estimation", "4_remittance_calibration", "output")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-origin_path <- file.path(banxico_dir, "banxico_origin_state_remittances_2013q1_2024q4.csv")
-municipality_path <- file.path(banxico_dir, "banxico_municipality_remittances_2013q1_2024q4.csv")
-avg_weights_path <- file.path(weights_dir, "AVG_WEIGHTING_MATRIX.xlsx")
-master_output_path <- file.path(output_dir, "calibrated_remittance_flows_master_2013q1_2024q4.csv")
-diagnostics_output_path <- file.path(output_dir, "calibration_diagnostics_2013q1_2024q4.csv")
-origin_mapping_output_path <- file.path(output_dir, "origin_state_mapping_summary.csv")
+origin_path          <- file.path(banxico_dir, "banxico_origin_state_remittances_2013q1_2024q4.csv")
+municipality_path    <- file.path(banxico_dir, "banxico_municipality_remittances_2013q1_2024q4.csv")
+avg_weights_col_path <- file.path(weights_dir, "FINAL_AVG_COL_MATRIX.xlsx")
 
-if (file.exists(master_output_path)) {
-  unlink(master_output_path)
-}
+# Output paths
+master_output_path_usd       <- file.path(output_dir, "remittance_flows_origin_state_usd_2013q1_2024q4.csv")
+master_output_path_musd      <- file.path(output_dir, "remittance_flows_origin_state_musd_2013q1_2024q4.csv")
+validation_output_path       <- file.path(output_dir, "validation_municipality_shares_2013q1_2024q4.csv")
+validation_correlation_path  <- file.path(output_dir, "validation_share_correlations_by_year.csv")
+validation_correlation_plot_path <- file.path(output_dir, "validation_share_correlations_by_year.png")
+total_quarterly_comparison_path <- file.path(output_dir, "validation_total_remittances_by_quarter.csv")
+total_quarterly_plot_path <- file.path(output_dir, "validation_total_remittances_by_quarter.png")
+total_yearly_comparison_path <- file.path(output_dir, "validation_total_remittances_by_year.csv")
+total_yearly_plot_path <- file.path(output_dir, "validation_total_remittances_by_year.png")
+origin_mapping_output_path   <- file.path(output_dir, "origin_state_mapping_summary.csv")
+florida_plot_path            <- file.path(output_dir, "florida_remittances_comparison.png")
 
-avg_weights <- readxl::read_excel(avg_weights_path)
-state_cols <- setdiff(names(avg_weights), c("mx_state", "mx_municipality"))
-municipality_universe <- avg_weights %>%
+if (file.exists(master_output_path_usd))  unlink(master_output_path_usd)
+if (file.exists(master_output_path_musd)) unlink(master_output_path_musd)
+
+# -----------------------------------------------------------------------------
+# 4. Load & Prepare Migration Weighting Matrix
+# -----------------------------------------------------------------------------
+avg_weights_col <- readxl::read_excel(avg_weights_col_path)
+state_cols      <- setdiff(names(avg_weights_col), c("mx_state", "mx_municipality", "...1"))
+
+municipality_universe <- avg_weights_col %>%
   select(mx_state, mx_municipality) %>%
   arrange(mx_state, mx_municipality)
 
-origin_raw <- readr::read_csv(origin_path, show_col_types = FALSE) %>%
+# Column-normalise: each column sums to 1 so it distributes one state's
+# outflow across all municipalities proportionally to migration shares.
+weights_matrix_base <- as.matrix(avg_weights_col[, state_cols])
+weights_matrix_base[is.na(weights_matrix_base)] <- 0
+weights_matrix_base <- pmax(weights_matrix_base, 1e-12)
+weights_matrix_base <- sweep(weights_matrix_base, 2, colSums(weights_matrix_base), "/")
+
+# -----------------------------------------------------------------------------
+# 5. Load & Clean Origin-State Outflow Data
+# -----------------------------------------------------------------------------
+origin_col <- readr::read_csv(origin_path, show_col_types = FALSE) %>%
   mutate(
     us_state_original = us_state,
-    us_state = normalize_origin_state(us_state)
+    us_state          = normalize_origin_state(us_state),
+    remittances_usd   = remittances_musd * 1e6
   )
 
-origin_mapping_summary <- origin_raw %>%
+# Save mapping audit
+origin_mapping_summary <- origin_col %>%
   group_by(us_state_original, us_state) %>%
-  summarise(total_remittances_musd = sum(remittances_musd, na.rm = TRUE), .groups = "drop") %>%
-  mutate(
-    mapping_status = case_when(
-      us_state %in% state_cols ~ "kept",
-      us_state_original == "No Identificado" ~ "dropped_no_identificado",
-      us_state_original == "Puerto Rico" ~ "dropped_puerto_rico",
-      TRUE ~ "dropped_unmapped"
-    )
+  summarise(
+    total_remittances_musd = sum(remittances_musd, na.rm = TRUE),
+    total_remittances_usd  = sum(remittances_usd,  na.rm = TRUE),
+    .groups = "drop"
   ) %>%
-  arrange(desc(total_remittances_musd))
-
+  mutate(mapping_status = case_when(
+    us_state %in% state_cols               ~ "kept",
+    us_state_original == "No Identificado" ~ "dropped_no_identificado",
+    TRUE                                   ~ "dropped_unmapped"
+  ))
 readr::write_csv(origin_mapping_summary, origin_mapping_output_path)
 
-origin_kept <- origin_raw %>%
+# Keep only states present in the weights matrix
+origin_kept <- origin_col %>%
   filter(us_state %in% state_cols) %>%
-  group_by(period_date, year, quarter, year_quarter, us_state) %>%
-  summarise(remittances_musd = sum(remittances_musd, na.rm = TRUE), .groups = "drop")
+  group_by(year, quarter, us_state) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop")
 
-origin_dropped_summary <- origin_raw %>%
-  filter(!(us_state %in% state_cols)) %>%
-  group_by(period_date, year, quarter, year_quarter) %>%
-  summarise(origin_total_dropped_musd = sum(remittances_musd, na.rm = TRUE), .groups = "drop")
-
-municipality_targets <- readr::read_csv(municipality_path, show_col_types = FALSE) %>%
-  group_by(period_date, year, quarter, year_quarter, mx_state, mx_municipality) %>%
-  summarise(remittances_musd = sum(remittances_musd, na.rm = TRUE), .groups = "drop")
-
-load_weight_matrix <- function(year_value) {
-  year_path <- file.path(weights_dir, paste0("WEIGHTING_MATRIX_", year_value, ".xlsx"))
-  year_weights <- readxl::read_excel(year_path)
-
-  missing_cols <- setdiff(state_cols, names(year_weights))
-  if (length(missing_cols) > 0) {
-    for (state_name in missing_cols) {
-      year_weights[[state_name]] <- NA_real_
-    }
-  }
-
-  year_weights <- municipality_universe %>%
-    left_join(year_weights, by = c("mx_state", "mx_municipality")) %>%
-    arrange(mx_state, mx_municipality)
-
-  fallback_states <- character(0)
-
-  for (state_name in state_cols) {
-    state_values <- year_weights[[state_name]]
-    state_values[is.na(state_values)] <- 0
-
-    if (sum(state_values, na.rm = TRUE) <= 0) {
-      state_values <- avg_weights[[state_name]]
-      fallback_states <- c(fallback_states, state_name)
-    }
-
-    year_weights[[state_name]] <- state_values
-  }
-
-  weight_matrix <- as.matrix(year_weights[, state_cols])
-  col_sums <- colSums(weight_matrix, na.rm = TRUE)
-  conditional_weights <- sweep(weight_matrix, 2, col_sums, "/")
-  conditional_weights[is.na(conditional_weights)] <- 0
-
-  # Small numerical regularization prevents structural-zero infeasibility in IPFP.
-  conditional_weights <- pmax(conditional_weights, 1e-12)
-  conditional_weights <- sweep(conditional_weights, 2, colSums(conditional_weights), "/")
-
-  list(
-    municipality_universe = year_weights %>% select(mx_state, mx_municipality),
-    conditional_weights = conditional_weights,
-    fallback_states = fallback_states
-  )
-}
-
-weight_cache <- purrr::map(set_names(2013:2024), load_weight_matrix)
+# -----------------------------------------------------------------------------
+# 6. Main Construction Loop
+#    For each quarter: multiply each state's outflow by its column in the
+#    weights matrix.  No IPFP, no rescaling — origin totals are preserved
+#    exactly as reported by Banxico.
+# -----------------------------------------------------------------------------
 master_started <- FALSE
-diagnostics <- vector("list", length = 0)
 
 for (year_value in 2013:2024) {
-  message("Calibrating year ", year_value)
-
-  year_weights <- weight_cache[[as.character(year_value)]]
+  message("Processing year ", year_value)
   yearly_quarters <- sort(unique(origin_kept$quarter[origin_kept$year == year_value]))
-  yearly_outputs <- vector("list", length = length(yearly_quarters))
+  yearly_outputs  <- list()
 
   for (idx in seq_along(yearly_quarters)) {
     quarter_value <- yearly_quarters[[idx]]
 
+    # Full state vector aligned to weights matrix columns
     origin_quarter <- origin_kept %>%
       filter(year == year_value, quarter == quarter_value) %>%
       right_join(tibble(us_state = state_cols), by = "us_state") %>%
-      mutate(
-        period_date = first(na.omit(period_date)),
-        year = year_value,
-        quarter = quarter_value,
-        year_quarter = paste0(year_value, "Q", quarter_value),
-        remittances_musd = replace_na(remittances_musd, 0)
-      ) %>%
+      mutate(remittances_usd = replace_na(remittances_usd, 0)) %>%
       arrange(match(us_state, state_cols))
 
-    municipality_quarter <- municipality_targets %>%
-      filter(year == year_value, quarter == quarter_value) %>%
-      right_join(year_weights$municipality_universe, by = c("mx_state", "mx_municipality")) %>%
-      mutate(
-        period_date = first(na.omit(origin_quarter$period_date)),
-        year = year_value,
-        quarter = quarter_value,
-        year_quarter = paste0(year_value, "Q", quarter_value),
-        remittances_musd = replace_na(remittances_musd, 0)
-      ) %>%
-      arrange(mx_state, mx_municipality)
+    # Distribute: multiply each column of the weights matrix by that
+    # state's total outflow.  Result rows = municipalities, cols = states.
+    flow_matrix <- sweep(weights_matrix_base, 2, origin_quarter$remittances_usd, "*")
 
-    origin_total_kept <- sum(origin_quarter$remittances_musd, na.rm = TRUE)
-    municipality_total_raw <- sum(municipality_quarter$remittances_musd, na.rm = TRUE)
-    municipality_scale_factor <- ifelse(municipality_total_raw > 0, origin_total_kept / municipality_total_raw, 0)
-    municipality_targets_scaled <- municipality_quarter$remittances_musd * municipality_scale_factor
-
-    seed_matrix <- sweep(
-      year_weights$conditional_weights,
-      2,
-      origin_quarter$remittances_musd,
-      "*"
+    # Flatten to long format
+    id_cols <- tibble(
+      year            = year_value,
+      quarter         = quarter_value,
+      year_quarter    = paste0(year_value, "Q", quarter_value),
+      us_state        = rep(state_cols, each = nrow(municipality_universe)),
+      mx_state        = rep(municipality_universe$mx_state,        times = length(state_cols)),
+      mx_municipality = rep(municipality_universe$mx_municipality, times = length(state_cols))
     )
 
-    fit <- ipfp_matrix(
-      seed_matrix = seed_matrix,
-      row_targets = municipality_targets_scaled,
-      col_targets = origin_quarter$remittances_musd
-    )
-
-    fitted_matrix <- fit$fitted
-
-    quarter_output <- tibble(
-      period_date = origin_quarter$period_date[[1]],
-      year = year_value,
-      quarter = quarter_value,
-      year_quarter = paste0(year_value, "Q", quarter_value),
-      us_state = rep(state_cols, each = nrow(year_weights$municipality_universe)),
-      mx_state = rep(year_weights$municipality_universe$mx_state, times = length(state_cols)),
-      mx_municipality = rep(year_weights$municipality_universe$mx_municipality, times = length(state_cols)),
-      remittances_musd = as.vector(fitted_matrix)
-    )
-
-    yearly_outputs[[idx]] <- quarter_output
-
-    diagnostics[[length(diagnostics) + 1]] <- tibble(
-      period_date = origin_quarter$period_date[[1]],
-      year = year_value,
-      quarter = quarter_value,
-      year_quarter = paste0(year_value, "Q", quarter_value),
-      origin_total_kept_musd = origin_total_kept,
-      origin_total_dropped_musd = origin_dropped_summary %>%
-        filter(year == year_value, quarter == quarter_value) %>%
-        summarise(total = sum(origin_total_dropped_musd, na.rm = TRUE)) %>%
-        pull(total),
-      municipality_total_raw_musd = municipality_total_raw,
-      municipality_scale_factor = municipality_scale_factor,
-      municipality_total_scaled_musd = sum(municipality_targets_scaled, na.rm = TRUE),
-      ipfp_iterations = fit$iterations,
-      ipfp_converged = fit$converged,
-      ipfp_max_gap = fit$max_gap,
-      fallback_states_used = paste(year_weights$fallback_states, collapse = " | ")
-    )
-
-    message(
-      "  ",
-      year_value,
-      "Q",
-      quarter_value,
-      ": origin total = ",
-      round(origin_total_kept, 3),
-      ", municipality scale factor = ",
-      round(municipality_scale_factor, 6),
-      ", iterations = ",
-      fit$iterations
+    yearly_outputs[[idx]] <- list(
+      usd  = id_cols %>% mutate(remittances_usd  = as.vector(flow_matrix)),
+      musd = id_cols %>% mutate(remittances_musd = as.vector(flow_matrix) / 1e6)
     )
   }
 
-  yearly_panel <- bind_rows(yearly_outputs)
-  yearly_output_path <- file.path(output_dir, paste0("calibrated_remittance_flows_", year_value, ".csv"))
-  readr::write_csv(yearly_panel, yearly_output_path)
-
-  write_or_append_csv(yearly_panel, master_output_path, append_mode = master_started)
+  write_or_append_csv(
+    bind_rows(lapply(yearly_outputs, `[[`, "usd")),
+    master_output_path_usd, master_started
+  )
+  write_or_append_csv(
+    bind_rows(lapply(yearly_outputs, `[[`, "musd")),
+    master_output_path_musd, master_started
+  )
   master_started <- TRUE
 }
 
-diagnostics_df <- bind_rows(diagnostics)
-readr::write_csv(diagnostics_df, diagnostics_output_path)
+message("Matrix construction complete.")
 
-message("Master panel written to: ", master_output_path)
-message("Diagnostics written to: ", diagnostics_output_path)
+# -----------------------------------------------------------------------------
+# 7. Validation: Municipality Share Comparison
+#
+#    For each quarter compute, for every municipality:
+#      share_matrix   = municipality's share of total inflows implied by the
+#                       origin-state matrix (summed across all US states)
+#      share_banxico  = municipality's share of total inflows as directly
+#                       reported in the Banxico municipality dataset
+#    Then store both shares and their absolute difference.
+# -----------------------------------------------------------------------------
+message("Computing validation shares...")
+
+# 7a. Municipality shares from the constructed matrix
+#     Read back the USD master, aggregate to municipality x quarter level
+matrix_muni_shares <- readr::read_csv(master_output_path_usd, show_col_types = FALSE) %>%
+  group_by(year, quarter, year_quarter, mx_state, mx_municipality) %>%
+  summarise(remittances_usd_matrix = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  group_by(year_quarter) %>%
+  mutate(
+    total_matrix_usd   = sum(remittances_usd_matrix),
+    share_matrix       = remittances_usd_matrix / total_matrix_usd
+  ) %>%
+  ungroup()
+
+# 7b. Municipality shares from raw Banxico municipality inflow data
+banxico_muni_shares <- readr::read_csv(municipality_path, show_col_types = FALSE) %>%
+  mutate(remittances_usd = remittances_musd * 1e6) %>%
+  group_by(year, quarter, mx_state, mx_municipality) %>%
+  summarise(remittances_usd_banxico = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(year_quarter = paste0(year, "Q", quarter)) %>%
+  group_by(year_quarter) %>%
+  mutate(
+    total_banxico_usd  = sum(remittances_usd_banxico),
+    share_banxico      = remittances_usd_banxico / total_banxico_usd
+  ) %>%
+  ungroup()
+
+# 7c. Join and compute divergence
+validation <- matrix_muni_shares %>%
+  full_join(
+    banxico_muni_shares %>%
+      select(year_quarter, mx_state, mx_municipality,
+             remittances_usd_banxico, total_banxico_usd, share_banxico),
+    by = c("year_quarter", "mx_state", "mx_municipality")
+  ) %>%
+  mutate(
+    share_matrix  = replace_na(share_matrix,  0),
+    share_banxico = replace_na(share_banxico, 0),
+    share_diff    = share_matrix - share_banxico,      # signed difference
+    share_abs_diff = abs(share_diff)                   # magnitude
+  ) %>%
+  select(
+    year, quarter, year_quarter,
+    mx_state, mx_municipality,
+    remittances_usd_matrix, total_matrix_usd, share_matrix,
+    remittances_usd_banxico, total_banxico_usd, share_banxico,
+    share_diff, share_abs_diff
+  ) %>%
+  arrange(year_quarter, mx_state, mx_municipality)
+
+readr::write_csv(validation, validation_output_path)
+message("Validation file written: ", validation_output_path)
+
+# Quick summary of average absolute divergence per quarter
+validation_summary <- validation %>%
+  group_by(year_quarter) %>%
+  summarise(
+    mean_abs_diff   = mean(share_abs_diff, na.rm = TRUE),
+    median_abs_diff = median(share_abs_diff, na.rm = TRUE),
+    max_abs_diff    = max(share_abs_diff, na.rm = TRUE),
+    .groups = "drop"
+  )
+message("\nValidation summary (mean absolute share difference per quarter):")
+print(validation_summary, n = Inf)
+
+# Robustness check: yearly correlation between the municipality shares implied
+# by the origin-state output matrix and the shares observed in Banxico inflows.
+validation_share_correlations <- validation %>%
+  group_by(year) %>%
+  summarise(
+    share_correlation = cor(share_matrix, share_banxico, use = "complete.obs"),
+    n_municipality_quarters = sum(complete.cases(share_matrix, share_banxico)),
+    .groups = "drop"
+  ) %>%
+  arrange(year)
+
+readr::write_csv(validation_share_correlations, validation_correlation_path)
+message("Validation share correlations written: ", validation_correlation_path)
+
+validation_correlation_plot <- ggplot(
+  validation_share_correlations,
+  aes(x = year, y = share_correlation)
+) +
+  geom_line(colour = "#1f77b4", linewidth = 0.9) +
+  geom_point(colour = "#1f77b4", size = 2) +
+  scale_x_continuous(
+    breaks = validation_share_correlations$year,
+    labels = as.character(validation_share_correlations$year)
+  ) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::number_format(accuracy = 0.01)) +
+  labs(
+    title = "Yearly Correlation of Municipality Remittance Shares",
+    subtitle = "Origin-state output matrix shares vs Banxico municipality inflow shares",
+    x = NULL,
+    y = "Correlation coefficient"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(colour = "grey40", size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(validation_correlation_plot_path, validation_correlation_plot, width = 9, height = 5, dpi = 150)
+message("Validation share correlation plot saved: ", validation_correlation_plot_path)
+
+# Robustness check: compare total raw remittances in the full origin-state
+# outflow dataset and the full municipality inflow dataset. This keeps every
+# category, including non-identified/unmapped origin states and municipalities.
+origin_totals_quarterly <- origin_col %>%
+  group_by(year, quarter) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(
+    year_quarter = paste0(year, "Q", quarter),
+    source = "Origin-state outflows"
+  )
+
+municipality_totals_quarterly <- readr::read_csv(municipality_path, show_col_types = FALSE) %>%
+  mutate(remittances_usd = remittances_musd * 1e6) %>%
+  group_by(year, quarter) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(
+    year_quarter = paste0(year, "Q", quarter),
+    source = "Municipality inflows"
+  )
+
+total_remittances_quarterly <- bind_rows(
+  origin_totals_quarterly,
+  municipality_totals_quarterly
+) %>%
+  mutate(time = year + (quarter - 1) / 4) %>%
+  arrange(year, quarter, source)
+
+readr::write_csv(total_remittances_quarterly, total_quarterly_comparison_path)
+message("Quarterly total remittances comparison written: ", total_quarterly_comparison_path)
+
+total_quarterly_plot <- ggplot(
+  total_remittances_quarterly,
+  aes(x = time, y = remittances_usd / 1e6, colour = source, linetype = source)
+) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.6) +
+  scale_colour_manual(
+    values = c(
+      "Origin-state outflows" = "#d62728",
+      "Municipality inflows" = "#1f77b4"
+    )
+  ) +
+  scale_linetype_manual(
+    values = c(
+      "Origin-state outflows" = "dashed",
+      "Municipality inflows" = "solid"
+    )
+  ) +
+  scale_x_continuous(
+    breaks = 2013:2024,
+    labels = as.character(2013:2024)
+  ) +
+  scale_y_continuous(labels = scales::comma_format(suffix = "M")) +
+  labs(
+    title = "Total Remittances by Quarter",
+    subtitle = "Full origin-state outflows vs full municipality inflows",
+    x = NULL,
+    y = "Remittances (USD millions)",
+    colour = "Dataset",
+    linetype = "Dataset"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(colour = "grey40", size = 10),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(total_quarterly_plot_path, total_quarterly_plot, width = 10, height = 5.5, dpi = 150)
+message("Quarterly total remittances plot saved: ", total_quarterly_plot_path)
+
+total_remittances_yearly <- total_remittances_quarterly %>%
+  group_by(year, source) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  arrange(year, source)
+
+readr::write_csv(total_remittances_yearly, total_yearly_comparison_path)
+message("Yearly total remittances comparison written: ", total_yearly_comparison_path)
+
+total_yearly_plot <- ggplot(
+  total_remittances_yearly,
+  aes(x = year, y = remittances_usd / 1e6, colour = source, linetype = source)
+) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  scale_colour_manual(
+    values = c(
+      "Origin-state outflows" = "#d62728",
+      "Municipality inflows" = "#1f77b4"
+    )
+  ) +
+  scale_linetype_manual(
+    values = c(
+      "Origin-state outflows" = "dashed",
+      "Municipality inflows" = "solid"
+    )
+  ) +
+  scale_x_continuous(
+    breaks = 2013:2024,
+    labels = as.character(2013:2024)
+  ) +
+  scale_y_continuous(labels = scales::comma_format(suffix = "M")) +
+  labs(
+    title = "Total Remittances by Year",
+    subtitle = "Full origin-state outflows vs full municipality inflows",
+    x = NULL,
+    y = "Remittances (USD millions)",
+    colour = "Dataset",
+    linetype = "Dataset"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(colour = "grey40", size = 10),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(total_yearly_plot_path, total_yearly_plot, width = 10, height = 5.5, dpi = 150)
+message("Yearly total remittances plot saved: ", total_yearly_plot_path)
+
+# -----------------------------------------------------------------------------
+# 8. Florida Plot: total remittances over time from both datasets
+#
+#    - Matrix source:  sum of all municipality flows whose origin = Florida,
+#                      taken from the constructed USD matrix.
+#    - Banxico source: Florida's directly reported quarterly outflow from the
+#                      origin-state dataset (before any matrix construction).
+# -----------------------------------------------------------------------------
+if (FALSE) {
+message("Building Florida comparison plot...")
+
+# Florida from the constructed matrix (sum across all destination municipalities)
+florida_matrix <- readr::read_csv(master_output_path_usd, show_col_types = FALSE) %>%
+  filter(us_state == "Florida") %>%
+  group_by(year_quarter, year, quarter) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(source = "Origin-state matrix")
+
+# Florida from the raw Banxico origin-state dataset
+florida_banxico <- origin_kept %>%
+  filter(us_state == "Florida") %>%
+  mutate(year_quarter = paste0(year, "Q", quarter),
+         source       = "Banxico origin-state (raw)")
+
+# Bind and create a numeric time index for clean x-axis ordering
+florida_plot_data <- bind_rows(
+  florida_matrix  %>% select(year, quarter, year_quarter, remittances_usd, source),
+  florida_banxico %>% select(year, quarter, year_quarter, remittances_usd, source)
+) %>%
+  mutate(
+    # Fractional year for ordered x-axis (Q1=.0, Q2=.25, Q3=.5, Q4=.75)
+    time = year + (quarter - 1) / 4
+  )
+
+florida_plot <- ggplot(florida_plot_data,
+                       aes(x = time, y = remittances_usd / 1e6,
+                           colour = source, linetype = source)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.8) +
+  scale_colour_manual(
+    values = c("Origin-state matrix"          = "#1f77b4",
+               "Banxico origin-state (raw)"   = "#d62728")
+  ) +
+  scale_linetype_manual(
+    values = c("Origin-state matrix"          = "solid",
+               "Banxico origin-state (raw)"   = "dashed")
+  ) +
+  scale_x_continuous(
+    breaks = 2013:2024,
+    labels = as.character(2013:2024)
+  ) +
+  scale_y_continuous(labels = scales::comma_format(suffix = "M")) +
+  labs(
+    title    = "Florida: Total Remittances Sent — Matrix vs. Banxico Raw",
+    subtitle = "Quarterly 2013 Q1 – 2024 Q4  |  USD millions",
+    x        = NULL,
+    y        = "Remittances (USD millions)",
+    colour   = "Source",
+    linetype = "Source",
+    caption  = paste0(
+      "Matrix source: origin-state outflows distributed via migration weights matrix.\n",
+      "Banxico raw: directly reported state-level outflow (before matrix construction).\n",
+      "The two series should be identical — any gap reflects dropped/unmapped states."
+    )
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", size = 14),
+    plot.subtitle   = element_text(colour = "grey40", size = 10),
+    plot.caption    = element_text(colour = "grey50", size = 8, hjust = 0),
+    legend.position = "bottom",
+    legend.title    = element_blank(),
+    axis.text.x     = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(florida_plot_path, florida_plot, width = 10, height = 5.5, dpi = 150)
+message("Florida plot saved: ", florida_plot_path)
+}
+
+# Replace the previous matrix-vs-origin plot with the requested comparison:
+# origin-state Florida outflows vs Florida inferred from municipality inflows.
+message("Building Florida comparison plot...")
+
+avg_row_weights <- readxl::read_excel(file.path(weights_dir, "FINAL_AVG_ROW_MATRIX.xlsx")) %>%
+  select(mx_state, mx_municipality, Florida) %>%
+  rename(avg_florida_weight = Florida)
+
+get_florida_municipality_weights <- function(year_value) {
+  yearly_weight_path <- file.path(weights_dir, paste0("WEIGHTING_MATRIX_", year_value, ".xlsx"))
+  
+  if (!file.exists(yearly_weight_path)) {
+    warning("Missing weighting matrix for ", year_value, "; using average row weights for Florida.")
+    return(avg_row_weights %>% rename(florida_weight = avg_florida_weight))
+  }
+  
+  yearly_weights <- readxl::read_excel(yearly_weight_path)
+  numeric_cols <- names(yearly_weights %>% select(where(is.numeric)))
+  
+  if (!("Florida" %in% numeric_cols)) {
+    warning("Florida is missing from the ", year_value, " weighting matrix; using average row weights.")
+    return(avg_row_weights %>% rename(florida_weight = avg_florida_weight))
+  }
+  
+  yearly_weights %>%
+    mutate(
+      row_total = rowSums(across(all_of(numeric_cols)), na.rm = TRUE),
+      florida_weight = if_else(row_total > 0, Florida / row_total, NA_real_)
+    ) %>%
+    select(mx_state, mx_municipality, florida_weight) %>%
+    left_join(avg_row_weights, by = c("mx_state", "mx_municipality")) %>%
+    mutate(florida_weight = coalesce(florida_weight, avg_florida_weight)) %>%
+    select(mx_state, mx_municipality, florida_weight)
+}
+
+florida_weight_panel <- map_dfr(2013:2024, function(year_value) {
+  get_florida_municipality_weights(year_value) %>%
+    mutate(year = year_value)
+})
+
+florida_origin_state <- origin_kept %>%
+  filter(us_state == "Florida") %>%
+  mutate(
+    year_quarter = paste0(year, "Q", quarter),
+    source = "Banxico origin-state"
+  )
+
+florida_municipality_inflow <- readr::read_csv(municipality_path, show_col_types = FALSE) %>%
+  mutate(remittances_usd = remittances_musd * 1e6) %>%
+  group_by(year, quarter, mx_state, mx_municipality) %>%
+  summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  left_join(
+    florida_weight_panel,
+    by = c("year", "mx_state", "mx_municipality")
+  ) %>%
+  mutate(florida_weight = replace_na(florida_weight, 0)) %>%
+  group_by(year, quarter) %>%
+  summarise(
+    remittances_usd = sum(remittances_usd * florida_weight, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    year_quarter = paste0(year, "Q", quarter),
+    source = "Municipality inflows weighted to Florida"
+  )
+
+florida_plot_data <- bind_rows(
+  florida_origin_state %>% select(year, quarter, year_quarter, remittances_usd, source),
+  florida_municipality_inflow %>% select(year, quarter, year_quarter, remittances_usd, source)
+) %>%
+  mutate(time = year + (quarter - 1) / 4)
+
+florida_plot <- ggplot(
+  florida_plot_data,
+  aes(x = time, y = remittances_usd / 1e6, colour = source, linetype = source)
+) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.8) +
+  scale_colour_manual(
+    values = c(
+      "Banxico origin-state" = "#d62728",
+      "Municipality inflows weighted to Florida" = "#1f77b4"
+    )
+  ) +
+  scale_linetype_manual(
+    values = c(
+      "Banxico origin-state" = "dashed",
+      "Municipality inflows weighted to Florida" = "solid"
+    )
+  ) +
+  scale_x_continuous(
+    breaks = 2013:2024,
+    labels = as.character(2013:2024)
+  ) +
+  scale_y_continuous(labels = scales::comma_format(suffix = "M")) +
+  labs(
+    title    = "Florida: Origin-State Remittances vs Municipality-Inflow Estimate",
+    subtitle = "Quarterly 2013 Q1 - 2024 Q4 | USD millions",
+    x        = NULL,
+    y        = "Remittances (USD millions)",
+    colour   = "Source",
+    linetype = "Source",
+    caption  = paste0(
+      "Origin-state: directly reported Banxico Florida outflows.\n",
+      "Municipality inflows: Banxico municipality receipts multiplied by Florida row-normalized migration weights.\n",
+      "When the yearly Florida weight is missing, the average row-normalized Florida weight is used."
+    )
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title       = element_text(face = "bold", size = 14),
+    plot.subtitle    = element_text(colour = "grey40", size = 10),
+    plot.caption     = element_text(colour = "grey50", size = 8, hjust = 0),
+    legend.position  = "bottom",
+    legend.title     = element_blank(),
+    axis.text.x      = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(florida_plot_path, florida_plot, width = 10, height = 5.5, dpi = 150)
+message("Florida plot overwritten with municipality-inflow comparison: ", florida_plot_path)
+
+# -----------------------------------------------------------------------------
+# 9. Done
+# -----------------------------------------------------------------------------
+message("\nAll outputs written:")
+message("  Matrix (USD)       -> ", master_output_path_usd)
+message("  Matrix (MUSD)      -> ", master_output_path_musd)
+message("  Validation shares  -> ", validation_output_path)
+message("  Origin mapping     -> ", origin_mapping_output_path)
+message("  Florida plot       -> ", florida_plot_path)

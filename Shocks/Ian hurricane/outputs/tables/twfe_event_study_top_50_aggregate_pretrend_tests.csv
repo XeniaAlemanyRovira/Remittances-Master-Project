@@ -1,2 +1,3 @@
-study,subgroup,sample,fixed_effects,clusters,tested_relative_quarters,statistic,p.value,df1,df2,error_message
-Top 50 pooled TWFE event study,Top 50 pooled,Top 50 Florida-linked municipalities; NC/SC excluded,US state-municipality pair; Mexican municipality-quarter,US state; Mexican municipality,"-16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2",511.486193729765,0.0000000000000000000000000000000000000000000000135653573336379,15,48,
+version https://git-lfs.github.com/spec/v1
+oid sha256:5d82533600a8239cf1b789795722e3b6e0edd26ee5e40fed239c77a7cdfbfeff
+size 451

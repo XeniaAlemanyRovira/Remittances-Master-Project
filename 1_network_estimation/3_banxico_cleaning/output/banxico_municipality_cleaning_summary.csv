@@ -1,9 +1,3 @@
-metric,value
-raw_municipality_state_pairs,2456
-resolved_municipality_state_pairs,2441
-unresolved_municipality_state_pairs,15
-clean_municipality_panel_rows,117120
-clean_origin_state_panel_rows,2544
-clean_municipality_total_musd,477391.855738
-dropped_municipality_total_musd,4723.214354
-dropped_municipality_share,0.009796861054558383
+version https://git-lfs.github.com/spec/v1
+oid sha256:d53e82809c1e0c25892a1657017306c4ff5c0d7b6f12fc3c82b012b4883d5392
+size 342
