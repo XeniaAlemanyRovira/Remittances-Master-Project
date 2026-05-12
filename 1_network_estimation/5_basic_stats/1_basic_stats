@@ -1,0 +1,578 @@
+library(readr)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Paths
+get_script_path <- function() {
+	cmd_args <- commandArgs(trailingOnly = FALSE)
+	file_arg <- grep("^--file=", cmd_args, value = TRUE)
+
+	if (length(file_arg) > 0) {
+		return(normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = TRUE))
+	}
+
+	frames <- sys.frames()
+	for (frame in rev(frames)) {
+		if (!is.null(frame$ofile)) {
+			return(normalizePath(frame$ofile, winslash = "/", mustWork = TRUE))
+		}
+	}
+
+	NA_character_
+}
+
+find_repo_root <- function(start_dir) {
+	current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+
+	repeat {
+		if (
+			file.exists(file.path(current_dir, "Thesis.Rproj")) ||
+			dir.exists(file.path(current_dir, ".git"))
+		) {
+			return(current_dir)
+		}
+
+		parent_dir <- dirname(current_dir)
+		if (identical(parent_dir, current_dir)) {
+			stop("Could not find the project root from: ", start_dir)
+		}
+		current_dir <- parent_dir
+	}
+}
+
+script_path <- get_script_path()
+project_dir <- if (!is.na(script_path)) {
+	find_repo_root(dirname(script_path))
+} else {
+	find_repo_root(getwd())
+}
+
+path_in_repo <- function(...) {
+	normalizePath(file.path(project_dir, ...), winslash = "/", mustWork = FALSE)
+}
+
+yearly_migration_dir <- path_in_repo("1_network_estimation", "2_migration_matrix_estimation", "yearly_migration_matrices_2")
+migration_weighting_dir <- path_in_repo("1_network_estimation", "2_migration_matrix_estimation", "migration_weighting_matrices_2")
+banxico_dir <- path_in_repo("1_network_estimation", "3_banxico_cleaning", "output")
+remittance_calibration_dir <- path_in_repo("1_network_estimation", "4_remittance_calibration", "output")
+
+origin_path <- file.path(banxico_dir, "banxico_origin_state_remittances_2013q1_2024q4.csv")
+calibrated_path <- file.path(remittance_calibration_dir, "calibrated_remittance_flows_master_2013q1_2024q4_usd.csv")
+municipality_catalog_path <- path_in_repo("Data", "catun_municipio", "catun_municipio", "AGEEML_2026318759531.xlsx")
+plot_output_dir <- path_in_repo("1_network_estimation", "5_basic_stats", "output")
+dir.create(plot_output_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Helpers
+read_any <- function(path) {
+	ext <- tolower(tools::file_ext(path))
+	if (ext %in% c("csv", "txt")) {
+		read_csv(path, show_col_types = FALSE)
+	} else if (ext %in% c("xlsx", "xls")) {
+		read_excel(path)
+	} else {
+		stop("Unsupported file type: ", path)
+	}
+}
+
+basic_stats <- function(df) {
+	num_df <- df %>% select(where(is.numeric))
+	tibble(
+		rows = nrow(df),
+		cols = ncol(df),
+		numeric_cols = ncol(num_df),
+		missing_values = sum(is.na(df)),
+		sum_values = if (ncol(num_df) > 0) sum(as.matrix(num_df), na.rm = TRUE) else NA_real_,
+		mean_value = if (ncol(num_df) > 0) mean(unlist(num_df), na.rm = TRUE) else NA_real_,
+		min_value = if (ncol(num_df) > 0) min(unlist(num_df), na.rm = TRUE) else NA_real_,
+		max_value = if (ncol(num_df) > 0) max(unlist(num_df), na.rm = TRUE) else NA_real_
+	)
+}
+
+make_join_key <- function(x) {
+	x %>%
+		iconv(from = "", to = "ASCII//TRANSLIT") %>%
+		toupper() %>%
+		gsub("[^A-Z0-9 ]", " ", x = .) %>%
+		gsub("[[:space:]]+", " ", x = .) %>%
+		trimws()
+}
+
+# 1) Yearly migration matrices
+yearly_files <- list.files(yearly_migration_dir, pattern = "\\.(csv|xlsx|xls)$", full.names = TRUE)
+yearly_migration_matrices <- setNames(lapply(yearly_files, read_any), basename(yearly_files))
+yearly_migration_stats <- lapply(yearly_migration_matrices, basic_stats)
+
+# Descriptive corridor statistics from yearly migration matrices
+yearly_migration_long <- bind_rows(lapply(names(yearly_migration_matrices), function(file_name) {
+	year <- as.integer(gsub("\\D", "", file_name))
+
+	yearly_migration_matrices[[file_name]] %>%
+		mutate(year = year) %>%
+		pivot_longer(
+			cols = -c(any_of(c("mx_state", "mx_municipality", "Total", "year"))),
+			names_to = "us_state",
+			values_to = "migrants"
+		) %>%
+		filter(mx_state != "Total", mx_municipality != "Total") %>%
+		mutate(migrants = coalesce(as.numeric(migrants), 0))
+}))
+
+concentration_ratio <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(total_migrants_to_state = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	group_by(mx_state, mx_municipality) %>%
+	mutate(total_migrants_from_municipality = sum(total_migrants_to_state, na.rm = TRUE)) %>%
+	filter(total_migrants_from_municipality > 0) %>%
+	slice_max(total_migrants_to_state, n = 1, with_ties = FALSE) %>%
+	ungroup() %>%
+	transmute(
+		mx_state,
+		mx_municipality,
+		top_us_state = us_state,
+		total_migrants_from_municipality,
+		migrants_to_top_state = total_migrants_to_state,
+		concentration_ratio = if_else(
+			total_migrants_from_municipality > 0,
+			migrants_to_top_state / total_migrants_from_municipality,
+			NA_real_
+		),
+		concentration_pct = concentration_ratio * 100,
+		exposure_level = case_when(
+			concentration_ratio >= 0.90 ~ "Highly exposed",
+			concentration_ratio >= 0.75 ~ "Moderately exposed",
+			TRUE ~ "Diversified"
+		)
+	) %>%
+	arrange(desc(concentration_ratio), desc(total_migrants_from_municipality))
+
+corridor_stability <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(
+		mean_annual_flow = mean(migrants, na.rm = TRUE),
+		sd_annual_flow = sd(migrants, na.rm = TRUE),
+		min_annual_flow = min(migrants, na.rm = TRUE),
+		max_annual_flow = max(migrants, na.rm = TRUE),
+		total_migrants = sum(migrants, na.rm = TRUE),
+		years_observed = n_distinct(year),
+		nonzero_years = sum(migrants > 0, na.rm = TRUE),
+		.groups = "drop"
+	) %>%
+	filter(total_migrants > 0) %>%
+	mutate(
+		coefficient_of_variation = if_else(mean_annual_flow > 0, sd_annual_flow / mean_annual_flow, NA_real_),
+		nonzero_year_share = nonzero_years / years_observed,
+		stability_type = case_when(
+			nonzero_year_share == 1 & coefficient_of_variation <= 0.50 ~ "Permanent / stable",
+			nonzero_year_share >= 0.80 ~ "Permanent / moderate volatility",
+			nonzero_year_share <= 0.40 | coefficient_of_variation >= 1 ~ "Seasonal / volatile",
+			TRUE ~ "Intermittent"
+		)
+	) %>%
+	arrange(desc(total_migrants), sd_annual_flow)
+
+top_corridors_table <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	arrange(desc(total_migrants)) %>%
+	slice_head(n = 10)
+
+# Plot-ready data for migration exposure, stability, and flow architecture
+municipality_catalog <- read_excel(municipality_catalog_path, skip = 3) %>%
+	filter(!is.na(CVEGEO), !is.na(NOM_ENT), !is.na(NOM_MUN)) %>%
+	transmute(
+		cvegeo = as.character(CVEGEO),
+		cve_ent = as.character(CVE_ENT),
+		cve_mun = as.character(CVE_MUN),
+		mx_state_catalog = NOM_ENT,
+		mx_municipality_catalog = NOM_MUN,
+		population = suppressWarnings(parse_number(as.character(POB_TOTAL))),
+		mx_state_key = make_join_key(NOM_ENT),
+		mx_municipality_key = make_join_key(NOM_MUN)
+	)
+
+municipality_plot_keys <- yearly_migration_long %>%
+	distinct(mx_state, mx_municipality) %>%
+	mutate(
+		mx_state_key = make_join_key(mx_state),
+		mx_municipality_key = make_join_key(mx_municipality)
+	) %>%
+	left_join(
+		municipality_catalog,
+		by = c("mx_state_key", "mx_municipality_key")
+	)
+
+municipality_heatmap_order <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality) %>%
+	summarise(municipality_total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	arrange(mx_state, desc(municipality_total_migrants), mx_municipality) %>%
+	mutate(municipality_order = row_number())
+
+migration_heatmap_data <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	left_join(municipality_plot_keys, by = c("mx_state", "mx_municipality")) %>%
+	left_join(municipality_heatmap_order, by = c("mx_state", "mx_municipality")) %>%
+	mutate(
+		municipality_label = paste(mx_state, mx_municipality, sep = " - "),
+		municipality_label = reorder(municipality_label, -municipality_order),
+		log_total_migrants = log1p(total_migrants)
+	) %>%
+	arrange(municipality_order, us_state)
+
+bivariate_choropleth_data <- concentration_ratio %>%
+	left_join(municipality_plot_keys, by = c("mx_state", "mx_municipality")) %>%
+	mutate(
+		total_outflow_bin = ntile(total_migrants_from_municipality, 3),
+		concentration_bin = ntile(concentration_ratio, 3),
+		bivariate_class = paste0(total_outflow_bin, "-", concentration_bin),
+		outflow_per_1000_people = if_else(
+			!is.na(population) & population > 0,
+			total_migrants_from_municipality / population * 1000,
+			NA_real_
+		)
+	) %>%
+	select(
+		cvegeo,
+		cve_ent,
+		cve_mun,
+		mx_state,
+		mx_municipality,
+		total_outflow = total_migrants_from_municipality,
+		top_us_state,
+		concentration_ratio,
+		concentration_pct,
+		exposure_level,
+		total_outflow_bin,
+		concentration_bin,
+		bivariate_class,
+		population,
+		outflow_per_1000_people
+	)
+
+migration_pulse_data <- yearly_migration_long %>%
+	semi_join(top_corridors_table, by = c("mx_state", "mx_municipality", "us_state")) %>%
+	mutate(corridor = paste(mx_state, mx_municipality, "->", us_state)) %>%
+	group_by(corridor, mx_state, mx_municipality, us_state, year) %>%
+	summarise(yearly_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	arrange(corridor, year)
+
+rank_change_all <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, year, us_state) %>%
+	summarise(yearly_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	group_by(mx_state, mx_municipality, year) %>%
+	mutate(destination_rank = min_rank(desc(yearly_migrants))) %>%
+	ungroup()
+
+first_migration_year <- min(yearly_migration_long$year, na.rm = TRUE)
+last_migration_year <- max(yearly_migration_long$year, na.rm = TRUE)
+slopegraph_municipality <- top_corridors_table %>%
+	slice_head(n = 1) %>%
+	select(mx_state, mx_municipality)
+
+rank_change_slopegraph_states <- rank_change_all %>%
+	semi_join(slopegraph_municipality, by = c("mx_state", "mx_municipality")) %>%
+	filter(year %in% c(first_migration_year, last_migration_year), destination_rank <= 10) %>%
+	distinct(us_state)
+
+rank_change_slopegraph_data <- rank_change_all %>%
+	semi_join(slopegraph_municipality, by = c("mx_state", "mx_municipality")) %>%
+	semi_join(rank_change_slopegraph_states, by = "us_state") %>%
+	filter(year %in% c(first_migration_year, last_migration_year)) %>%
+	select(mx_state, mx_municipality, year, us_state, yearly_migrants, destination_rank) %>%
+	arrange(year, destination_rank)
+
+sankey_alluvial_data <- yearly_migration_long %>%
+	group_by(mx_state, us_state) %>%
+	summarise(total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	filter(total_migrants > 0) %>%
+	group_by(mx_state) %>%
+	mutate(mx_state_flow_share = total_migrants / sum(total_migrants)) %>%
+	ungroup() %>%
+	arrange(desc(total_migrants))
+
+top_chord_municipalities <- concentration_ratio %>%
+	arrange(desc(total_migrants_from_municipality)) %>%
+	slice_head(n = 25) %>%
+	select(mx_state, mx_municipality)
+
+chord_diagram_data <- yearly_migration_long %>%
+	semi_join(top_chord_municipalities, by = c("mx_state", "mx_municipality")) %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	filter(total_migrants > 0) %>%
+	mutate(
+		from = paste(mx_state, mx_municipality, sep = " - "),
+		to = us_state,
+		value = total_migrants
+	) %>%
+	select(from, to, value, mx_state, mx_municipality, us_state)
+
+lorenz_curve_data <- yearly_migration_long %>%
+	group_by(us_state) %>%
+	summarise(total_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	arrange(total_migrants) %>%
+	mutate(
+		destination_rank = row_number(),
+		cumulative_destinations = destination_rank / n(),
+		cumulative_migrants = cumsum(total_migrants) / sum(total_migrants),
+		equality_line = cumulative_destinations
+	) %>%
+	bind_rows(
+		tibble(
+			us_state = "Origin",
+			total_migrants = 0,
+			destination_rank = 0,
+			cumulative_destinations = 0,
+			cumulative_migrants = 0,
+			equality_line = 0
+		),
+		.
+	) %>%
+	arrange(destination_rank)
+
+migration_destination_gini <- lorenz_curve_data %>%
+	filter(destination_rank > 0) %>%
+	summarise(
+		gini = 1 - sum(
+			(cumulative_migrants + lag(cumulative_migrants, default = 0)) *
+				(cumulative_destinations - lag(cumulative_destinations, default = 0))
+		)
+	)
+
+# Plots
+save_and_print_plot <- function(plot, file_name, width, height, dpi = 300) {
+	if (interactive()) {
+		print(plot)
+	}
+	ggsave(
+		filename = file.path(plot_output_dir, file_name),
+		plot = plot,
+		width = width,
+		height = height,
+		dpi = dpi,
+		bg = "white"
+	)
+}
+
+top_heatmap_municipalities <- municipality_heatmap_order %>%
+	arrange(desc(municipality_total_migrants)) %>%
+	slice_head(n = 150) %>%
+	select(mx_state, mx_municipality)
+
+migration_heatmap_plot_data <- migration_heatmap_data %>%
+	semi_join(top_heatmap_municipalities, by = c("mx_state", "mx_municipality")) %>%
+	mutate(
+		municipality_label = reorder(
+			paste(mx_state, mx_municipality, sep = " - "),
+			municipality_order
+		)
+	)
+
+migration_heatmap_plot <- ggplot(
+	migration_heatmap_plot_data,
+	aes(x = us_state, y = municipality_label, fill = log_total_migrants)
+) +
+	geom_tile() +
+	scale_fill_viridis_c(option = "magma", name = "log(1 + migrants)") +
+	labs(
+		title = "Municipality-to-US-State Migration Heatmap",
+		subtitle = "Top 150 Mexican municipalities by total migrant outflow",
+		x = "US destination state",
+		y = "Mexican municipality"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(
+		axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 7),
+		axis.text.y = element_text(size = 5),
+		panel.grid = element_blank()
+	)
+
+bivariate_exposure_plot <- ggplot(
+	bivariate_choropleth_data,
+	aes(x = total_outflow, y = concentration_pct, color = bivariate_class)
+) +
+	geom_point(alpha = 0.65, size = 1.6) +
+	scale_x_log10(labels = scales::comma) +
+	scale_color_brewer(palette = "PuOr", name = "Outflow-Concentration bin") +
+	labs(
+		title = "Municipal Exposure: Outflow and Destination Concentration",
+		subtitle = "Use cvegeo in bivariate_choropleth_data to join these metrics to municipality polygons",
+		x = "Total migrant outflow, log scale",
+		y = "Percent going to top US state"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom")
+
+migration_pulse_plot <- ggplot(
+	migration_pulse_data,
+	aes(x = year, y = yearly_migrants, color = corridor)
+) +
+	geom_line(linewidth = 1) +
+	geom_point(size = 1.8) +
+	scale_y_continuous(labels = scales::comma) +
+	labs(
+		title = "Migration Pulse: Top 10 Corridors Over Time",
+		subtitle = "Annual flow levels for the largest municipality-to-state corridors",
+		x = "Year",
+		y = "Migrants",
+		color = "Corridor"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+slopegraph_plot <- ggplot(
+	rank_change_slopegraph_data,
+	aes(x = factor(year), y = destination_rank, group = us_state)
+) +
+	geom_line(aes(color = us_state), linewidth = 1) +
+	geom_point(aes(color = us_state), size = 2.5) +
+	geom_text(
+		data = rank_change_slopegraph_data %>% filter(year == first_migration_year),
+		aes(label = us_state),
+		hjust = 1.1,
+		size = 3
+	) +
+	geom_text(
+		data = rank_change_slopegraph_data %>% filter(year == last_migration_year),
+		aes(label = us_state),
+		hjust = -0.1,
+		size = 3
+	) +
+	scale_y_reverse(breaks = 1:10) +
+	labs(
+		title = paste("Destination Rank Change:", slopegraph_municipality$mx_municipality),
+		subtitle = paste(first_migration_year, "vs.", last_migration_year),
+		x = "Year",
+		y = "Destination rank"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "none")
+
+top_flows <- sankey_alluvial_data %>%
+	slice_max(total_migrants, n = 40)
+
+if (requireNamespace("ggalluvial", quietly = TRUE)) {
+	sankey_alluvial_plot <- ggplot(
+		top_flows,
+		aes(y = total_migrants, axis1 = mx_state, axis2 = us_state)
+	) +
+		ggalluvial::geom_alluvium(aes(fill = mx_state), width = 1 / 12, alpha = 0.75) +
+		ggalluvial::geom_stratum(width = 1 / 12, fill = "grey88", color = "white") +
+		geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 3) +
+		scale_x_discrete(limits = c("MX state", "US state"), expand = c(.05, .05)) +
+		scale_y_continuous(labels = scales::comma) +
+		labs(
+			title = "Migration Flow Architecture: MX States to US States",
+			subtitle = "Top 40 state-to-state corridors by total migrant volume",
+			x = NULL,
+			y = "Migrants"
+		) +
+		theme_minimal(base_size = 11) +
+		theme(legend.position = "none")
+} else {
+	sankey_alluvial_plot <- ggplot(
+		top_flows,
+		aes(x = reorder(mx_state, total_migrants), y = reorder(us_state, total_migrants))
+	) +
+		geom_point(aes(size = total_migrants, color = total_migrants), alpha = 0.8) +
+		scale_size_area(max_size = 12, labels = scales::comma) +
+		scale_color_viridis_c(labels = scales::comma) +
+		labs(
+			title = "Migration Flow Architecture: MX States to US States",
+			subtitle = "Top 40 state-to-state corridors. Install ggalluvial for a true alluvial layout.",
+			x = "MX state",
+			y = "US state",
+			size = "Migrants",
+			color = "Migrants"
+		) +
+		theme_minimal(base_size = 10) +
+		theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+chord_plot_data <- chord_diagram_data %>%
+	slice_max(value, n = 75) %>%
+	mutate(
+		from_id = as.integer(factor(from)),
+		to_id = as.integer(factor(to))
+	)
+
+chord_diagram_plot <- ggplot(chord_plot_data) +
+	geom_curve(
+		aes(
+			x = from_id,
+			xend = length(unique(from)) + to_id,
+			y = 1,
+			yend = 1,
+			linewidth = value,
+			color = mx_state
+		),
+		curvature = 0.35,
+		alpha = 0.35
+	) +
+	scale_linewidth(range = c(0.2, 3), labels = scales::comma) +
+	labs(
+		title = "Chord-Style Corridor Connections",
+		subtitle = "Top 75 municipality-to-US-state links, drawn as ggplot curves",
+		x = NULL,
+		y = NULL,
+		linewidth = "Migrants"
+	) +
+	theme_void(base_size = 11) +
+	theme(legend.position = "bottom")
+
+gini_val <- round(migration_destination_gini$gini, 3)
+lorenz_curve_plot <- ggplot(lorenz_curve_data, aes(x = cumulative_destinations)) +
+	geom_ribbon(aes(ymin = cumulative_migrants, ymax = equality_line), fill = "#5B8FF9", alpha = 0.18) +
+	geom_line(aes(y = cumulative_migrants), color = "#1F5FBF", linewidth = 1.1) +
+	geom_line(aes(y = equality_line), color = "#B83232", linetype = "dashed", linewidth = 0.8) +
+	annotate("text", x = 0.25, y = 0.82, label = paste("Gini:", gini_val), size = 5) +
+	scale_x_continuous(labels = scales::percent) +
+	scale_y_continuous(labels = scales::percent) +
+	labs(
+		title = "Lorenz Curve of Migration Destinations",
+		subtitle = "Cumulative share of migrants across cumulative share of US destination states",
+		x = "Cumulative share of US states",
+		y = "Cumulative share of migrants"
+	) +
+	theme_minimal(base_size = 11)
+
+save_and_print_plot(migration_heatmap_plot, "migration_heatmap_top_150_municipalities.png", 15, 24)
+save_and_print_plot(bivariate_exposure_plot, "bivariate_exposure_concentration.png", 10, 7)
+save_and_print_plot(migration_pulse_plot, "migration_pulse_top_10_corridors.png", 12, 8)
+save_and_print_plot(slopegraph_plot, "rank_change_slopegraph.png", 9, 7)
+save_and_print_plot(sankey_alluvial_plot, "sankey_alluvial_mx_state_to_us_state.png", 13, 8)
+save_and_print_plot(chord_diagram_plot, "chord_style_corridor_connections.png", 12, 8)
+save_and_print_plot(lorenz_curve_plot, "lorenz_curve_destinations.png", 9, 7)
+graphics.off()
+
+# 2) Average weighted migration matrices (FINAL*.xlsx)
+weighted_files <- list.files(migration_weighting_dir, pattern = "^FINAL.*\\.xlsx$", full.names = TRUE)
+weighted_migration_matrices <- setNames(lapply(weighted_files, read_excel), basename(weighted_files))
+weighted_migration_stats <- lapply(weighted_migration_matrices, basic_stats)
+
+# 3) Total remittances matrix
+banxico_total_remittances <- read_csv(origin_path, show_col_types = FALSE)
+banxico_total_remittances_stats <- basic_stats(banxico_total_remittances)
+
+# 4) Final calibrated remittances matrix
+calibrated_remittances <- read_csv(calibrated_path, show_col_types = FALSE)
+calibrated_remittances_stats <- basic_stats(calibrated_remittances)
+
+# Print results
+View(yearly_migration_stats)
+View(concentration_ratio)
+View(corridor_stability)
+View(top_corridors_table)
+View(migration_heatmap_data)
+View(bivariate_choropleth_data)
+View(migration_pulse_data)
+View(rank_change_slopegraph_data)
+View(sankey_alluvial_data)
+View(chord_diagram_data)
+View(lorenz_curve_data)
+View(migration_destination_gini)
+View(weighted_migration_stats)
+View(banxico_total_remittances_stats)
+View(calibrated_remittances_stats)
