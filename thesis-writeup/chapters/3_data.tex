@@ -1,22 +1,19 @@
 \chapter{Data and bilateral remittance flow estimation}
 
-Bilateral remittance flow data between US states and Mexican municipalities is not publicly available. We therefore estimate these flows ourselves, distributing state-level remittance outflows from the US to Mexican municipalities according to observed migration shares. 
-The estimated inflows at the municipality level are then compared against official data to validate the accuracy of our procedure.
+Bilateral remittance flow data between US states and Mexican municipalities is not publicly available. We estimate these flows by distributing state-level remittance outflows from the US to Mexican municipalities according to observed migration shares. The estimated inflows at the municipality level are then compared against official data to validate the accuracy of our procedure.
 
 \section{Data sources}
 
-Our main source of remittance data is the Banco de México (Banxico), which provides two complementary datasets through its Sistema de Información 
-Económica (SIE). The first, series CE168, records remittance inflows from each US state to Mexico in millions of current US dollars at quarterly 
-frequency, covering the period from Q1 2013 to Q1 2026 \parencite{banxico_ce168}. This series provides the US State outflows from which we derive our bilateral flow estimates. The second, series CE166, records remittance inflows received by each Mexican municipality, also in millions of current US dollars at quarterly frequency and over the same sample period \parencite{banxico_ce166}. This dataset serves as a benchmark to assess the accuracy of our estimates.
+The source of remittance data is Banco de México (Banxico), which provides two complementary datasets through its Sistema de Información Económica (SIE). The first, series CE168, records remittance inflows from each US state to Mexico in millions of current US dollars at quarterly frequency, covering the period from Q1 2013 to Q1 2026 \parencite{banxico_ce168}. This series serves as the US state ourflows ($r_s$) for our bilateral flow estimation. The second, series CE166, records remittance inflows received by each Mexican municipality, also in millions of current US dollars at quarterly frequency and over the same sample period \parencite{banxico_ce166}. This series acts as abenchmark to validate the accuracy of our estimates at an aggregate level.
 
 \par
 
-\section{Remittance estimation}
+To bridge these datasets, we utilize administrative records from the Matricula Consular de Alta Seguridad (MCAS) program, managed by the Instituto de los Mexicanos en el Exterior (IME) \parencite{ime_estadisticas_2026}. The publicly available version of this dataset provides a comprehensive registry of consular identification cards issued to Mexican nationals residing in the United States each year, from 2010 to 2024. While the MCAS does not constitute an exhaustive census of all migrants, it represents a robust proxy for the spatial distribution of Mexican migrants in the United States. In particular, it is highly representative of undocumented and recently arrived migrants, who face the strongest incentives to obtain consular identification \parencite{caballero_cadena_kovak_2018}. 
 
-Persistance hypothesis
+\section{Bilateral remittance estimation}
 
-Explain how we built the weighting matrix
+\section{Persistence and estimate validation}\label{sec:persistence-estimate-validation}
 
-\section{Sanity checks}
+The estimated remittance inflow for each municipality is thus a weighted sum of the state-level outflows, where the weights are determined by the migration shares. 
 
 correlation of estimated remittances with real data on aggregate level
