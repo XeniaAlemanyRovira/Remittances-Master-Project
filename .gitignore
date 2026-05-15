@@ -69,3 +69,6 @@ thesis-writeup/*.toc
 thesis-writeup/.vscode/
 thesis-writeup/.DS_Store
 thesis-writeup/._*
+
+# VSCode settings
+.vscode/

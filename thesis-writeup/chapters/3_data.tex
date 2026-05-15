@@ -10,10 +10,26 @@ The source of remittance data is Banco de México (Banxico), which provides two 
 
 To bridge these datasets, we utilize administrative records from the Matricula Consular de Alta Seguridad (MCAS) program, managed by the Instituto de los Mexicanos en el Exterior (IME) \parencite{ime_estadisticas_2026}. The publicly available version of this dataset provides a comprehensive registry of consular identification cards issued to Mexican nationals residing in the United States each year, from 2010 to 2024. While the MCAS does not constitute an exhaustive census of all migrants, it represents a robust proxy for the spatial distribution of Mexican migrants in the United States. In particular, it is highly representative of undocumented and recently arrived migrants, who face the strongest incentives to obtain consular identification \parencite{caballero_cadena_kovak_2018}. 
 
-\section{Bilateral remittance estimation}
+\section{Bilateral remittance estimation} \label{sec:bilateral-remittance-estimation}
 
-\section{Persistence and estimate validation}\label{sec:persistence-estimate-validation}
+To estimate bilaterance remittance flows from U.S. states to Mexican municipalities, we construct a migration-based weighting matrix using annual MCAS from 2010 to 2024. Because these records capture new consular issuances rather than the complete stock of the remitting population, which also includes previously arrived migrants, we rely on the assumption of persistance of migration patterns over time. To mitigate the volatility of yearly migration fluctuation and construct a robust proxy for the long-term spatial distribution of Mexican migrants, we compute the average of these matrices across all years. We then apply this averaged weighting matrix to the state-level remittance outflows from Banxico's series CE168 to derive the U.S. to Mexican municipality bilateral flows. 
 
-The estimated remittance inflow for each municipality is thus a weighted sum of the state-level outflows, where the weights are determined by the migration shares. 
+\par
 
-correlation of estimated remittances with real data on aggregate level
+Formally, we define $MCAS_{ms}$ as the average annual count of MCAS issuances to migrants from Mexican municipality $m$ residing in U.S. state $s$. For each U.S. state, we calculate the average migration share, $w_{ms}$, which represents the proportion of that state $s$'s Mexican population originating from the $m$ municipality, as the ratio of $MCAS_{ms}$ to the total number of MCAS issuances from that state across all municipalities $M$:
+\\
+\begin{equation} \label{eq:weights}
+    w_{ms} = \frac{MCAS_{ms}}{\sum_{m=1}^{M} MCAS_{ms}}
+\end{equation}
+\\
+By applying the weights computed from equation \eqref{eq:weights} to the official aggregate state-level outflows from Banxico ($r_s$), we derive the estimated bilateral remittance flow ($\hat{r}_{ms}$) from state $s$ to municipality $m$:
+\begin{equation}
+    \hat{r}_{ms} = r_s \cdot w_{ms}
+\end{equation}
+This migration share estimation approach yields the final estimate of our outcome variable. 
+
+\par
+
+The validity of this estimation relies on two primary identification assumptions. First, we assume the temporal persistence of migration origin-destination flows, implying that the distribution of migrants recorded in the 2010--2024 MCAS data is representative of the active remitting population. Second, we assume that, within a given U.S. state, the average amount remitted does not vary systematically by the migrant's municipality of origin. While this assumption ignores micro-level heterogeneity, it provides a baseline estimate of the bilateral remittance flows that can be validated against the aggregate data provided by Banxico' series CE166. 
+
+\section{Persistence assumption and estimate validation}
