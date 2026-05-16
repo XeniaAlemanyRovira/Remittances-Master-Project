@@ -84,6 +84,12 @@
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{8pt}
 
+\usepackage{etoolbox}
+\apptocmd{\normalsize}{%
+    \setlength{\abovedisplayshortskip}{\abovedisplayskip}%
+    \setlength{\belowdisplayshortskip}{\belowdisplayskip}%
+}{}{}
+
 % ════════════════════════════════════════════════════════════
 \begin{document}
 

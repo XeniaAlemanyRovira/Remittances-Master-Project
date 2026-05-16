@@ -2,32 +2,44 @@
 
 \section{Remittance model}
 
-To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, while remitting requires paying a fixed access cost and a variable cost proportional to the amound remitted. Formally, consider migrant $i$ from origin municipality $m$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and resources available to the original household:
+To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, and where remitting requires paying both a fixed access cost and a variable cost proportional to the amount remitted. Formally, consider migrant $i$ from origin municipality $m$ in year $t$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and total resources available to the origin household:
 \begin{equation}
     U_{imt} = \left[ \alpha \left( c^L_{imt} \right)^{\frac{\sigma-1}{\sigma}} 
     + (1-\alpha) \left( \phi_{im} \left( R_{imt} + y^O_{mt} \right) \right) ^{\frac{\sigma-1}{\sigma}} \right]^{\frac{\sigma}{\sigma-1}}
 \end{equation}
-where $\phi_{im} > 0$ denotes the altruism/obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This parameter is always positive so that sending remittances increases the migrant's utility. $c^L_{imt}$ is the migrant's consumption in the destination country; $R_{imt}$ is the amount sent in remittances; $y^O_{mt}$ is the part of origin household's own income observable to the migrant; $\sigma$ is the elasticity of substitution between local consumption and  origin-household resources. Notably, origin-household total resources are $R_{imt} + y^O_{mt}$, which we treat this as a single composite good. The presence of $y^O_{mt}$ creates a role for origin-country economic conditions: negative income shocks at origin 
-(lower $y^O_{mt}$) increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
+where $\phi_{im} > 0$ denotes the altruism or obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This stricly positive nature of this parameter ensures that sending remittances always increases the migrant's utility. The variable $c^L_{imt} \geq 0$ represents the migrant's consumption in the destination country, $R_{imt} \geq 0$ is the amount sent in remittances, and $y^O_{mt} \geq 0$ captures the origin hosehold's income as observed by the migrant. The weight of local consumption is given by $\alpha \in (0,1)$, and the elasticity of substitution between local consumption and origin-household resources is given by $\sigma$. Notably, origin-household total resources are defined as $R_{imt} + y^O_{mt}$, which we treat as a single composite good. The presence of $y^O_{mt}$ introduces a role for origin-country economic conditions: negative income shocks at origin (i.e. lower $y^O_{mt}$) increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
 
 \par 
 
-The budget constraint that the individual faces is given by:
+The migrant's budget constraint is given by:
 \begin{equation}
     c^L_{imt} + f_{mt} \mathbbm{1}\{R_{imt} > 0\} + (1 + \tau_{mt})R_{imt} \leq w_{imt}
 \end{equation}
-where $f_{mt}$ is a fixed remitting cost, capturing per-transaction costs of accessing the remittance channel, analogous to the fixed export cost in \textcite{melitz2003}); $\tau_{mt}$ is the variable cost which increases with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}); $w_{imt}$ is the wage, and $R_{imt}$ is the amount sent in remittances.
+where $w_{imt} \geq 0$ is the migrant's wage, $f_{mt} \geq 0$ is a fixed remitting cost capturing the per-transaction expense of accessing a remittance channel, analogous to the fixed export cost in \textcite{melitz2003}, and $\tau_{mt} > -1$ is the variable cost which scales with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}. Notice that, even though $\tau_{mt}$ is typically positive to reflect transaction fees or exchange rate spreads, we allow for the possibility of negative variable costs, which could arise from the presence of remittance subsidies or favorable exchange rate regimes.
 
 \par
 
-Assuming that migrants maximize utility subject to the budget constraint, and send a positive amount of remittances ($R_{imt} > 0$), solving the Lagrangian of the problem yields the optimal remittance amount:
+Assuming that the migrant maximizes utility subject to the budget constraint and chooses to remit a positive amount ($R_{imt} > 0$), solving the Lagrangian yields the optimal remittance function:
 \begin{equation}
-    R^*_{irt} = \frac{\left( w_{irt} - f_{rt} + (1 + \tau_{rt})y^O_{rt} \right) A_{irt} - y^O_{rt}}{1 + (1 + \tau_{rt})A_{irt}}
+R^*_{imt} = \frac{\left( w_{imt} - f_{mt} + (1 + \tau_{mt})y^O_{mt} \right) A_{imt} - y^O_{mt}}{1 + (1 + \tau_{mt})A_{imt}}
 \end{equation}
-where
+where we define the parameter $A_{imt}$ as:
 \begin{equation}
-A_{irt} = \left( \frac{(1-\alpha)\phi_{ir}}{\alpha(1+\tau_{rt})} \right)^\sigma
+A_{imt} \equiv \left( \frac{(1-\alpha)\phi_{im}}{\alpha(1+\tau_{mt})} \right)^\sigma
 \end{equation}
+The term $A_{imt}$ represents the optimal ratio of origin-household resources to own local consumption, adjusted for the variable cost of remitting. It comprises the migrant's altruism intensity ($\phi_{im}$), the utility weight of own consumption ($\alpha$), the elasticity of substitution ($\sigma$), and the variable cost of remitting ($\tau_{mt}$).
+
+\par
+
+To understand the effect of destination-country economic shocks on remittance flows, we analyze changes in the migrant's wage ($w_{imt}$). The partial derivative of optimal remittances with respect to wage is strictly positive:
+\begin{equation}
+\frac{\partial R^*_{imt}}{\partial w_{imt}} = \frac{A_{imt}}{1 + (1 + \tau_{mt})A_{imt}}\end{equation}
+Therefore, through an income effect, the model predicts that a positive shock to the migrant's wage will increase remittances, while a negative shock will decrease them. The fixed cost $f_{mt}$ enstablishes an entry threshold: if the migrant's wage is not sufficiently high relative to the fixed cost, they will not send remittances at all. Additionally, the variable cost $\tau_{mt}$ reduces the marginal benefit of each dollar sent, dampening the sensitity of remittances to wage flactuations.
+
+\par
+
+Ultimately, this model provides a theoretical framework to understand how shocks that affect migrants' income can influence remittance flows, which is the main focus of our empirical analysis. However, a negative shock to migrant's wage does not directly imply a significant decrease in remittances, as the response depends on the shock's magnitude, the migrant's altruism intensity, and the cost structure of remitting.
+
 \section {Examining spillover effects}
 
 \subsection {Geographical spillovers}
