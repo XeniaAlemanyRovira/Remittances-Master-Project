@@ -23,6 +23,25 @@
 ]{hyperref}
 \usepackage{csquotes}
 \usepackage[style=apa, backend=biber]{biblatex}
+\usepackage[skip=6pt]{caption}
+\usepackage{fancyhdr}
+
+% page style
+\pagestyle{fancy}
+\fancyhf{} 
+\fancyhead[L]{\nouppercase{\leftmark}} 
+\fancyfoot[C]{\thepage} 
+\renewcommand{\headrulewidth}{0.4pt} 
+\renewcommand{\footrulewidth}{0pt} 
+
+% This ensures that the very first page of the document doesn't get the header line
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+}
+
+% bibliography
 \addbibresource{references.bib} 
 
 % Image path
@@ -73,12 +92,6 @@
         justification=raggedright,
         singlelinecheck=false
     }
-
-% Page numbers at bottom
-\pagestyle{fancy}
-\fancyhf{}
-\fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
 
 % No paragraph indentation
 \setlength{\parindent}{0pt}
