@@ -2,14 +2,38 @@
 
 \section{Remittance model}
 
-We introduce the remittance model. 
+To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, while remitting requires paying a fixed access cost and a variable cost proportional to the amound remitted. Formally, consider migrant $i$ from origin municipality $m$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and resources available to the original household:
+\begin{equation}
+    U_{imt} = \left[ \alpha \left( c^L_{imt} \right)^{\frac{\sigma-1}{\sigma}} 
+    + (1-\alpha) \left( \phi_{im} \left( R_{imt} + y^O_{mt} \right) \right) ^{\frac{\sigma-1}{\sigma}} \right]^{\frac{\sigma}{\sigma-1}}
+\end{equation}
+where $\phi_{im} > 0$ denotes the altruism/obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This parameter is always positive so that sending remittances increases the migrant's utility. $c^L_{imt}$ is the migrant's consumption in the destination country; $R_{imt}$ is the amount sent in remittances; $y^O_{mt}$ is the part of origin household's own income observable to the migrant; $\sigma$ is the elasticity of substitution between local consumption and  origin-household resources. Notably, origin-household total resources are $R_{imt} + y^O_{mt}$, which we treat this as a single composite good. The presence of $y^O_{mt}$ creates a role for origin-country economic conditions: negative income shocks at origin 
+(lower $y^O_{mt}$) increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
 
+\par 
+
+The budget constraint that the individual faces is given by:
+\begin{equation}
+    c^L_{imt} + f_{mt} \mathbbm{1}\{R_{imt} > 0\} + (1 + \tau_{mt})R_{imt} \leq w_{imt}
+\end{equation}
+where $f_{mt}$ is a fixed remitting cost, capturing per-transaction costs of accessing the remittance channel, analogous to the fixed export cost in \textcite{melitz2003}); $\tau_{mt}$ is the variable cost which increases with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}); $w_{imt}$ is the wage, and $R_{imt}$ is the amount sent in remittances.
+
+\par
+
+Assuming that migrants maximize utility subject to the budget constraint, and send a positive amount of remittances ($R_{imt} > 0$), solving the Lagrangian of the problem yields the optimal remittance amount:
+\begin{equation}
+    R^*_{irt} = \frac{\left( w_{irt} - f_{rt} + (1 + \tau_{rt})y^O_{rt} \right) A_{irt} - y^O_{rt}}{1 + (1 + \tau_{rt})A_{irt}}
+\end{equation}
+where
+\begin{equation}
+A_{irt} = \left( \frac{(1-\alpha)\phi_{ir}}{\alpha(1+\tau_{rt})} \right)^\sigma
+\end{equation}
 \section {Examining spillover effects}
 
 \subsection {Geographical spillovers}
 
 \subsection {Migration network spillovers}
 
-\section{Estimation equation}
+\section{Estimation technique}
 
 Then, talk about the estimation technique: for sure DiD, but which type of DiD in particular? More than one type?

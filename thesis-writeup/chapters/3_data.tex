@@ -17,11 +17,9 @@ To estimate bilaterance remittance flows from U.S. states to Mexican municipalit
 \par
 
 Formally, we define $MCAS_{ms}$ as the average annual count of MCAS issuances to migrants from Mexican municipality $m$ residing in U.S. state $s$. For each U.S. state, we calculate the average migration share, $w_{ms}$, which represents the proportion of that state $s$'s Mexican population originating from the $m$ municipality, as the ratio of $MCAS_{ms}$ to the total number of MCAS issuances from that state across all municipalities $M$:
-\\
 \begin{equation} \label{eq:weights}
     w_{ms} = \frac{MCAS_{ms}}{\sum_{m=1}^{M} MCAS_{ms}}
 \end{equation}
-\\
 By applying the weights computed from equation \eqref{eq:weights} to the official aggregate state-level outflows from Banxico ($r_s$), we derive the estimated bilateral remittance flow ($\hat{r}_{ms}$) from state $s$ to municipality $m$:
 \begin{equation}
     \hat{r}_{ms} = r_s \cdot w_{ms}
@@ -38,14 +36,16 @@ The persistence assumption of migration networks is critical to our estimation s
 
 \par
 
-To verify this assumption within our specific sample period, we conduct a validation exercise using the MCAS data by computing the Pearsoncorrelation of our constructed weighting matrices across years. As shown in Figure \ref{fig:persistence}, when taking any year from 2012 onward as the base year, the correlation with subsequent years is consistently above 0.90. While the 2010 and 2011 matrices exhibit strong correlation between them, their correlation with later years is smaller, specifically between 0.75 and 0.85. This may be due to structural adjustment in migration patterns following the Great Recession. This high degree of correlation suggests that the spatial distribution of Mexican migrants across U.S. states has remained highly stable over time, lending credibility to our use of an averaged weighting matrix for estimating bilateral remittance flows. 
+To verify this assumption within our specific sample period, we conduct a validation exercise using the MCAS data by computing the Pearsoncorrelation of our constructed weighting matrices across years. As shown in Figure \ref{fig:persistence}, when taking any year from 2012 onward as the base year, the correlation with subsequent years is consistently above 0.90. While the 2010 and 2011 matrices exhibit strong correlation between them, their correlation with later years is smaller, specifically between 0.75 and 0.85. This may be due to structural adjustment in migration patterns following the Great Recession.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{persistence.jpeg}
+    \includegraphics[width=0.85\textwidth]{persistence.jpeg}
     \caption{Correlation of MCAS-based weighting matrices across years. Each pointrepresents the correlation coefficient between the weighting matrix of the base year and the weighting matrix of the comparison year.}
     \caption*{Source: Authors' own elaboration based on MCAS data.}
     \label{fig:persistence}
 \end{figure}
+
+This high degree of correlation suggests that the spatial distribution of Mexican migrants across U.S. states has remained highly stable over time, lending credibility to our use of an averaged weighting matrix for estimating bilateral remittance flows. 
 
 \section{Validation of the estimated remittance flows}
 As explained at the end of Section \ref{sec:remittance-estimation}, our methodology to estimate bilateral remittance flows implicitly assumes a homogeneous send behavior among migants withing a given U.S. destination. That is, migrants in U.S. state $s$ send on average the same amount of remittances, regardless of their specific Mexican municipality of origin $m$. To evaluate the empirical validity of this assumption, we aggregate our estimated bilateral municipal inflows and compare them against the observed municipal receipts reported in Banco de México's series CE166. 
@@ -55,7 +55,7 @@ As explained at the end of Section \ref{sec:remittance-estimation}, our methodol
 Figure \ref{fig:estimate-validation} plots the Pearson correlation between our estimates aggregated at the municipal level and the official inflows for each year. The results report correlation coefficients consistently between 0.75 and 0.85,suggesting that our estimation procedure successfully captures a significant portion of the variation in remittance inflows across Mexican municipalities. While this result validates our baseline approach, we acknowledge that it does not capture all the heterogeneity in remittance flows, which is expected given the simplifying assumptions we made.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{estimate_validation.png}
+    \includegraphics[width=0.85\textwidth]{estimate_validation.png}
     \caption{Correlation of estimated municipal remittance inflows with official data. Each point represents the Pearson correlation coefficient between the estimated municipal inflows (aggregated from our bilateral estimates) and the actual municipal inflows recorded in Banxico's series CE166 for a given year.}
     \caption*{Source: Authors' own elaboration.}
     \label{fig:estimate-validation}
