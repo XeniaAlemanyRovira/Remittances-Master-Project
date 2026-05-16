@@ -1,677 +1,190 @@
-# Hurricane Ian and US-to-Mexico remittances ----
+# Hurricane Ian and US-to-Mexico remittances
+#
+# Clean analysis file:
+# - removes stale Ian outputs at the start of each run;
+# - uses log(1 + remittances_usd);
+# - excludes the two largest pre-Ian Florida receiver municipalities;
+# - reports TWFE, corridor, matched-corridor, DRDID, and BJS imputation diagnostics;
+# - estimates shift-share exposure and synthetic difference-in-differences designs;
+# - reports HonestDiD sensitivity bounds for the TWFE event study.
 
 suppressPackageStartupMessages({
   library(data.table)
-  library(tidyverse)
   library(fixest)
-  library(DRDID)
-  library(broom)
-  library(modelsummary)
-  library(scales)
+  library(ggplot2)
 })
 
 options(scipen = 999)
-options("modelsummary_format_numeric_latex" = "plain")
 setFixest_notes(FALSE)
 
-# Paths ----
+# Paths -----------------------------------------------------------------------
 
-analysis_dir <- "./Shocks/Ian hurricane"
-data_file <- "./1_network_estimation/4_remittance_calibration/output/calibrated_remittance_flows_master_2013q1_2024q4_usd.csv"
+analysis_dir <- "Shocks/Ian hurricane"
+data_file <- "1_network_estimation/4_remittance_calibration/output/calibrated_remittance_flows_master_2013q1_2024q4_usd.csv"
 
 output_dir <- file.path(analysis_dir, "outputs")
 plot_dir <- file.path(output_dir, "plots")
 table_dir <- file.path(output_dir, "tables")
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+if (dir.exists(output_dir)) {
+  unlink(output_dir, recursive = TRUE, force = TRUE)
+}
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 dir.create(table_dir, showWarnings = FALSE, recursive = TRUE)
 
-# Parameters ----
+# Parameters ------------------------------------------------------------------
 
-ian_landfall <- as.Date("2022-09-28")
-post_start <- as.Date("2022-10-01")
-post_quarter_index <- 2022L * 4L + 4L
-event_ref_quarter <- -1L
-event_window <- -16:8
-carolina_control_states <- c("North Carolina", "South Carolina")
+hit_q <- (2022L - 2013L) * 4L + 4L
+event_window <- -8L:8L
+event_ref <- -1L
+pretrend_window <- setdiff(event_window[event_window < 0L], event_ref)
+post_event_window <- event_window[event_window >= 0L]
+honest_mbar_grid <- c(0, 0.5, 1, 1.5, 2)
+corridor_controls_per_receiver <- 5L
 
-region_levels <- c(
-  "North",
-  "Bajio/West",
-  "Central",
-  "South",
-  "Gulf/Southeast"
-)
+# Load and prepare data --------------------------------------------------------
 
-mx_region_lookup <- data.table(
-  mx_state = c(
-    "Baja California", "Baja California Sur", "Chihuahua",
-    "Coahuila De Zaragoza", "Durango", "Nuevo Leon", "Sinaloa",
-    "Sonora", "Tamaulipas",
-    "Aguascalientes", "Colima", "Guanajuato", "Jalisco",
-    "Michoacan De Ocampo", "Nayarit", "Queretaro",
-    "San Luis Potosi", "Zacatecas",
-    "Ciudad De Mexico", "Estado De Mexico", "Hidalgo", "Morelos",
-    "Puebla", "Tlaxcala",
-    "Chiapas", "Guerrero", "Oaxaca",
-    "Campeche", "Quintana Roo", "Tabasco",
-    "Veracruz De Ignacio De La Llave", "Yucatan"
-  ),
-  mx_region = c(
-    rep("North", 9),
-    rep("Bajio/West", 9),
-    rep("Central", 6),
-    rep("South", 3),
-    rep("Gulf/Southeast", 5)
-  )
-)
+df <- fread(data_file)
 
-# Load and construct panel ----
-
-remittances_time_series <- fread(data_file)
-setDT(remittances_time_series)
-
-remittances_time_series[, remittances_musd := remittances_usd / 1e6]
-remittances_time_series[
+df[
   ,
-  period_date := as.Date(sprintf("%d-%02d-01", year, (quarter - 1L) * 3L + 1L))
-]
-remittances_time_series[, quarter_index := year * 4L + quarter]
-remittances_time_series[, mx_municipality_id := paste(mx_state, mx_municipality, sep = " - ")]
-
-remittances_time_series[
-  mx_region_lookup,
-  mx_region := i.mx_region,
-  on = "mx_state"
+  `:=`(
+    pair_id = paste(us_state, mx_state, mx_municipality, sep = "_"),
+    receiver_id = paste(mx_state, mx_municipality, sep = " - "),
+    is_treated = as.integer(us_state == "Florida"),
+    q_num = (year - 2013L) * 4L + quarter,
+    log1p_remittances = log1p(remittances_usd)
+  )
 ]
 
-if (remittances_time_series[is.na(mx_region), .N] > 0) {
-  missing_regions <- remittances_time_series[
-    is.na(mx_region),
-    sort(unique(mx_state))
-  ]
-  stop("Missing Mexican region assignment for: ", paste(missing_regions, collapse = ", "))
+df[
+  ,
+  `:=`(
+    time_to_treat = q_num - hit_q,
+    is_post = as.integer(q_num >= hit_q),
+    treated_post = as.integer(us_state == "Florida" & q_num >= hit_q)
+  )
+]
+
+excluded_receivers <- df[
+  q_num < hit_q & us_state == "Florida",
+  .(pre_florida_usd = sum(remittances_usd, na.rm = TRUE)),
+  by = .(receiver_id, mx_state, mx_municipality)
+][order(-pre_florida_usd)][1:2]
+
+fwrite(excluded_receivers, file.path(table_dir, "excluded_top_receivers.csv"))
+
+df <- df[!receiver_id %chin% excluded_receivers$receiver_id]
+df[, receiver_period_id := .GRP, by = .(receiver_id, year_quarter)]
+df_window <- df[time_to_treat %in% event_window]
+
+# Helpers ---------------------------------------------------------------------
+
+tidy_fixest <- function(model) {
+  estimates <- as.data.table(coeftable(model), keep.rownames = "term")
+  setnames(
+    estimates,
+    names(estimates),
+    c("term", "estimate", "std.error", "statistic", "p.value")
+  )
+
+  intervals <- as.data.table(confint(model), keep.rownames = "term")
+  setnames(intervals, names(intervals), c("term", "conf.low", "conf.high"))
+
+  merge(estimates, intervals, by = "term", all.x = TRUE, sort = FALSE)
 }
 
-remittances_time_series[, mx_region := factor(mx_region, levels = region_levels)]
-remittances_time_series[, florida := as.integer(us_state == "Florida")]
-remittances_time_series[, post_ian := as.integer(period_date >= post_start)]
-remittances_time_series[, treatment := florida * post_ian]
-remittances_time_series[, relative_quarter := quarter_index - post_quarter_index]
-remittances_time_series[, log1p_remittances := log1p(remittances_musd)]
-
-# Numeric fixed-effect identifiers keep fixest fast on the 6 million-row panel.
-remittances_time_series[, pair_id := .GRP, by = .(us_state, mx_municipality_id)]
-remittances_time_series[, municipality_period_id := .GRP, by = .(mx_municipality_id, period_date)]
-
-setorder(remittances_time_series, us_state, mx_municipality_id, period_date)
-
-# Preliminary tables ----
-
-panel_summary <- data.table(
-  observations = nrow(remittances_time_series),
-  us_states = remittances_time_series[, uniqueN(us_state)],
-  mx_states = remittances_time_series[, uniqueN(mx_state)],
-  mx_municipalities = remittances_time_series[, uniqueN(mx_municipality_id)],
-  quarters = remittances_time_series[, uniqueN(period_date)],
-  first_quarter = remittances_time_series[, min(period_date)],
-  last_quarter = remittances_time_series[, max(period_date)],
-  ian_landfall = ian_landfall,
-  first_treated_quarter = post_start
-)
-
-fwrite(panel_summary, file.path(table_dir, "panel_summary.csv"))
-
-state_quarter <- remittances_time_series[
-  ,
-  .(remittances_musd = sum(remittances_musd, na.rm = TRUE)),
-  by = .(us_state, period_date, year_quarter, quarter_index, post_ian)
-]
-
-setorder(state_quarter, us_state, period_date)
-state_quarter[, log1p_total_remittances := log1p(remittances_musd)]
-state_quarter[
-  ,
-  florida_group := fifelse(us_state == "Florida", "Florida", "Other states")
-]
-
-state_pre_post_summary <- state_quarter[
-  ,
-  .(
-    state_quarters = .N,
-    avg_quarterly_total_musd = mean(remittances_musd, na.rm = TRUE),
-    median_quarterly_total_musd = median(remittances_musd, na.rm = TRUE),
-    avg_quarterly_log1p_total = mean(log1p_total_remittances, na.rm = TRUE)
-  ),
-  by = .(florida_group, post_ian)
-][order(florida_group, post_ian)]
-
-fwrite(state_pre_post_summary, file.path(table_dir, "state_pre_post_summary.csv"))
-
-origin_state_pre <- remittances_time_series[
-  period_date < post_start,
-  .(
-    pre_total_musd = sum(remittances_musd, na.rm = TRUE),
-    pre_avg_quarterly_musd = sum(remittances_musd, na.rm = TRUE) / uniqueN(period_date)
-  ),
-  by = us_state
-][order(-pre_total_musd)]
-
-origin_state_pre[, pre_rank := seq_len(.N)]
-origin_state_pre[
-  ,
-  pre_share_of_all_us_remittances := pre_total_musd / sum(pre_total_musd)
-]
-
-fwrite(origin_state_pre, file.path(table_dir, "origin_state_pre_ian_rankings.csv"))
-
-top_florida_destinations <- remittances_time_series[
-  period_date < post_start,
-  .(
-    pre_florida_total_musd = sum(remittances_musd[us_state == "Florida"], na.rm = TRUE),
-    pre_all_states_total_musd = sum(remittances_musd, na.rm = TRUE),
-    pre_avg_quarterly_florida_musd =
-      sum(remittances_musd[us_state == "Florida"], na.rm = TRUE) / uniqueN(period_date)
-  ),
-  by = .(mx_region, mx_state, mx_municipality, mx_municipality_id)
-]
-
-top_florida_destinations[
-  ,
-  pre_florida_share := pre_florida_total_musd / pre_all_states_total_musd
-]
-setorder(top_florida_destinations, -pre_florida_total_musd)
-
-top_50_destinations <- head(copy(top_florida_destinations), 50)
-top_50_destinations[, pre_florida_rank := seq_len(.N)]
-top_50_municipalities <- top_50_destinations[, mx_municipality_id]
-
-fwrite(
-  top_50_destinations,
-  file.path(table_dir, "top_50_florida_destination_municipalities_pre_ian.csv")
-)
-
-region_exposure <- remittances_time_series[
-  ,
-  .(
-    municipalities = uniqueN(mx_municipality_id),
-    pre_florida_total_musd =
-      sum(remittances_musd[period_date < post_start & us_state == "Florida"], na.rm = TRUE),
-    pre_all_states_total_musd =
-      sum(remittances_musd[period_date < post_start], na.rm = TRUE),
-    post_florida_total_musd =
-      sum(remittances_musd[period_date >= post_start & us_state == "Florida"], na.rm = TRUE),
-    post_all_states_total_musd =
-      sum(remittances_musd[period_date >= post_start], na.rm = TRUE)
-  ),
-  by = mx_region
-]
-
-region_exposure[
-  ,
-  `:=`(
-    pre_florida_share = pre_florida_total_musd / pre_all_states_total_musd,
-    post_florida_share = post_florida_total_musd / post_all_states_total_musd
-  )
-]
-setorder(region_exposure, mx_region)
-
-fwrite(region_exposure, file.path(table_dir, "region_exposure_pre_post_ian.csv"))
-
-# Preliminary plots ----
-
-
-origin_group_quarter <- remittances_time_series[
-  ,
-  .(remittances_musd = sum(remittances_musd, na.rm = TRUE)),
-  by = .(
-    period_date,
-    origin_group = fifelse(us_state == "Florida", "Florida", "Other states pooled")
-  )
-]
-
-origin_group_quarter[
-  ,
-  pre_mean := mean(remittances_musd[period_date < post_start], na.rm = TRUE),
-  by = origin_group
-]
-origin_group_quarter[, remittance_index := 100 * remittances_musd / pre_mean]
-
-plot_origin_index <- ggplot(
-  origin_group_quarter,
-  aes(x = period_date, y = remittance_index, color = origin_group)
-) +
-  geom_hline(yintercept = 100, color = "grey75", linewidth = 0.35) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 1.3) +
-  geom_vline(
-    xintercept = post_start,
-    linetype = "dashed",
-    linewidth = 0.8,
-    color = "grey20"
-  ) +
-  scale_color_manual(values = c("Florida" = "#C23B22", "Other states pooled" = "#2F6F9F")) +
-  scale_y_continuous(labels = label_number(accuracy = 1)) +
-  labs(
-    title = "Indexed remittances before and after Hurricane Ian",
-    subtitle = "Series are indexed to their own pre-Ian quarterly average (=100).",
-    x = NULL,
-    y = "Index",
-    color = NULL
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank()
-  )
-
-ggsave(
-  filename = file.path(plot_dir, "indexed_remittances_florida_vs_other_states.png"),
-  plot = plot_origin_index,
-  width = 9,
-  height = 5,
-  dpi = 300
-)
-
-origin_group_quarter_no_carolinas <- remittances_time_series[
-  !us_state %chin% carolina_control_states,
-  .(remittances_musd = sum(remittances_musd, na.rm = TRUE)),
-  by = .(
-    period_date,
-    origin_group = fifelse(
-      us_state == "Florida",
-      "Florida",
-      "Other states pooled, excluding NC/SC"
-    )
-  )
-]
-
-origin_group_quarter_no_carolinas[
-  ,
-  pre_mean := mean(remittances_musd[period_date < post_start], na.rm = TRUE),
-  by = origin_group
-]
-origin_group_quarter_no_carolinas[
-  ,
-  remittance_index := 100 * remittances_musd / pre_mean
-]
-
-plot_origin_index_no_carolinas <- ggplot(
-  origin_group_quarter_no_carolinas,
-  aes(x = period_date, y = remittance_index, color = origin_group)
-) +
-  geom_hline(yintercept = 100, color = "grey75", linewidth = 0.35) +
-  geom_line(linewidth = 0.8) +
-  geom_point(size = 1.3) +
-  geom_vline(
-    xintercept = post_start,
-    linetype = "dashed",
-    linewidth = 0.8,
-    color = "grey20"
-  ) +
-  scale_color_manual(
-    values = c(
-      "Florida" = "#C23B22",
-      "Other states pooled, excluding NC/SC" = "#2F6F9F"
-    )
-  ) +
-  scale_y_continuous(labels = label_number(accuracy = 1)) +
-  labs(
-    title = "Indexed remittances with North/South Carolina excluded from controls",
-    subtitle = "Series are indexed to their own pre-Ian quarterly average (=100).",
-    x = NULL,
-    y = "Index",
-    color = NULL
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank()
-  )
-
-ggsave(
-  filename = file.path(plot_dir, "indexed_remittances_florida_vs_clean_controls_no_carolinas.png"),
-  plot = plot_origin_index_no_carolinas,
-  width = 9,
-  height = 5,
-  dpi = 300
-)
-
-florida_region_quarter <- remittances_time_series[
-  us_state == "Florida",
-  .(remittances_musd = sum(remittances_musd, na.rm = TRUE)),
-  by = .(mx_region, period_date)
-]
-
-florida_region_quarter[
-  ,
-  pre_mean := mean(remittances_musd[period_date < post_start], na.rm = TRUE),
-  by = mx_region
-]
-florida_region_quarter[, remittance_index := 100 * remittances_musd / pre_mean]
-
-plot_region_index <- ggplot(
-  florida_region_quarter,
-  aes(x = period_date, y = remittance_index, color = mx_region)
-) +
-  geom_hline(yintercept = 100, color = "grey75", linewidth = 0.35) +
-  geom_line(linewidth = 0.8) +
-  geom_vline(
-    xintercept = post_start,
-    linetype = "dashed",
-    linewidth = 0.8,
-    color = "grey20"
-  ) +
-  scale_y_continuous(labels = label_number(accuracy = 1)) +
-  labs(
-    title = "Florida-origin remittances by Mexican region",
-    subtitle = "Each regional series is indexed to its own pre-Ian quarterly average (=100).",
-    x = NULL,
-    y = "Index",
-    color = "Mexican region"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank()
-  )
-
-ggsave(
-  filename = file.path(plot_dir, "florida_remittances_by_mexican_region_index.png"),
-  plot = plot_region_index,
-  width = 9,
-  height = 5,
-  dpi = 300
-)
-
-plot_top_destinations <- ggplot(
-  head(top_florida_destinations, 20),
-  aes(
-    x = reorder(mx_municipality_id, pre_florida_total_musd),
-    y = pre_florida_total_musd,
-    fill = mx_region
-  )
-) +
-  geom_col(width = 0.75) +
-  coord_flip() +
-  scale_y_continuous(labels = label_number(accuracy = 1)) +
-  labs(
-    title = "Top Mexican municipality destinations for Florida remittances",
-    subtitle = "Total Florida-origin remittances in the pre-Ian period.",
-    x = NULL,
-    y = "Pre-Ian remittances (million USD)",
-    fill = "Mexican region"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(
-    legend.position = "bottom",
-    panel.grid.minor = element_blank()
-  )
-
-ggsave(
-  filename = file.path(plot_dir, "top_20_florida_destination_municipalities_pre_ian.png"),
-  plot = plot_top_destinations,
-  width = 9,
-  height = 6,
-  dpi = 300
-)
-
-# TWFE specifications ----
-
-
-did_twfe_quarter_fe <- feols(
-  log1p_remittances ~ treatment | pair_id + period_date,
-  data = remittances_time_series,
-  cluster = ~ us_state + mx_municipality_id
-)
-
-did_twfe_muni_quarter_fe <- feols(
-  log1p_remittances ~ treatment | pair_id + municipality_period_id,
-  data = remittances_time_series,
-  cluster = ~ us_state + mx_municipality_id
-)
-
-remittances_no_carolinas <- remittances_time_series[
-  !us_state %chin% carolina_control_states
-]
-
-remittances_top50_no_carolinas <- remittances_no_carolinas[
-  mx_municipality_id %chin% top_50_municipalities
-]
-
-did_twfe_muni_quarter_fe_no_carolinas <- feols(
-  log1p_remittances ~ treatment | pair_id + municipality_period_id,
-  data = remittances_no_carolinas,
-  cluster = ~ us_state + mx_municipality_id
-)
-
-did_twfe_top50_muni_quarter_fe_no_carolinas <- feols(
-  log1p_remittances ~ treatment | pair_id + municipality_period_id,
-  data = remittances_top50_no_carolinas,
-  cluster = ~ us_state + mx_municipality_id
-)
-
-static_twfe_results <- rbindlist(
-  list(
-    data.table(
-      specification = "Pair + quarter fixed effects",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; calendar quarter",
-      clusters = "US state; Mexican municipality",
-      tidy(did_twfe_quarter_fe, conf.int = TRUE)
-    ),
-    data.table(
-      specification = "Pair + municipality-quarter fixed effects",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality",
-      tidy(did_twfe_muni_quarter_fe, conf.int = TRUE)
-    ),
-    data.table(
-      specification = "Pair + municipality-quarter fixed effects",
-      sample = "North Carolina and South Carolina excluded",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality",
-      tidy(did_twfe_muni_quarter_fe_no_carolinas, conf.int = TRUE)
-    ),
-    data.table(
-      specification = "Pair + municipality-quarter fixed effects",
-      sample = "Top 50 Florida-linked municipalities; NC/SC excluded",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality",
-      tidy(did_twfe_top50_muni_quarter_fe_no_carolinas, conf.int = TRUE)
-    )
-  ),
-  fill = TRUE
-)
-
-static_twfe_results <- static_twfe_results[
-  term == "treatment"
-]
-static_twfe_results[
-  ,
-  `:=`(
-    estimate_pct = 100 * (exp(estimate) - 1),
-    conf.low_pct = 100 * (exp(conf.low) - 1),
-    conf.high_pct = 100 * (exp(conf.high) - 1)
-  )
-]
-
-fwrite(static_twfe_results, file.path(table_dir, "twfe_static_results.csv"))
-
-modelsummary(
-  list(
-    "All states: quarter FE" = did_twfe_quarter_fe,
-    "All states: municipality-quarter FE" = did_twfe_muni_quarter_fe,
-    "Clean controls" = did_twfe_muni_quarter_fe_no_carolinas,
-    "Top 50 clean controls" = did_twfe_top50_muni_quarter_fe_no_carolinas
-  ),
-  coef_map = c("treatment" = "Florida x post-Ian"),
-  statistic = "({std.error})",
-  stars = TRUE,
-  gof_omit = "AIC|BIC|Log.Lik.|RMSE",
-  notes = c(
-    "Outcome is log(1 + remittances in million USD).",
-    "Standard errors are clustered by origin state and Mexican municipality.",
-    "Clean controls exclude North Carolina and South Carolina. Top 50 restricts Mexican destinations to the largest pre-Ian Florida-linked municipalities."
-  ),
-  output = file.path(table_dir, "twfe_static_results.tex")
-)
-
-# TWFE event-study specifications ----
-
-event_axis_breaks <- seq(min(event_window), max(event_window), by = 4L)
-pretrend_window <- event_window[event_window < event_ref_quarter]
-pretrend_keep_pattern <- paste0(
-  paste0("relative_quarter::", pretrend_window, ":florida"),
-  collapse = "|"
-)
-
-quarter_label_from_index <- function(quarter_index) {
-  quarter <- ((quarter_index - 1L) %% 4L) + 1L
-  year <- (quarter_index - quarter) %/% 4L
+quarter_label <- function(time_to_treat) {
+  q_num <- hit_q + time_to_treat
+  quarter <- ((q_num - 1L) %% 4L) + 1L
+  year <- 2013L + (q_num - 1L) %/% 4L
   paste0(year, " Q", quarter)
 }
 
-theme_event_study <- function(base_size = 11) {
-  theme_classic(base_size = base_size) +
+theme_event <- function() {
+  theme_minimal(base_size = 12) +
     theme(
-      plot.title.position = "plot",
-      plot.caption.position = "plot",
-      plot.caption = element_text(
-        hjust = 0,
-        color = "grey35",
-        size = rel(0.82),
-        lineheight = 1.05
-      ),
-      plot.margin = margin(8, 12, 8, 8),
-      panel.grid.major.y = element_line(color = "grey88", linewidth = 0.25),
-      panel.grid.minor = element_blank(),
-      axis.line = element_line(color = "grey30", linewidth = 0.3),
-      axis.ticks = element_line(color = "grey30", linewidth = 0.3),
       legend.position = "top",
-      legend.title = element_blank(),
-      strip.background = element_rect(
-        fill = "grey94",
-        color = "grey75",
-        linewidth = 0.3
-      ),
-      strip.text = element_text(face = "bold", size = rel(0.85))
+      panel.grid.minor = element_blank(),
+      plot.title.position = "plot"
     )
 }
 
-extract_event_study <- function(
-    model,
-    study,
-    subgroup,
-    sample,
-    fixed_effects,
-    clusters) {
-  estimates <- as.data.table(tidy(model, conf.int = TRUE))
-  estimates <- estimates[grepl("^relative_quarter::", term)]
-  estimates[
+extract_event_results <- function(model, interaction_var = "is_treated") {
+  event_results <- tidy_fixest(model)
+  event_results <- event_results[grepl("^time_to_treat::", term)]
+  term_pattern <- paste0(
+    "^time_to_treat::(-?[0-9]+):",
+    interaction_var,
+    "$"
+  )
+  event_results[
     ,
-    relative_quarter := as.integer(
-      sub("^relative_quarter::(-?[0-9]+):florida$", "\\1", term)
+    time_to_treat := as.integer(
+      sub(term_pattern, "\\1", term)
     )
   ]
-  estimates <- estimates[relative_quarter %in% event_window]
-  estimates[
+  event_results[, calendar_quarter := quarter_label(time_to_treat)]
+  event_results[, is_reference_period := FALSE]
+  event_results[
     ,
     `:=`(
-      study = study,
-      subgroup = subgroup,
-      sample = sample,
-      fixed_effects = fixed_effects,
-      clusters = clusters,
-      calendar_quarter = quarter_label_from_index(
-        post_quarter_index + relative_quarter
-      ),
-      is_reference_period = FALSE,
-      estimate_pct = 100 * (exp(estimate) - 1),
+      effect_pct = 100 * (exp(estimate) - 1),
       conf.low_pct = 100 * (exp(conf.low) - 1),
       conf.high_pct = 100 * (exp(conf.high) - 1)
     )
   ]
 
   reference_row <- data.table(
-    study = study,
-    subgroup = subgroup,
-    sample = sample,
-    fixed_effects = fixed_effects,
-    clusters = clusters,
-    term = "Reference quarter",
+    term = "Reference period",
     estimate = 0,
     std.error = NA_real_,
     statistic = NA_real_,
     p.value = NA_real_,
     conf.low = 0,
     conf.high = 0,
-    relative_quarter = event_ref_quarter,
-    calendar_quarter = quarter_label_from_index(
-      post_quarter_index + event_ref_quarter
-    ),
+    time_to_treat = event_ref,
+    calendar_quarter = quarter_label(event_ref),
     is_reference_period = TRUE,
-    estimate_pct = 0,
+    effect_pct = 0,
     conf.low_pct = 0,
     conf.high_pct = 0
   )
 
-  estimates <- rbindlist(list(estimates, reference_row), fill = TRUE)
-  setorder(estimates, study, subgroup, relative_quarter)
-  setcolorder(
-    estimates,
-    c(
-      "study", "subgroup", "sample", "fixed_effects", "clusters",
-      "relative_quarter", "calendar_quarter", "is_reference_period",
-      "term", "estimate", "std.error", "statistic", "p.value",
-      "conf.low", "conf.high", "estimate_pct", "conf.low_pct",
-      "conf.high_pct"
-    )
-  )
-  estimates
+  event_results <- rbindlist(list(event_results, reference_row), fill = TRUE)
+  setorder(event_results, time_to_treat)
+  event_results
 }
 
-extract_pretrend_test <- function(
-    model,
-    study,
-    subgroup,
-    sample,
-    fixed_effects,
-    clusters) {
+run_pretrend_test <- function(model, model_label, interaction_var = "is_treated") {
+  keep_pattern <- paste0(
+    paste0("time_to_treat::", pretrend_window, ":", interaction_var),
+    collapse = "|"
+  )
   test <- tryCatch(
-    wald(model, keep = pretrend_keep_pattern, print = FALSE),
+    wald(model, keep = keep_pattern, print = FALSE),
     error = function(e) {
-      structure(list(error_message = conditionMessage(e)), class = "event_wald_error")
+      structure(list(error_message = conditionMessage(e)), class = "wald_error")
     }
   )
 
-  if (inherits(test, "event_wald_error")) {
-    return(
-      data.table(
-        study = study,
-        subgroup = subgroup,
-        sample = sample,
-        fixed_effects = fixed_effects,
-        clusters = clusters,
-        tested_relative_quarters = paste(pretrend_window, collapse = ", "),
-        statistic = NA_real_,
-        p.value = NA_real_,
-        df1 = NA_real_,
-        df2 = NA_real_,
-        error_message = test$error_message
-      )
-    )
+  if (inherits(test, "wald_error")) {
+    return(data.table(
+      model = model_label,
+      tested_relative_quarters = paste(pretrend_window, collapse = ", "),
+      tested_coef_count = NA_integer_,
+      statistic = NA_real_,
+      p.value = NA_real_,
+      df1 = NA_real_,
+      df2 = NA_real_,
+      error_message = test$error_message
+    ))
   }
 
   data.table(
-    study = study,
-    subgroup = subgroup,
-    sample = sample,
-    fixed_effects = fixed_effects,
-    clusters = clusters,
+    model = model_label,
     tested_relative_quarters = paste(pretrend_window, collapse = ", "),
+    tested_coef_count = length(pretrend_window),
     statistic = test$stat,
     p.value = test$p,
     df1 = test$df1,
@@ -680,390 +193,1219 @@ extract_pretrend_test <- function(
   )
 }
 
-plot_event_study_facets <- function(
-    plot_data,
-    facet_var,
-    title,
-    subtitle,
-    caption,
-    filename,
-    width,
-    height,
-    ncol,
-    base_size = 11,
-    free_y = FALSE) {
+plot_event_study <- function(plot_data, filename, title, subtitle, y_label) {
   plot_data <- copy(plot_data)
-  plot_data[
+  if (!"is_reference_period" %in% names(plot_data)) {
+    plot_data[, is_reference_period := time_to_treat == event_ref]
+  }
+
+  event_plot <- ggplot(plot_data, aes(x = time_to_treat, y = estimate)) +
+    geom_hline(yintercept = 0, color = "grey45", linewidth = 0.35) +
+    geom_vline(xintercept = -0.5, linetype = "dashed", color = "grey35") +
+    geom_linerange(
+      aes(ymin = conf.low, ymax = conf.high),
+      color = "#4B5563",
+      linewidth = 0.4
+    ) +
+    geom_line(color = "#2563EB", linewidth = 0.55) +
+    geom_point(
+      aes(shape = is_reference_period),
+      color = "#111827",
+      fill = "white",
+      size = 1.9,
+      stroke = 0.65
+    ) +
+    scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 21), guide = "none") +
+    scale_x_continuous(breaks = seq(min(event_window), max(event_window), by = 2L)) +
+    labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Quarters relative to Hurricane Ian (0 = 2022 Q4)",
+      y = y_label
+    ) +
+    theme_event()
+
+  ggsave(
+    filename = file.path(plot_dir, filename),
+    plot = event_plot,
+    width = 9,
+    height = 5,
+    dpi = 300
+  )
+
+  event_plot
+}
+
+# TWFE event study -------------------------------------------------------------
+
+twfe_static <- feols(
+  log1p_remittances ~ treated_post | pair_id + year_quarter,
+  data = df_window,
+  cluster = ~ pair_id
+)
+
+twfe_static_results <- tidy_fixest(twfe_static)
+twfe_static_results[
+  term == "treated_post",
+  `:=`(
+    effect_pct = 100 * (exp(estimate) - 1),
+    conf.low_pct = 100 * (exp(conf.low) - 1),
+    conf.high_pct = 100 * (exp(conf.high) - 1)
+  )
+]
+fwrite(twfe_static_results, file.path(table_dir, "twfe_static_log_results.csv"))
+
+twfe_event <- feols(
+  log1p_remittances ~ i(time_to_treat, is_treated, ref = event_ref) |
+    pair_id + year_quarter,
+  data = df_window,
+  cluster = ~ pair_id
+)
+
+twfe_event_results <- extract_event_results(twfe_event)
+fwrite(twfe_event_results, file.path(table_dir, "twfe_event_study_log_results.csv"))
+
+twfe_pretrend_results <- run_pretrend_test(
+  twfe_event,
+  model_label = "TWFE log event study, pair and year-quarter FE"
+)
+fwrite(twfe_pretrend_results, file.path(table_dir, "twfe_event_study_pretrend_test.csv"))
+
+plot_event_study(
+  twfe_event_results,
+  filename = "twfe_event_study_log.png",
+  title = "TWFE event study",
+  subtitle = "Outcome is log(1 + remittances_usd); top two pre-Ian Florida receiver municipalities excluded.",
+  y_label = "Effect on log(1 + remittances_usd)"
+)
+
+# Corridor-level designs -------------------------------------------------------
+
+corridor_twfe_static <- feols(
+  log1p_remittances ~ treated_post | pair_id + receiver_period_id,
+  data = df_window,
+  cluster = ~ pair_id
+)
+
+corridor_twfe_static_results <- tidy_fixest(corridor_twfe_static)
+corridor_twfe_static_results[
+  term == "treated_post",
+  `:=`(
+    effect_pct = 100 * (exp(estimate) - 1),
+    conf.low_pct = 100 * (exp(conf.low) - 1),
+    conf.high_pct = 100 * (exp(conf.high) - 1)
+  )
+]
+fwrite(
+  corridor_twfe_static_results,
+  file.path(table_dir, "corridor_twfe_static_log_results.csv")
+)
+
+corridor_twfe_event <- feols(
+  log1p_remittances ~ i(time_to_treat, is_treated, ref = event_ref) |
+    pair_id + receiver_period_id,
+  data = df_window,
+  cluster = ~ pair_id
+)
+
+corridor_twfe_event_results <- extract_event_results(corridor_twfe_event)
+fwrite(
+  corridor_twfe_event_results,
+  file.path(table_dir, "corridor_twfe_event_study_log_results.csv")
+)
+
+corridor_twfe_pretrend_results <- run_pretrend_test(
+  corridor_twfe_event,
+  model_label = "Corridor TWFE, pair and receiver-quarter FE"
+)
+fwrite(
+  corridor_twfe_pretrend_results,
+  file.path(table_dir, "corridor_twfe_event_study_pretrend_test.csv")
+)
+
+plot_event_study(
+  corridor_twfe_event_results,
+  filename = "corridor_twfe_event_study_log.png",
+  title = "Corridor TWFE event study",
+  subtitle = "Compares Florida corridors to other origins serving the same Mexican receiver-quarter.",
+  y_label = "Effect on log(1 + remittances_usd)"
+)
+
+florida_pre_path <- df[
+  us_state == "Florida" & q_num < hit_q,
+  .(receiver_id, q_num, florida_log = log1p_remittances)
+]
+control_pre_path <- df[
+  us_state != "Florida" & q_num < hit_q,
+  .(receiver_id, us_state, q_num, control_log = log1p_remittances)
+]
+
+corridor_match_quality <- control_pre_path[
+  florida_pre_path,
+  on = .(receiver_id, q_num),
+  nomatch = 0
+][
+  ,
+  .(
+    pre_rmse = sqrt(mean((control_log - florida_log)^2, na.rm = TRUE)),
+    pre_mae = mean(abs(control_log - florida_log), na.rm = TRUE),
+    pre_corr = suppressWarnings(cor(control_log, florida_log, use = "complete.obs"))
+  ),
+  by = .(receiver_id, us_state)
+]
+setorder(corridor_match_quality, receiver_id, pre_rmse)
+corridor_match_quality[, match_rank := seq_len(.N), by = receiver_id]
+
+selected_corridor_controls <- corridor_match_quality[
+  match_rank <= corridor_controls_per_receiver
+]
+fwrite(
+  selected_corridor_controls,
+  file.path(table_dir, "selected_corridor_controls.csv")
+)
+
+matched_corridor_pairs <- unique(rbindlist(
+  list(
+    df[us_state == "Florida", .(receiver_id, us_state)],
+    selected_corridor_controls[, .(receiver_id, us_state)]
+  )
+))
+
+matched_corridor_window <- df_window[
+  matched_corridor_pairs,
+  on = .(receiver_id, us_state),
+  nomatch = 0
+]
+
+matched_corridor_summary <- data.table(
+  treated_corridors = matched_corridor_window[is_treated == 1L, uniqueN(pair_id)],
+  control_corridors = matched_corridor_window[is_treated == 0L, uniqueN(pair_id)],
+  controls_per_receiver = corridor_controls_per_receiver,
+  observations = nrow(matched_corridor_window)
+)
+fwrite(
+  matched_corridor_summary,
+  file.path(table_dir, "matched_corridor_summary.csv")
+)
+
+matched_corridor_event <- feols(
+  log1p_remittances ~ i(time_to_treat, is_treated, ref = event_ref) |
+    pair_id + receiver_period_id,
+  data = matched_corridor_window,
+  cluster = ~ pair_id
+)
+
+matched_corridor_event_results <- extract_event_results(matched_corridor_event)
+fwrite(
+  matched_corridor_event_results,
+  file.path(table_dir, "matched_corridor_event_study_log_results.csv")
+)
+
+matched_corridor_pretrend_results <- run_pretrend_test(
+  matched_corridor_event,
+  model_label = "Matched-corridor TWFE, pair and receiver-quarter FE"
+)
+fwrite(
+  matched_corridor_pretrend_results,
+  file.path(table_dir, "matched_corridor_event_study_pretrend_test.csv")
+)
+
+plot_event_study(
+  matched_corridor_event_results,
+  filename = "matched_corridor_event_study_log.png",
+  title = "Matched-corridor event study",
+  subtitle = paste0(
+    "For each Florida receiver, controls are the ",
+    corridor_controls_per_receiver,
+    " closest non-Florida corridors by pre-Ian log path."
+  ),
+  y_label = "Effect on log(1 + remittances_usd)"
+)
+
+# Doubly robust DiD event-study path ------------------------------------------
+
+safe_slope <- function(y, x) {
+  complete <- is.finite(y) & is.finite(x)
+  if (sum(complete) < 2L || uniqueN(x[complete]) < 2L) {
+    return(0)
+  }
+  as.numeric(coef(lm(y[complete] ~ x[complete]))[[2]])
+}
+
+run_drdid_event_study <- function(panel) {
+  if (!requireNamespace("DRDID", quietly = TRUE)) {
+    return(list(
+      event_results = data.table(error_message = "DRDID is not installed."),
+      pretrend_results = data.table(error_message = "DRDID is not installed.")
+    ))
+  }
+
+  covariate_panel <- panel[q_num < hit_q + min(event_window)]
+  pair_covariates <- covariate_panel[
     ,
-    facet_label := get(facet_var)
+    .(
+      pre_mean_log = mean(log1p_remittances, na.rm = TRUE),
+      pre_sd_log = sd(log1p_remittances, na.rm = TRUE),
+      pre_zero_share = mean(remittances_usd <= 0, na.rm = TRUE),
+      pre_slope_log = safe_slope(log1p_remittances, q_num)
+    ),
+    by = .(pair_id, is_treated)
   ]
+  pair_covariates[is.na(pre_sd_log), pre_sd_log := 0]
 
-  event_plot <- ggplot(
-    plot_data,
-    aes(x = relative_quarter, y = estimate_pct)
-  ) +
-    geom_hline(yintercept = 0, color = "grey35", linewidth = 0.35) +
-    geom_vline(
-      xintercept = -0.5,
-      linetype = "dashed",
-      color = "grey35",
-      linewidth = 0.4
-    ) +
-    geom_linerange(
-      aes(ymin = conf.low_pct, ymax = conf.high_pct),
-      color = "#4A5568",
-      linewidth = 0.35,
-      alpha = 0.8
-    ) +
-    geom_line(
-      color = "#1F4E79",
-      linewidth = 0.45,
-      alpha = 0.9
-    ) +
-    geom_point(
-      aes(shape = is_reference_period),
-      color = "#1F2937",
-      fill = "white",
-      size = 1.7,
-      stroke = 0.6
-    ) +
-    facet_wrap(
-      ~ facet_label,
-      ncol = ncol,
-      scales = if (free_y) "free_y" else "fixed",
-      labeller = label_wrap_gen(width = 34)
-    ) +
-    scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 21), guide = "none") +
-    scale_x_continuous(breaks = event_axis_breaks) +
-    scale_y_continuous(labels = label_number(accuracy = 0.1, suffix = "%")) +
-    labs(
-      title = title,
-      subtitle = subtitle,
-      x = "Quarters relative to 2022 Q4",
-      y = "Effect on log(1 + remittances), percent",
-      caption = str_wrap(caption, width = 145)
-    ) +
-    theme_event_study(base_size = base_size)
+  event_rows <- vector("list", length(setdiff(event_window, event_ref)))
+  inf_list <- list()
+  event_index <- 0L
 
-  ggsave(
-    filename = file.path(plot_dir, filename),
-    plot = event_plot,
-    width = width,
-    height = height,
-    dpi = 300
+  for (rel_q in setdiff(event_window, event_ref)) {
+    event_index <- event_index + 1L
+    q0 <- hit_q + event_ref
+    q1 <- hit_q + rel_q
+
+    two_period <- panel[
+      q_num %in% c(q0, q1),
+      .(pair_id, q_num, log1p_remittances)
+    ]
+    two_period <- dcast(
+      two_period,
+      pair_id ~ q_num,
+      value.var = "log1p_remittances"
+    )
+    setnames(two_period, c(as.character(q0), as.character(q1)), c("y0", "y1"))
+    two_period <- merge(pair_covariates, two_period, by = "pair_id")
+    setorder(two_period, pair_id)
+
+    covariates <- as.matrix(cbind(
+      intercept = 1,
+      two_period[, .(pre_mean_log, pre_sd_log, pre_zero_share, pre_slope_log)]
+    ))
+
+    estimate <- tryCatch(
+      DRDID::drdid_panel(
+        y1 = two_period$y1,
+        y0 = two_period$y0,
+        D = two_period$is_treated,
+        covariates = covariates,
+        boot = FALSE,
+        inffunc = TRUE
+      ),
+      error = function(e) {
+        structure(list(error_message = conditionMessage(e)), class = "drdid_error")
+      }
+    )
+
+    if (inherits(estimate, "drdid_error")) {
+      event_rows[[event_index]] <- data.table(
+        time_to_treat = rel_q,
+        calendar_quarter = quarter_label(rel_q),
+        estimate = NA_real_,
+        std.error = NA_real_,
+        statistic = NA_real_,
+        p.value = NA_real_,
+        conf.low = NA_real_,
+        conf.high = NA_real_,
+        effect_pct = NA_real_,
+        error_message = estimate$error_message
+      )
+    } else {
+      event_rows[[event_index]] <- data.table(
+        time_to_treat = rel_q,
+        calendar_quarter = quarter_label(rel_q),
+        estimate = estimate$ATT,
+        std.error = estimate$se,
+        statistic = estimate$ATT / estimate$se,
+        p.value = 2 * pnorm(-abs(estimate$ATT / estimate$se)),
+        conf.low = estimate$lci,
+        conf.high = estimate$uci,
+        effect_pct = 100 * (exp(estimate$ATT) - 1),
+        error_message = NA_character_
+      )
+      if (rel_q %in% pretrend_window) {
+        inf_list[[as.character(rel_q)]] <- data.table(
+          pair_id = two_period$pair_id,
+          time_to_treat = rel_q,
+          inf = as.numeric(estimate$att.inf.func)
+        )
+      }
+    }
+  }
+
+  event_results <- rbindlist(event_rows, fill = TRUE)
+  reference_row <- data.table(
+    time_to_treat = event_ref,
+    calendar_quarter = quarter_label(event_ref),
+    estimate = 0,
+    std.error = NA_real_,
+    statistic = NA_real_,
+    p.value = NA_real_,
+    conf.low = 0,
+    conf.high = 0,
+    effect_pct = 0,
+    error_message = NA_character_
   )
+  event_results <- rbindlist(list(event_results, reference_row), fill = TRUE)
+  setorder(event_results, time_to_treat)
 
-  event_plot
+  if (length(inf_list) == length(pretrend_window)) {
+    inf_wide <- Reduce(
+      function(x, y) merge(x, y, by = "pair_id"),
+      lapply(names(inf_list), function(rel_q) {
+        out <- inf_list[[rel_q]]
+        setnames(out, "inf", paste0("inf_", rel_q))
+        out[, time_to_treat := NULL]
+        out
+      })
+    )
+    inf_cols <- paste0("inf_", pretrend_window)
+    inf_matrix <- as.matrix(inf_wide[, ..inf_cols])
+    inf_matrix <- sweep(inf_matrix, 2, colMeans(inf_matrix), FUN = "-")
+    covariance <- crossprod(inf_matrix) / (nrow(inf_matrix)^2)
+    pre_estimates <- event_results[
+      time_to_treat %in% pretrend_window,
+      estimate
+    ]
+    joint_stat <- tryCatch(
+      as.numeric(t(pre_estimates) %*% solve(covariance, pre_estimates)),
+      error = function(e) NA_real_
+    )
+    pretrend_results <- data.table(
+      model = "DRDID event-study path, pair-level conditional DiD",
+      tested_relative_quarters = paste(pretrend_window, collapse = ", "),
+      tested_coef_count = length(pretrend_window),
+      statistic = joint_stat,
+      p.value = if (is.na(joint_stat)) NA_real_ else pchisq(joint_stat, df = length(pretrend_window), lower.tail = FALSE),
+      df1 = length(pretrend_window),
+      df2 = NA_real_,
+      error_message = NA_character_
+    )
+  } else {
+    pretrend_results <- data.table(
+      model = "DRDID event-study path, pair-level conditional DiD",
+      tested_relative_quarters = paste(pretrend_window, collapse = ", "),
+      tested_coef_count = length(inf_list),
+      statistic = NA_real_,
+      p.value = NA_real_,
+      df1 = NA_real_,
+      df2 = NA_real_,
+      error_message = "Could not construct all pre-period influence functions."
+    )
+  }
+
+  list(event_results = event_results, pretrend_results = pretrend_results)
 }
 
-plot_event_study_single <- function(
-    plot_data,
-    title,
-    subtitle,
-    caption,
-    filename,
-    width = 8.5,
-    height = 5.5,
-    base_size = 11) {
-  plot_data <- copy(plot_data)
+drdid_outputs <- run_drdid_event_study(df)
+fwrite(
+  drdid_outputs$event_results,
+  file.path(table_dir, "drdid_event_study_log_results.csv")
+)
+fwrite(
+  drdid_outputs$pretrend_results,
+  file.path(table_dir, "drdid_event_study_pretrend_test.csv")
+)
 
-  event_plot <- ggplot(
-    plot_data,
-    aes(x = relative_quarter, y = estimate_pct)
-  ) +
-    geom_hline(yintercept = 0, color = "grey35", linewidth = 0.35) +
-    geom_vline(
-      xintercept = -0.5,
-      linetype = "dashed",
-      color = "grey35",
-      linewidth = 0.4
-    ) +
-    geom_linerange(
-      aes(ymin = conf.low_pct, ymax = conf.high_pct),
-      color = "#5F6C80",
-      linewidth = 0.45,
-      alpha = 0.9
-    ) +
-    geom_line(color = "#1F4E79", linewidth = 0.65) +
-    geom_point(
-      aes(shape = is_reference_period),
-      color = "#1F2937",
-      fill = "white",
-      size = 2.1,
-      stroke = 0.7
-    ) +
-    scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 21), guide = "none") +
-    scale_x_continuous(breaks = event_axis_breaks) +
-    scale_y_continuous(labels = label_number(accuracy = 0.1, suffix = "%")) +
-    labs(
-      title = title,
-      subtitle = subtitle,
-      x = "Quarters relative to 2022 Q4",
-      y = "Effect on log(1 + remittances), percent",
-      caption = str_wrap(caption, width = 118)
-    ) +
-    theme_event_study(base_size = base_size)
+plot_event_study(
+  drdid_outputs$event_results,
+  filename = "drdid_event_study_log.png",
+  title = "Doubly robust DiD event-study path",
+  subtitle = "Quarter-specific DRDID estimates relative to 2022 Q3, adjusted for pre-window corridor covariates.",
+  y_label = "Effect on log(1 + remittances_usd)"
+)
 
-  ggsave(
-    filename = file.path(plot_dir, filename),
-    plot = event_plot,
-    width = width,
-    height = height,
-    dpi = 300
+# BJS imputation DiD -----------------------------------------------------------
+
+bjs_untreated_model <- feols(
+  log1p_remittances ~ 1 | pair_id + receiver_period_id,
+  data = df[is_treated == 0L | q_num < hit_q]
+)
+
+bjs_window <- copy(df_window)
+bjs_window[, untreated_prediction := as.numeric(predict(bjs_untreated_model, newdata = bjs_window))]
+bjs_window[, imputed_effect := log1p_remittances - untreated_prediction]
+
+bjs_treated_effects <- bjs_window[
+  is_treated == 1L,
+  .(
+    estimate = mean(imputed_effect, na.rm = TRUE),
+    std.error = sd(imputed_effect, na.rm = TRUE) / sqrt(.N),
+    treated_corridors = .N
+  ),
+  by = .(time_to_treat)
+]
+bjs_treated_effects[
+  ,
+  `:=`(
+    calendar_quarter = quarter_label(time_to_treat),
+    statistic = estimate / std.error,
+    p.value = 2 * pnorm(-abs(estimate / std.error)),
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    effect_pct = 100 * (exp(estimate) - 1),
+    is_reference_period = FALSE
+  )
+]
+bjs_treated_effects[
+  ,
+  `:=`(
+    conf.low_pct = 100 * (exp(conf.low) - 1),
+    conf.high_pct = 100 * (exp(conf.high) - 1)
+  )
+]
+setorder(bjs_treated_effects, time_to_treat)
+fwrite(
+  bjs_treated_effects,
+  file.path(table_dir, "bjs_imputation_event_study_log_results.csv")
+)
+
+bjs_post_pair_effects <- bjs_window[
+  is_treated == 1L & time_to_treat %in% post_event_window,
+  .(pair_post_effect = mean(imputed_effect, na.rm = TRUE)),
+  by = pair_id
+]
+
+bjs_static_results <- bjs_post_pair_effects[
+  ,
+  .(
+    term = "Average post imputed effect",
+    estimate = mean(pair_post_effect, na.rm = TRUE),
+    std.error = sd(pair_post_effect, na.rm = TRUE) / sqrt(.N),
+    treated_corridors = .N
+  )
+]
+bjs_static_results[
+  ,
+  `:=`(
+    statistic = estimate / std.error,
+    p.value = 2 * pnorm(-abs(estimate / std.error)),
+    conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    effect_pct = 100 * (exp(estimate) - 1)
+  )
+]
+bjs_static_results[
+  ,
+  `:=`(
+    conf.low_pct = 100 * (exp(conf.low) - 1),
+    conf.high_pct = 100 * (exp(conf.high) - 1)
+  )
+]
+fwrite(
+  bjs_static_results,
+  file.path(table_dir, "bjs_imputation_static_log_results.csv")
+)
+
+bjs_pre_wide <- dcast(
+  bjs_window[
+    is_treated == 1L & time_to_treat %in% pretrend_window,
+    .(pair_id, time_to_treat, imputed_effect)
+  ],
+  pair_id ~ time_to_treat,
+  value.var = "imputed_effect"
+)
+bjs_pre_cols <- as.character(pretrend_window)
+bjs_pre_matrix <- as.matrix(bjs_pre_wide[, ..bjs_pre_cols])
+bjs_pre_matrix <- sweep(bjs_pre_matrix, 2, colMeans(bjs_pre_matrix), FUN = "-")
+bjs_pre_covariance <- crossprod(bjs_pre_matrix) / (nrow(bjs_pre_matrix)^2)
+bjs_pre_estimates <- bjs_treated_effects[
+  time_to_treat %in% pretrend_window,
+  estimate
+]
+bjs_pretrend_stat <- tryCatch(
+  as.numeric(t(bjs_pre_estimates) %*% solve(bjs_pre_covariance, bjs_pre_estimates)),
+  error = function(e) NA_real_
+)
+bjs_pretrend_results <- data.table(
+  model = "BJS imputation, pair and receiver-quarter FE",
+  tested_relative_quarters = paste(pretrend_window, collapse = ", "),
+  tested_coef_count = length(pretrend_window),
+  statistic = bjs_pretrend_stat,
+  p.value = if (is.na(bjs_pretrend_stat)) NA_real_ else pchisq(
+    bjs_pretrend_stat,
+    df = length(pretrend_window),
+    lower.tail = FALSE
+  ),
+  df1 = length(pretrend_window),
+  df2 = NA_real_,
+  error_message = NA_character_
+)
+fwrite(
+  bjs_pretrend_results,
+  file.path(table_dir, "bjs_imputation_pretrend_test.csv")
+)
+
+plot_event_study(
+  bjs_treated_effects,
+  filename = "bjs_imputation_event_study_log.png",
+  title = "BJS imputation event study",
+  subtitle = "Untreated model fit on non-Florida observations and Florida pre-Ian observations; FE are corridor and receiver-quarter.",
+  y_label = "Imputed effect on log(1 + remittances_usd)"
+)
+
+# Shift-share/Bartik exposure design ------------------------------------------
+
+receiver_exposure <- df[
+  q_num < hit_q,
+  .(
+    pre_florida_usd = sum(remittances_usd[us_state == "Florida"], na.rm = TRUE),
+    pre_all_usd = sum(remittances_usd, na.rm = TRUE)
+  ),
+  by = .(receiver_id, mx_state, mx_municipality)
+]
+receiver_exposure[
+  ,
+  `:=`(
+    florida_exposure = fifelse(pre_all_usd > 0, pre_florida_usd / pre_all_usd, 0),
+    florida_exposure_10pp = fifelse(pre_all_usd > 0, pre_florida_usd / pre_all_usd / 0.1, 0)
+  )
+]
+fwrite(
+  receiver_exposure[order(-florida_exposure)],
+  file.path(table_dir, "shiftshare_receiver_exposure.csv")
+)
+
+receiver_quarter <- df[
+  ,
+  .(remittances_usd = sum(remittances_usd, na.rm = TRUE)),
+  by = .(receiver_id, mx_state, mx_municipality, q_num, year_quarter, time_to_treat, is_post)
+]
+receiver_quarter <- merge(
+  receiver_quarter,
+  receiver_exposure[
+    ,
+    .(receiver_id, florida_exposure, florida_exposure_10pp)
+  ],
+  by = "receiver_id"
+)
+receiver_quarter[
+  ,
+  `:=`(
+    log_total_remittances = log1p(remittances_usd),
+    exposure_post_10pp = florida_exposure_10pp * is_post
+  )
+]
+receiver_quarter_window <- receiver_quarter[time_to_treat %in% event_window]
+
+shiftshare_static <- feols(
+  log_total_remittances ~ exposure_post_10pp |
+    receiver_id + mx_state^year_quarter,
+  data = receiver_quarter_window,
+  cluster = ~ receiver_id
+)
+
+shiftshare_static_results <- tidy_fixest(shiftshare_static)
+shiftshare_static_results[
+  term == "exposure_post_10pp",
+  `:=`(
+    effect_pct = 100 * (exp(estimate) - 1),
+    conf.low_pct = 100 * (exp(conf.low) - 1),
+    conf.high_pct = 100 * (exp(conf.high) - 1)
+  )
+]
+fwrite(
+  shiftshare_static_results,
+  file.path(table_dir, "shiftshare_static_log_results.csv")
+)
+
+shiftshare_event <- feols(
+  log_total_remittances ~ i(time_to_treat, florida_exposure_10pp, ref = event_ref) |
+    receiver_id + mx_state^year_quarter,
+  data = receiver_quarter_window,
+  cluster = ~ receiver_id
+)
+
+shiftshare_event_results <- extract_event_results(
+  shiftshare_event,
+  interaction_var = "florida_exposure_10pp"
+)
+fwrite(
+  shiftshare_event_results,
+  file.path(table_dir, "shiftshare_event_study_log_results.csv")
+)
+
+shiftshare_pretrend_results <- run_pretrend_test(
+  shiftshare_event,
+  model_label = "Shift-share exposure event study, receiver and Mexican-state-quarter FE",
+  interaction_var = "florida_exposure_10pp"
+)
+fwrite(
+  shiftshare_pretrend_results,
+  file.path(table_dir, "shiftshare_event_study_pretrend_test.csv")
+)
+
+plot_event_study(
+  shiftshare_event_results,
+  filename = "shiftshare_event_study_log.png",
+  title = "Shift-share exposure event study",
+  subtitle = "Effect of a 10pp higher pre-Ian Florida remittance share, with receiver and Mexican-state-quarter FE.",
+  y_label = "Log-point effect per 10pp higher Florida exposure"
+)
+
+# HonestDiD sensitivity bounds -------------------------------------------------
+
+run_honestdid <- function(model) {
+  if (!requireNamespace("HonestDiD", quietly = TRUE)) {
+    return(data.table(error_message = "HonestDiD is not installed."))
+  }
+
+  relative_quarters <- c(pretrend_window, post_event_window)
+  coef_terms <- paste0("time_to_treat::", relative_quarters, ":is_treated")
+  missing_terms <- setdiff(coef_terms, names(coef(model)))
+
+  if (length(missing_terms) > 0L) {
+    return(data.table(
+      error_message = paste("Missing event-study coefficients:", paste(missing_terms, collapse = ", "))
+    ))
+  }
+
+  betahat <- coef(model)[coef_terms]
+  sigma <- vcov(model)[coef_terms, coef_terms]
+  num_pre <- length(pretrend_window)
+  num_post <- length(post_event_window)
+  l_vec <- rep(1 / num_post, num_post)
+  honest_warnings <- character()
+
+  result <- tryCatch(
+    withCallingHandlers(
+      as.data.table(
+        HonestDiD::createSensitivityResults_relativeMagnitudes(
+          betahat = betahat,
+          sigma = sigma,
+          numPrePeriods = num_pre,
+          numPostPeriods = num_post,
+          Mbarvec = honest_mbar_grid,
+          l_vec = l_vec,
+          gridPoints = 1000
+        )
+      ),
+      warning = function(w) {
+        honest_warnings <<- c(honest_warnings, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    ),
+    error = function(e) {
+      data.table(error_message = conditionMessage(e))
+    }
   )
 
-  event_plot
+  result[
+    ,
+    `:=`(
+      estimand = paste0("Average post-treatment effect across quarters 0 to ", max(post_event_window)),
+      warning_message = if (length(honest_warnings) == 0L) {
+        NA_character_
+      } else {
+        paste(unique(honest_warnings), collapse = " | ")
+      }
+    )
+  ]
+  result
 }
 
-event_plot_caption <- paste(
-  "Notes: Points report TWFE event-study coefficients transformed as",
-  "100 x (exp(beta) - 1), with 95% confidence intervals.",
-  "The omitted quarter is 2022 Q3; the dashed line marks the first post-Ian quarter."
-)
+honestdid_bounds <- run_honestdid(twfe_event)
+fwrite(honestdid_bounds, file.path(table_dir, "honestdid_relative_magnitude_bounds.csv"))
 
-did_es_quarter_fe <- feols(
-  log1p_remittances ~ i(relative_quarter, florida, ref = event_ref_quarter) |
-    pair_id + period_date,
-  data = remittances_time_series,
-  cluster = ~ us_state + mx_municipality_id
-)
+if (!"error_message" %in% names(honestdid_bounds)) {
+  honest_plot <- ggplot(honestdid_bounds, aes(x = Mbar)) +
+    geom_hline(yintercept = 0, color = "grey45", linewidth = 0.35) +
+    geom_linerange(aes(ymin = lb, ymax = ub), color = "#7C2D12", linewidth = 0.8) +
+    geom_point(aes(y = (lb + ub) / 2), color = "#7C2D12", size = 2) +
+    labs(
+      title = "HonestDiD sensitivity bounds",
+      subtitle = "Relative-magnitude bounds for the average TWFE post-Ian effect.",
+      x = "Mbar: allowed post-period violation relative to pre-period violations",
+      y = "Robust confidence interval, log points"
+    ) +
+    theme_event()
 
-did_es_muni_quarter_fe <- feols(
-  log1p_remittances ~ i(relative_quarter, florida, ref = event_ref_quarter) |
-    pair_id + municipality_period_id,
-  data = remittances_time_series,
-  cluster = ~ us_state + mx_municipality_id
-)
+  ggsave(
+    filename = file.path(plot_dir, "honestdid_relative_magnitude_bounds.png"),
+    plot = honest_plot,
+    width = 8,
+    height = 4.8,
+    dpi = 300
+  )
+}
 
-did_es_muni_quarter_fe_no_carolinas <- feols(
-  log1p_remittances ~ i(relative_quarter, florida, ref = event_ref_quarter) |
-    pair_id + municipality_period_id,
-  data = remittances_no_carolinas,
-  cluster = ~ us_state + mx_municipality_id
-)
+# Synthetic difference-in-differences style design -----------------------------
 
-did_es_top50_muni_quarter_fe_no_carolinas <- feols(
-  log1p_remittances ~ i(relative_quarter, florida, ref = event_ref_quarter) |
-    pair_id + municipality_period_id,
-  data = remittances_top50_no_carolinas,
-  cluster = ~ us_state + mx_municipality_id
-)
+fit_simplex_weights <- function(X, target, ridge = 1e-6) {
+  X <- as.matrix(X)
+  target <- as.numeric(target)
+  n_features <- nrow(X)
+  n_weights <- ncol(X)
 
-aggregate_event_study_results <- rbindlist(
+  X_centered <- sweep(X, 2, colMeans(X), FUN = "-")
+  target_centered <- target - mean(target)
+
+  if (requireNamespace("osqp", quietly = TRUE) && requireNamespace("Matrix", quietly = TRUE)) {
+    P <- 2 * (crossprod(X_centered) / n_features + ridge * diag(n_weights))
+    q <- as.numeric(-2 * crossprod(X_centered, target_centered) / n_features)
+    A <- rbind(
+      Matrix::Matrix(rep(1, n_weights), nrow = 1, sparse = TRUE),
+      Matrix::Diagonal(n_weights)
+    )
+    l <- c(1, rep(0, n_weights))
+    u <- c(1, rep(Inf, n_weights))
+
+    fit <- tryCatch(
+      osqp::solve_osqp(
+        P = methods::as(P, "dgCMatrix"),
+        q = q,
+        A = methods::as(A, "dgCMatrix"),
+        l = l,
+        u = u,
+        pars = osqp::osqpSettings(verbose = FALSE, eps_abs = 1e-8, eps_rel = 1e-8)
+      ),
+      error = function(e) NULL
+    )
+
+    if (!is.null(fit) && fit$info$status %in% c("solved", "solved inaccurate")) {
+      weights <- pmax(as.numeric(fit$x), 0)
+      if (sum(weights) > 0) {
+        weights <- weights / sum(weights)
+      } else {
+        weights <- rep(1 / n_weights, n_weights)
+      }
+      intercept <- mean(target - as.numeric(X %*% weights))
+      objective <- mean((target - intercept - as.numeric(X %*% weights))^2)
+      return(list(
+        weights = weights,
+        intercept = intercept,
+        objective = objective,
+        solver = paste("osqp", fit$info$status)
+      ))
+    }
+  }
+
+  softmax <- function(theta) {
+    shifted <- theta - max(theta)
+    exp_shifted <- exp(shifted)
+    exp_shifted / sum(exp_shifted)
+  }
+  objective <- function(theta) {
+    weights <- softmax(theta)
+    intercept <- mean(target - as.numeric(X %*% weights))
+    mean((target - intercept - as.numeric(X %*% weights))^2) + ridge * sum(weights^2)
+  }
+  opt <- optim(
+    par = rep(0, n_weights),
+    fn = objective,
+    method = "BFGS",
+    control = list(maxit = 1000, reltol = 1e-10)
+  )
+  weights <- softmax(opt$par)
+  intercept <- mean(target - as.numeric(X %*% weights))
+
   list(
-    extract_event_study(
-      did_es_quarter_fe,
-      study = "Aggregate TWFE event study",
-      subgroup = "Pair + quarter FE",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; calendar quarter",
-      clusters = "US state; Mexican municipality"
+    weights = weights,
+    intercept = intercept,
+    objective = objective(opt$par),
+    solver = paste("optim convergence", opt$convergence)
+  )
+}
+
+fit_sdid <- function(Y, q_index, treated_state, control_states, hit_q) {
+  treated_index <- match(treated_state, rownames(Y))
+  control_indices <- match(control_states, rownames(Y))
+  pre_cols <- which(q_index < hit_q)
+  post_cols <- which(q_index >= hit_q)
+
+  treated_pre <- Y[treated_index, pre_cols]
+  control_pre <- Y[control_indices, pre_cols, drop = FALSE]
+  control_post_average <- rowMeans(Y[control_indices, post_cols, drop = FALSE])
+
+  unit_fit <- fit_simplex_weights(
+    X = t(control_pre),
+    target = treated_pre
+  )
+  time_fit <- fit_simplex_weights(
+    X = control_pre,
+    target = control_post_average
+  )
+
+  omega <- unit_fit$weights
+  lambda <- time_fit$weights
+  synthetic_path <- as.numeric(omega %*% Y[control_indices, , drop = FALSE]) +
+    unit_fit$intercept
+  treated_path <- as.numeric(Y[treated_index, ])
+  gap <- treated_path - synthetic_path
+  baseline_gap <- sum(lambda * gap[pre_cols])
+  event_effect <- gap - baseline_gap
+  tau <- mean(event_effect[post_cols])
+
+  list(
+    tau = tau,
+    baseline_gap = baseline_gap,
+    treated_state = treated_state,
+    control_states = control_states,
+    q_index = q_index,
+    treated_path = treated_path,
+    synthetic_path = synthetic_path,
+    gap = gap,
+    event_effect = event_effect,
+    omega = omega,
+    lambda = lambda,
+    unit_intercept = unit_fit$intercept,
+    unit_objective = unit_fit$objective,
+    unit_solver = unit_fit$solver,
+    time_intercept = time_fit$intercept,
+    time_objective = time_fit$objective,
+    time_solver = time_fit$solver
+  )
+}
+
+state_quarter <- df[
+  ,
+  .(remittances_usd = sum(remittances_usd, na.rm = TRUE)),
+  by = .(us_state, q_num, year_quarter, time_to_treat)
+]
+state_quarter[, log_total_remittances := log1p(remittances_usd)]
+state_quarter[, q_col := paste0("q", q_num)]
+
+q_index <- sort(unique(state_quarter$q_num))
+q_cols <- paste0("q", q_index)
+state_wide <- dcast(
+  state_quarter,
+  us_state ~ q_col,
+  value.var = "log_total_remittances"
+)
+setorder(state_wide, us_state)
+
+Y <- as.matrix(state_wide[, ..q_cols])
+rownames(Y) <- state_wide$us_state
+
+if (anyNA(Y)) {
+  stop("State-quarter matrix has missing values; SDID requires a balanced panel.")
+}
+
+donor_states <- setdiff(rownames(Y), "Florida")
+sdid_fit <- fit_sdid(
+  Y = Y,
+  q_index = q_index,
+  treated_state = "Florida",
+  control_states = donor_states,
+  hit_q = hit_q
+)
+
+sdid_summary <- data.table(
+  estimator = "Synthetic difference-in-differences style",
+  treated_state = "Florida",
+  outcome = "log(1 + total remittances_usd)",
+  top_receiver_exclusions = paste(excluded_receivers$receiver_id, collapse = "; "),
+  donor_states = length(donor_states),
+  pre_periods = sum(q_index < hit_q),
+  post_periods = sum(q_index >= hit_q),
+  estimate_log_points = sdid_fit$tau,
+  estimate_pct = 100 * (exp(sdid_fit$tau) - 1),
+  baseline_gap = sdid_fit$baseline_gap,
+  unit_weight_solver = sdid_fit$unit_solver,
+  unit_weight_objective = sdid_fit$unit_objective,
+  time_weight_solver = sdid_fit$time_solver,
+  time_weight_objective = sdid_fit$time_objective,
+  synthdid_package_available = requireNamespace("synthdid", quietly = TRUE)
+)
+fwrite(sdid_summary, file.path(table_dir, "sdid_summary.csv"))
+
+sdid_unit_weights <- data.table(
+  us_state = donor_states,
+  unit_weight = sdid_fit$omega
+)[order(-unit_weight)]
+fwrite(sdid_unit_weights, file.path(table_dir, "sdid_unit_weights.csv"))
+
+sdid_time_weights <- data.table(
+  q_num = q_index[q_index < hit_q],
+  time_to_treat = q_index[q_index < hit_q] - hit_q,
+  calendar_quarter = quarter_label(q_index[q_index < hit_q] - hit_q),
+  time_weight = sdid_fit$lambda
+)[order(time_to_treat)]
+fwrite(sdid_time_weights, file.path(table_dir, "sdid_time_weights.csv"))
+
+sdid_paths <- data.table(
+  q_num = q_index,
+  time_to_treat = q_index - hit_q,
+  calendar_quarter = quarter_label(q_index - hit_q),
+  florida_log_total = sdid_fit$treated_path,
+  synthetic_log_total = sdid_fit$synthetic_path,
+  gap = sdid_fit$gap,
+  event_effect = sdid_fit$event_effect,
+  post_ian = q_index >= hit_q
+)
+fwrite(sdid_paths, file.path(table_dir, "sdid_paths.csv"))
+
+sdid_event_results <- sdid_paths[
+  time_to_treat %in% event_window,
+  .(
+    time_to_treat,
+    calendar_quarter,
+    estimate = event_effect,
+    effect_pct = 100 * (exp(event_effect) - 1),
+    post_ian
+  )
+]
+fwrite(sdid_event_results, file.path(table_dir, "sdid_event_study_log_results.csv"))
+
+placebo_results <- rbindlist(
+  lapply(
+    donor_states,
+    function(placebo_state) {
+      placebo_controls <- setdiff(donor_states, placebo_state)
+      placebo_fit <- fit_sdid(
+        Y = Y,
+        q_index = q_index,
+        treated_state = placebo_state,
+        control_states = placebo_controls,
+        hit_q = hit_q
+      )
+      data.table(
+        placebo_state = placebo_state,
+        estimate_log_points = placebo_fit$tau,
+        estimate_pct = 100 * (exp(placebo_fit$tau) - 1)
+      )
+    }
+  )
+)
+placebo_results[
+  ,
+  `:=`(
+    florida_estimate_log_points = sdid_fit$tau,
+    abs_placebo_ge_florida = abs(estimate_log_points) >= abs(sdid_fit$tau)
+  )
+]
+placebo_p_value <- (sum(placebo_results$abs_placebo_ge_florida) + 1) /
+  (nrow(placebo_results) + 1)
+placebo_results[, placebo_p_value := placebo_p_value]
+fwrite(placebo_results, file.path(table_dir, "sdid_placebo_results.csv"))
+
+sdid_design_notes <- data.table(
+  item = c(
+    "Paper",
+    "Implementation",
+    "Outcome",
+    "Unit weights",
+    "Time weights",
+    "Event-study path",
+    "Inference"
+  ),
+  value = c(
+    "Arkhangelsky et al. (2021), Synthetic Difference-in-Differences",
+    "Self-contained SDID-style estimator because synthdid is unavailable for this R version",
+    "State-quarter log(1 + total remittances_usd), with top two pre-Ian Florida receiver municipalities excluded",
+    "Simplex weights on donor states chosen to match Florida's pre-Ian path up to an intercept",
+    "Simplex weights on pre-Ian quarters chosen to match donor states' post-Ian averages up to an intercept",
+    "Florida minus synthetic-control gap, centered by the SDID time-weighted pre-Ian gap",
+    "Donor-state placebo distribution; HonestDiD is reported separately for TWFE event-study sensitivity"
+  )
+)
+fwrite(sdid_design_notes, file.path(table_dir, "sdid_design_notes.csv"))
+
+sdid_plot_data <- melt(
+  sdid_paths[time_to_treat %between% c(min(event_window), max(event_window))],
+  id.vars = c("time_to_treat", "calendar_quarter", "post_ian"),
+  measure.vars = c("florida_log_total", "synthetic_log_total"),
+  variable.name = "series",
+  value.name = "log_total_remittances"
+)
+sdid_plot_data[
+  ,
+  series := fifelse(
+    series == "florida_log_total",
+    "Florida",
+    "Synthetic control"
+  )
+]
+
+sdid_path_plot <- ggplot(
+  sdid_plot_data,
+  aes(x = time_to_treat, y = log_total_remittances, color = series)
+) +
+  geom_vline(xintercept = -0.5, linetype = "dashed", color = "grey35") +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.5) +
+  scale_color_manual(values = c("Florida" = "#B91C1C", "Synthetic control" = "#1D4ED8")) +
+  scale_x_continuous(breaks = seq(min(event_window), max(event_window), by = 2L)) +
+  labs(
+    title = "SDID path comparison",
+    subtitle = "Florida versus synthetic control in state-quarter log total remittances.",
+    x = "Quarters relative to Hurricane Ian (0 = 2022 Q4)",
+    y = "log(1 + total remittances_usd)",
+    color = NULL
+  ) +
+  theme_event()
+
+ggsave(
+  filename = file.path(plot_dir, "sdid_florida_vs_synthetic_path.png"),
+  plot = sdid_path_plot,
+  width = 9,
+  height = 5,
+  dpi = 300
+)
+
+sdid_event_plot <- ggplot(
+  sdid_event_results,
+  aes(x = time_to_treat, y = estimate)
+) +
+  geom_hline(yintercept = 0, color = "grey45", linewidth = 0.35) +
+  geom_vline(xintercept = -0.5, linetype = "dashed", color = "grey35") +
+  geom_line(color = "#0F766E", linewidth = 0.65) +
+  geom_point(color = "#134E4A", size = 1.9) +
+  scale_x_continuous(breaks = seq(min(event_window), max(event_window), by = 2L)) +
+  labs(
+    title = "SDID event-study gaps",
+    subtitle = "Florida minus synthetic control, centered by the SDID time-weighted pre-Ian gap.",
+    x = "Quarters relative to Hurricane Ian (0 = 2022 Q4)",
+    y = "Effect on log(1 + total remittances_usd)"
+  ) +
+  theme_event()
+
+ggsave(
+  filename = file.path(plot_dir, "sdid_event_study_log.png"),
+  plot = sdid_event_plot,
+  width = 9,
+  height = 5,
+  dpi = 300
+)
+
+placebo_plot <- ggplot(placebo_results, aes(x = estimate_log_points)) +
+  geom_histogram(bins = 18, fill = "#CBD5E1", color = "white") +
+  geom_vline(xintercept = sdid_fit$tau, color = "#B91C1C", linewidth = 0.9) +
+  geom_vline(xintercept = 0, color = "grey45", linewidth = 0.35) +
+  labs(
+    title = "SDID placebo distribution",
+    subtitle = paste0("Vertical red line is Florida; placebo p-value = ", signif(placebo_p_value, 3), "."),
+    x = "Placebo estimate, log points",
+    y = "Donor states"
+  ) +
+  theme_event()
+
+ggsave(
+  filename = file.path(plot_dir, "sdid_placebo_distribution.png"),
+  plot = placebo_plot,
+  width = 8,
+  height = 4.8,
+  dpi = 300
+)
+
+avg_post_estimate <- function(event_results) {
+  event_results[
+    time_to_treat %in% post_event_window,
+    mean(estimate, na.rm = TRUE)
+  ]
+}
+
+identification_comparison <- rbindlist(
+  list(
+    data.table(
+      design = "TWFE, all corridors",
+      identifying_variation = "Florida corridors vs all non-Florida corridors",
+      estimate_type = "Static post coefficient, log points",
+      estimate = twfe_static_results[term == "treated_post", estimate],
+      estimate_pct = twfe_static_results[term == "treated_post", effect_pct],
+      event_avg_post_estimate = avg_post_estimate(twfe_event_results),
+      pretrend_p_value = twfe_pretrend_results$p.value,
+      passes_pretrend_10pct = twfe_pretrend_results$p.value > 0.1
     ),
-    extract_event_study(
-      did_es_muni_quarter_fe,
-      study = "Aggregate TWFE event study",
-      subgroup = "Pair + municipality-quarter FE",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality"
+    data.table(
+      design = "Corridor TWFE",
+      identifying_variation = "Florida corridors vs non-Florida corridors to same receiver-quarter",
+      estimate_type = "Static post coefficient, log points",
+      estimate = corridor_twfe_static_results[term == "treated_post", estimate],
+      estimate_pct = corridor_twfe_static_results[term == "treated_post", effect_pct],
+      event_avg_post_estimate = avg_post_estimate(corridor_twfe_event_results),
+      pretrend_p_value = corridor_twfe_pretrend_results$p.value,
+      passes_pretrend_10pct = corridor_twfe_pretrend_results$p.value > 0.1
     ),
-    extract_event_study(
-      did_es_muni_quarter_fe_no_carolinas,
-      study = "Aggregate TWFE event study",
-      subgroup = "Preferred, excluding NC/SC",
-      sample = "North Carolina and South Carolina excluded",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality"
+    data.table(
+      design = "Matched-corridor TWFE",
+      identifying_variation = "Florida corridors vs nearest pre-Ian same-receiver donor corridors",
+      estimate_type = "Average post event coefficient, log points",
+      estimate = avg_post_estimate(matched_corridor_event_results),
+      estimate_pct = 100 * (exp(avg_post_estimate(matched_corridor_event_results)) - 1),
+      event_avg_post_estimate = avg_post_estimate(matched_corridor_event_results),
+      pretrend_p_value = matched_corridor_pretrend_results$p.value,
+      passes_pretrend_10pct = matched_corridor_pretrend_results$p.value > 0.1
+    ),
+    data.table(
+      design = "DRDID event path",
+      identifying_variation = "Florida corridors vs controls conditional on pre-window covariates",
+      estimate_type = "Average post event coefficient, log points",
+      estimate = avg_post_estimate(drdid_outputs$event_results),
+      estimate_pct = 100 * (exp(avg_post_estimate(drdid_outputs$event_results)) - 1),
+      event_avg_post_estimate = avg_post_estimate(drdid_outputs$event_results),
+      pretrend_p_value = drdid_outputs$pretrend_results$p.value,
+      passes_pretrend_10pct = drdid_outputs$pretrend_results$p.value > 0.1
+    ),
+    data.table(
+      design = "BJS imputation",
+      identifying_variation = "Untreated potential outcomes imputed from non-Florida and Florida-pre observations",
+      estimate_type = "Average post imputed effect, log points",
+      estimate = bjs_static_results$estimate,
+      estimate_pct = bjs_static_results$effect_pct,
+      event_avg_post_estimate = avg_post_estimate(bjs_treated_effects),
+      pretrend_p_value = bjs_pretrend_results$p.value,
+      passes_pretrend_10pct = bjs_pretrend_results$p.value > 0.1
+    ),
+    data.table(
+      design = "Shift-share exposure",
+      identifying_variation = "Mexican receivers with higher vs lower pre-Ian Florida remittance exposure",
+      estimate_type = "Static post coefficient per 10pp Florida exposure",
+      estimate = shiftshare_static_results[term == "exposure_post_10pp", estimate],
+      estimate_pct = shiftshare_static_results[term == "exposure_post_10pp", effect_pct],
+      event_avg_post_estimate = avg_post_estimate(shiftshare_event_results),
+      pretrend_p_value = shiftshare_pretrend_results$p.value,
+      passes_pretrend_10pct = shiftshare_pretrend_results$p.value > 0.1
+    ),
+    data.table(
+      design = "SDID, state aggregate",
+      identifying_variation = "Florida vs synthetic donor-state combination",
+      estimate_type = "Average post SDID gap, log points",
+      estimate = sdid_summary$estimate_log_points,
+      estimate_pct = sdid_summary$estimate_pct,
+      event_avg_post_estimate = avg_post_estimate(sdid_event_results),
+      pretrend_p_value = unique(placebo_results$placebo_p_value),
+      passes_pretrend_10pct = NA
     )
   ),
   fill = TRUE
 )
-
-aggregate_spec_levels <- c(
-  "Pair + quarter FE",
-  "Pair + municipality-quarter FE",
-  "Preferred, excluding NC/SC"
-)
-
-aggregate_pretrend_tests <- rbindlist(
-  list(
-    extract_pretrend_test(
-      did_es_quarter_fe,
-      study = "Aggregate TWFE event study",
-      subgroup = "Pair + quarter FE",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; calendar quarter",
-      clusters = "US state; Mexican municipality"
-    ),
-    extract_pretrend_test(
-      did_es_muni_quarter_fe,
-      study = "Aggregate TWFE event study",
-      subgroup = "Pair + municipality-quarter FE",
-      sample = "All origin states",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality"
-    ),
-    extract_pretrend_test(
-      did_es_muni_quarter_fe_no_carolinas,
-      study = "Aggregate TWFE event study",
-      subgroup = "Preferred, excluding NC/SC",
-      sample = "North Carolina and South Carolina excluded",
-      fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-      clusters = "US state; Mexican municipality"
-    )
-  ),
-  fill = TRUE
-)
-
-aggregate_event_study_results[
-  ,
-  subgroup := factor(subgroup, levels = aggregate_spec_levels)
-]
-aggregate_pretrend_tests[
-  ,
-  subgroup := factor(subgroup, levels = aggregate_spec_levels)
-]
-
 fwrite(
-  aggregate_event_study_results,
-  file.path(table_dir, "twfe_event_study_aggregate_results.csv")
-)
-fwrite(
-  aggregate_pretrend_tests,
-  file.path(table_dir, "twfe_event_study_aggregate_pretrend_tests.csv")
+  identification_comparison,
+  file.path(table_dir, "identification_design_comparison.csv")
 )
 
-aggregate_event_study_preferred <- aggregate_event_study_results[
-  subgroup == "Preferred, excluding NC/SC"
-]
+# Console summary --------------------------------------------------------------
 
-plot_aggregate_event_study <- plot_event_study_single(
-  plot_data = aggregate_event_study_preferred,
-  title = "Aggregate TWFE event-study estimates",
-  subtitle = "Preferred specification: pair and municipality-quarter fixed effects, excluding NC/SC controls.",
-  caption = event_plot_caption,
-  filename = "twfe_event_study_aggregate.png",
-  width = 8.5,
-  height = 5.5,
-  base_size = 11
-)
+print("--- Excluded receiver municipalities ---")
+print(excluded_receivers)
 
-plot_aggregate_event_study_specifications <- plot_event_study_facets(
-  plot_data = aggregate_event_study_results,
-  facet_var = "subgroup",
-  title = "Aggregate TWFE event-study specification comparison",
-  subtitle = "Same aggregate sample shown by alternative fixed-effect and control-state choices.",
-  caption = event_plot_caption,
-  filename = "twfe_event_study_aggregate_specification_comparison.png",
-  width = 8.5,
-  height = 9,
-  ncol = 1,
-  base_size = 11
-)
+print("--- TWFE static log result ---")
+print(twfe_static_results)
 
-top50_aggregate_event_study_results <- extract_event_study(
-  did_es_top50_muni_quarter_fe_no_carolinas,
-  study = "Top 50 pooled TWFE event study",
-  subgroup = "Top 50 pooled",
-  sample = "Top 50 Florida-linked municipalities; NC/SC excluded",
-  fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-  clusters = "US state; Mexican municipality"
-)
+print("--- TWFE joint pretrend test ---")
+print(twfe_pretrend_results)
 
-top50_aggregate_pretrend_tests <- extract_pretrend_test(
-  did_es_top50_muni_quarter_fe_no_carolinas,
-  study = "Top 50 pooled TWFE event study",
-  subgroup = "Top 50 pooled",
-  sample = "Top 50 Florida-linked municipalities; NC/SC excluded",
-  fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-  clusters = "US state; Mexican municipality"
-)
+print("--- Corridor TWFE joint pretrend test ---")
+print(corridor_twfe_pretrend_results)
 
-fwrite(
-  top50_aggregate_event_study_results,
-  file.path(table_dir, "twfe_event_study_top_50_aggregate_results.csv")
-)
-fwrite(
-  top50_aggregate_pretrend_tests,
-  file.path(table_dir, "twfe_event_study_top_50_aggregate_pretrend_tests.csv")
-)
+print("--- Matched-corridor joint pretrend test ---")
+print(matched_corridor_pretrend_results)
 
-plot_top50_aggregate_event_study <- plot_event_study_single(
-  plot_data = top50_aggregate_event_study_results,
-  title = "Top 50 Florida-linked municipalities: pooled TWFE event-study estimates",
-  subtitle = "Preferred specification restricted to high-exposure Mexican destinations, excluding NC/SC controls.",
-  caption = event_plot_caption,
-  filename = "twfe_event_study_top_50_aggregate.png",
-  width = 8.5,
-  height = 5.5,
-  base_size = 11
-)
+print("--- DRDID joint pretrend test ---")
+print(drdid_outputs$pretrend_results)
 
-regional_event_study_list <- vector("list", length(region_levels))
-regional_pretrend_list <- vector("list", length(region_levels))
+print("--- BJS imputation joint pretrend test ---")
+print(bjs_pretrend_results)
 
-for (region_index in seq_along(region_levels)) {
-  region_name <- region_levels[[region_index]]
-  regional_data <- remittances_no_carolinas[mx_region == region_name]
-  regional_model <- feols(
-    log1p_remittances ~ i(
-      relative_quarter,
-      florida,
-      ref = event_ref_quarter
-    ) | pair_id + municipality_period_id,
-    data = regional_data,
-    cluster = ~ us_state + mx_municipality_id
-  )
+print("--- Shift-share joint pretrend test ---")
+print(shiftshare_pretrend_results)
 
-  regional_event_study_list[[region_index]] <- extract_event_study(
-    regional_model,
-    study = "Regional TWFE event study",
-    subgroup = region_name,
-    sample = "North Carolina and South Carolina excluded",
-    fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-    clusters = "US state; Mexican municipality"
-  )
+print("--- Identification design comparison ---")
+print(identification_comparison)
 
-  regional_pretrend_list[[region_index]] <- extract_pretrend_test(
-    regional_model,
-    study = "Regional TWFE event study",
-    subgroup = region_name,
-    sample = "North Carolina and South Carolina excluded",
-    fixed_effects = "US state-municipality pair; Mexican municipality-quarter",
-    clusters = "US state; Mexican municipality"
-  )
-}
+print("--- HonestDiD relative-magnitude bounds ---")
+print(honestdid_bounds)
 
-regional_event_study_results <- rbindlist(regional_event_study_list, fill = TRUE)
-regional_pretrend_tests <- rbindlist(regional_pretrend_list, fill = TRUE)
+print("--- SDID summary ---")
+print(sdid_summary)
 
-regional_event_study_results[
-  ,
-  subgroup := factor(subgroup, levels = region_levels)
-]
-regional_pretrend_tests[
-  ,
-  subgroup := factor(subgroup, levels = region_levels)
-]
-
-fwrite(
-  regional_event_study_results,
-  file.path(table_dir, "twfe_event_study_regional_results.csv")
-)
-fwrite(
-  regional_pretrend_tests,
-  file.path(table_dir, "twfe_event_study_regional_pretrend_tests.csv")
-)
-
-plot_regional_event_study <- plot_event_study_facets(
-  plot_data = regional_event_study_results,
-  facet_var = "subgroup",
-  title = "Regional TWFE event-study estimates",
-  subtitle = "Preferred specification estimated separately by Mexican destination region.",
-  caption = event_plot_caption,
-  filename = "twfe_event_study_regions.png",
-  width = 12,
-  height = 7,
-  ncol = 3,
-  base_size = 10
-)
+print("--- SDID placebo p-value ---")
+print(placebo_p_value)
