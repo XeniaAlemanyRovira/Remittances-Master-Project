@@ -8,6 +8,7 @@
 \usepackage[english]{babel}
 \usepackage{geometry}
 \usepackage{setspace}
+\usepackage{float}
 \usepackage{parskip}          
 \usepackage{titlesec}             
 \usepackage{graphicx}
@@ -65,8 +66,12 @@
 \titlespacing*{\subsection}{0pt}{12pt}{6pt}
 
 % Captions and footnotes: 11pt
-\captionsetup{font=footnotesize, labelfont=bf}
-\renewcommand{\footnotesize}{\fontsize{11}{13}\selectfont}
+\DeclareCaptionFont{captionfont}{\fontsize{11}{13}\selectfont}
+\captionsetup{
+        font=captionfont,
+        justification=raggedright,
+        singlelinecheck=false
+    }
 
 % Page numbers at bottom
 \pagestyle{fancy}
