@@ -79,4 +79,13 @@ To formalize this, we apply the exposure mapping framework developed by \textcit
     \text{ExposureFlorida}_m = \frac{\text{Remittances}_{\text{Florida}, m, \text{pre}}}{\sum_s \text{Remittances}_{s, m, \text{pre}}}
 \end{equation}
 
+\par
 
+To isolate the spillover effect, we restrict our sample to non-Florida remittance corridors ($s \neq \text{Florida}$) and estimate:
+\begin{equation}
+    Y_{smt} = \alpha_{sm} + \lambda_t + \theta(\text{ExposureFlorida}_{m,\text{pre}} \times \text{Post}_t) + \varepsilon_{smt}
+\end{equation}
+A strictly positive coefficient ($\theta > 0$) would indicate that municipalities highly dependent on Florida received larger remittance increases from other U.S.\ states after the hurricane, providing evidence of network insurance effects. To examine temporal dynamics and non-linearities, this continuous model can be expanded into an event study specification. Furthermore, the exposure index can be discretized into quantiles (e.g., low, medium, and high exposure bins) to capture non-linear indirect responses to the shock:
+\begin{equation}
+    Y_{smt} = \alpha_{sm} + \lambda_t + \sum_q \sum_{k \neq -1} \theta_{qk}(\text{ExposureQuantile}_{m,\text{pre},q} \times \mathbbm{1}\{t-T_0=k\}) + \varepsilon_{smt}
+\end{equation}
