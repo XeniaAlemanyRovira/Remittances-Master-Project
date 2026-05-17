@@ -1,6 +1,6 @@
 \chapter{Data and bilateral remittance flow estimation}
 
-Bilateral remittance flow data between US states and Mexican municipalities is not publicly available. We estimate these flows by distributing state-level remittance outflows from the US to Mexican municipalities according to observed migration shares. The estimated inflows at the municipality level are then compared against official data to validate the accuracy of our procedure.
+This chapter outlines the data sources and the methodology we construct for estimating bilateral remittance flows between U.S. states and Mexican municipalities, which is not publicly available. First, we describe the datasets from Banco de México and Matricula Consular de Alta Seguridad (MCAS), which provide the remittance and migration data, respectively. Then, we compute a migration-share weighting matrix, which we use to distribute U.S. state-level remittance outflows to Mexican municipalities. Finally, we explore the underlying assumptions of our estimation approach, testing the persistence of migration networks over time and validating our estimates by comparing them with official data available at a more aggregate level.
 
 \section{Data sources}
 
@@ -26,11 +26,11 @@ By applying the weights computed from equation \eqref{eq:weights} to the officia
 \end{equation}
 This migration share estimation approach yields the final estimate of our outcome variable. 
 
-\par
+\section{Underlying assumptions and validation exercises}
 
 The validity of this estimation relies on two primary identification assumptions. First, we assume the temporal persistence of migration flows, implying that the distribution of migrants recorded in the 2010--2024 MCAS data is representative of the active remitting population. Second, we assume that, within a given U.S. state, the average amount remitted does not vary systematically by the migrant's municipality of origin. While this assumption ignores micro-level heterogeneity, it provides a baseline estimate of the bilateral remittance flows that can be validated against the aggregate data provided by Banxico' series CE166. 
 
-\section{The persistence assumption}
+\subsection{Persistence of migration networks}
 
 The persistence assumption of migration networks is critical to our estimation strategy, as it justifies the use of MCAS data to construct the migration-based weighting matrix in order to allocate remittance flows. The stability of migration patterns over time is well-documented in the literature, with studies showing that enstablished migration networks tend to dictate future migration patterns, creating persistent flows between specific origin and destination pairs \parencite{card2001, munshi2003}.
 
@@ -48,8 +48,9 @@ To verify this assumption within our specific sample period, we conduct a valida
 
 This high degree of correlation suggests that the spatial distribution of Mexican migrants across U.S. states has remained highly stable over time, lending credibility to our use of an averaged weighting matrix for estimating bilateral remittance flows. 
 
-\section{Validation of the estimated remittance flows}
-As explained at the end of Section \ref{sec:remittance-estimation}, our methodology to estimate bilateral remittance flows implicitly assumes a homogeneous send behavior among migants withing a given U.S. destination. That is, migrants in U.S. state $s$ send on average the same amount of remittances, regardless of their specific Mexican municipality of origin $m$. To evaluate the empirical validity of this assumption, we aggregate our estimated bilateral municipal inflows and compare them against the observed municipal receipts reported in Banco de México's series CE166. 
+\subsection{Validation of the estimated remittance flows}
+
+Our methodology to estimate bilateral remittance flows implicitly assumes a homogeneous send behavior among migants withing a given U.S. destination. That is, migrants in U.S. state $s$ send on average the same amount of remittances, regardless of their specific Mexican municipality of origin $m$. To evaluate the empirical validity of this assumption, we aggregate our estimated bilateral municipal inflows and compare them against the observed municipal receipts reported in Banco de México's series CE166. 
 
 \par 
 
