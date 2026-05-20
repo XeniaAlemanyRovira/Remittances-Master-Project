@@ -178,6 +178,180 @@ top_corridors_table <- yearly_migration_long %>%
 	arrange(desc(total_migrants)) %>%
 	slice_head(n = 10)
 
+max_consecutive_true <- function(x) {
+	if (length(x) == 0 || !any(x, na.rm = TRUE)) {
+		return(0L)
+	}
+	runs <- rle(replace_na(as.logical(x), FALSE))
+	max(runs$lengths[runs$values])
+}
+
+calc_first_active_year <- function(year, flow) {
+	active_years <- year[flow > 0]
+	if (length(active_years) == 0) {
+		return(NA_integer_)
+	}
+	min(active_years)
+}
+
+calc_last_active_year <- function(year, flow) {
+	active_years <- year[flow > 0]
+	if (length(active_years) == 0) {
+		return(NA_integer_)
+	}
+	max(active_years)
+}
+
+all_migration_years <- sort(unique(yearly_migration_long$year))
+early_years <- head(all_migration_years, min(3, length(all_migration_years)))
+late_years <- tail(all_migration_years, min(3, length(all_migration_years)))
+
+corridor_yearly <- yearly_migration_long %>%
+	group_by(mx_state, mx_municipality, us_state, year) %>%
+	summarise(yearly_migrants = sum(migrants, na.rm = TRUE), .groups = "drop") %>%
+	arrange(mx_state, mx_municipality, us_state, year)
+
+corridor_summary <- corridor_yearly %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(
+		total_migrants = sum(yearly_migrants, na.rm = TRUE),
+		mean_annual_flow = mean(yearly_migrants, na.rm = TRUE),
+		median_annual_flow = median(yearly_migrants, na.rm = TRUE),
+		sd_annual_flow = sd(yearly_migrants, na.rm = TRUE),
+		min_annual_flow = min(yearly_migrants, na.rm = TRUE),
+		max_annual_flow = max(yearly_migrants, na.rm = TRUE),
+		years_observed = n_distinct(year),
+		nonzero_years = sum(yearly_migrants > 0, na.rm = TRUE),
+		first_active_year = calc_first_active_year(year, yearly_migrants),
+		last_active_year = calc_last_active_year(year, yearly_migrants),
+		longest_active_streak = max_consecutive_true(yearly_migrants > 0),
+		.groups = "drop"
+	) %>%
+	filter(total_migrants > 0) %>%
+	mutate(
+		nonzero_year_share = nonzero_years / years_observed,
+		active_span_years = last_active_year - first_active_year + 1,
+		coefficient_of_variation = if_else(mean_annual_flow > 0, sd_annual_flow / mean_annual_flow, NA_real_),
+		persistence_score = 0.60 * nonzero_year_share + 0.40 * (longest_active_streak / years_observed),
+		magnitude_class = ntile(total_migrants, 5),
+		persistence_class = case_when(
+			nonzero_year_share == 1 & coefficient_of_variation <= 0.50 ~ "Persistent stable",
+			nonzero_year_share >= 0.80 ~ "Persistent volatile",
+			nonzero_year_share >= 0.50 ~ "Intermittent",
+			TRUE ~ "Sparse"
+		)
+	) %>%
+	arrange(desc(total_migrants), desc(persistence_score))
+
+corridor_growth_summary <- corridor_yearly %>%
+	mutate(period = case_when(
+		year %in% early_years ~ "early",
+		year %in% late_years ~ "late",
+		TRUE ~ NA_character_
+	)) %>%
+	filter(!is.na(period)) %>%
+	group_by(mx_state, mx_municipality, us_state, period) %>%
+	summarise(mean_flow = mean(yearly_migrants, na.rm = TRUE), .groups = "drop") %>%
+	pivot_wider(names_from = period, values_from = mean_flow, values_fill = 0) %>%
+	mutate(
+		absolute_change = late - early,
+		relative_change = if_else(early > 0, absolute_change / early, NA_real_),
+		change_class = case_when(
+			early == 0 & late > 0 ~ "Emerging",
+			late == 0 & early > 0 ~ "Disappearing",
+			absolute_change > 0 ~ "Growing",
+			absolute_change < 0 ~ "Declining",
+			TRUE ~ "Flat"
+		)
+	) %>%
+	left_join(
+		corridor_summary %>% select(mx_state, mx_municipality, us_state, total_migrants, persistence_score),
+		by = c("mx_state", "mx_municipality", "us_state")
+	) %>%
+	filter(!is.na(total_migrants)) %>%
+	arrange(desc(abs(absolute_change)))
+
+municipality_destination_profile <- corridor_summary %>%
+	group_by(mx_state, mx_municipality) %>%
+	mutate(
+		municipality_total_migrants = sum(total_migrants, na.rm = TRUE),
+		destination_share = total_migrants / municipality_total_migrants,
+		destination_rank = min_rank(desc(total_migrants))
+	) %>%
+	ungroup() %>%
+	group_by(mx_state, mx_municipality) %>%
+	summarise(
+		municipality_total_migrants = first(municipality_total_migrants),
+		active_us_states = sum(total_migrants > 0, na.rm = TRUE),
+		effective_us_states = exp(-sum(destination_share * log(destination_share), na.rm = TRUE)),
+		top_us_state = us_state[which.max(total_migrants)],
+		top_us_state_share = max(destination_share, na.rm = TRUE),
+		top_2_us_state_share = sum(sort(destination_share, decreasing = TRUE)[seq_len(min(2, n()))], na.rm = TRUE),
+		complement_share = 1 - top_us_state_share,
+		herfindahl_index = sum(destination_share^2, na.rm = TRUE),
+		.groups = "drop"
+	) %>%
+	mutate(
+		diversification_type = case_when(
+			top_us_state_share >= 0.80 ~ "Dominant destination",
+			effective_us_states >= 4 ~ "Broadly diversified",
+			TRUE ~ "Moderately diversified"
+		)
+	) %>%
+	arrange(desc(municipality_total_migrants))
+
+top_destination_by_year <- corridor_yearly %>%
+	group_by(mx_state, mx_municipality, year) %>%
+	slice_max(yearly_migrants, n = 1, with_ties = FALSE) %>%
+	ungroup()
+
+municipality_top_destination_persistence <- top_destination_by_year %>%
+	group_by(mx_state, mx_municipality, us_state) %>%
+	summarise(years_as_top_destination = n(), .groups = "drop_last") %>%
+	mutate(year_share_as_top_destination = years_as_top_destination / sum(years_as_top_destination)) %>%
+	slice_max(years_as_top_destination, n = 1, with_ties = FALSE) %>%
+	ungroup() %>%
+	left_join(
+		municipality_destination_profile %>%
+			select(mx_state, mx_municipality, municipality_total_migrants, effective_us_states, complement_share),
+		by = c("mx_state", "mx_municipality")
+	) %>%
+	mutate(
+		top_destination_persistence_type = case_when(
+			year_share_as_top_destination == 1 ~ "Always same top state",
+			year_share_as_top_destination >= 0.75 ~ "Usually same top state",
+			TRUE ~ "Frequent switching"
+		)
+	) %>%
+	arrange(desc(municipality_total_migrants))
+
+corridor_magnitude_distribution <- corridor_summary %>%
+	summarise(
+		corridors = n(),
+		total_migrants_all_corridors = sum(total_migrants, na.rm = TRUE),
+		mean_total_migrants = mean(total_migrants, na.rm = TRUE),
+		median_total_migrants = median(total_migrants, na.rm = TRUE),
+		p75_total_migrants = quantile(total_migrants, 0.75, na.rm = TRUE),
+		p90_total_migrants = quantile(total_migrants, 0.90, na.rm = TRUE),
+		p95_total_migrants = quantile(total_migrants, 0.95, na.rm = TRUE),
+		p99_total_migrants = quantile(total_migrants, 0.99, na.rm = TRUE),
+		max_total_migrants = max(total_migrants, na.rm = TRUE),
+		persistent_corridor_share = mean(nonzero_year_share >= 0.80, na.rm = TRUE),
+		sparse_corridor_share = mean(nonzero_year_share < 0.50, na.rm = TRUE)
+	)
+
+corridor_persistence_by_class <- corridor_summary %>%
+	count(persistence_class, name = "corridors") %>%
+	mutate(corridor_share = corridors / sum(corridors)) %>%
+	arrange(desc(corridors))
+
+write_csv(corridor_summary, file.path(plot_output_dir, "corridor_summary_statistics.csv"))
+write_csv(corridor_growth_summary, file.path(plot_output_dir, "corridor_growth_emergence_decline.csv"))
+write_csv(municipality_destination_profile, file.path(plot_output_dir, "municipality_destination_complementarity.csv"))
+write_csv(municipality_top_destination_persistence, file.path(plot_output_dir, "municipality_top_destination_persistence.csv"))
+write_csv(corridor_magnitude_distribution, file.path(plot_output_dir, "corridor_magnitude_distribution_summary.csv"))
+write_csv(corridor_persistence_by_class, file.path(plot_output_dir, "corridor_persistence_by_class.csv"))
+
 # Plot-ready data for migration exposure, stability, and flow architecture
 municipality_catalog <- read_excel(municipality_catalog_path, skip = 3) %>%
 	filter(!is.na(CVEGEO), !is.na(NOM_ENT), !is.na(NOM_MUN)) %>%
@@ -538,6 +712,145 @@ lorenz_curve_plot <- ggplot(lorenz_curve_data, aes(x = cumulative_destinations))
 	) +
 	theme_minimal(base_size = 11)
 
+corridor_persistence_distribution_plot <- ggplot(
+	corridor_summary,
+	aes(x = nonzero_year_share, fill = persistence_class)
+) +
+	geom_histogram(binwidth = 0.05, color = "white", boundary = 0) +
+	scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_fill_brewer(palette = "Set2", name = "Persistence class") +
+	labs(
+		title = "Corridor Persistence Distribution",
+		subtitle = "Share of years in which each municipality-to-US-state link is active",
+		x = "Active-year share",
+		y = "Corridors"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom")
+
+corridor_magnitude_persistence_plot <- corridor_summary %>%
+	slice_max(total_migrants, n = 5000) %>%
+	ggplot(aes(x = total_migrants, y = nonzero_year_share)) +
+	geom_point(aes(color = persistence_class, size = mean_annual_flow), alpha = 0.45) +
+	scale_x_log10(labels = scales::comma) +
+	scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+	scale_size_area(max_size = 7, labels = scales::comma, name = "Mean annual flow") +
+	scale_color_brewer(palette = "Set2", name = "Persistence class") +
+	labs(
+		title = "Corridor Magnitude and Persistence",
+		subtitle = "Largest 5,000 positive links, sized by average annual flow",
+		x = "Total migrants through corridor, log scale",
+		y = "Active-year share"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom")
+
+top_lifecycle_corridors <- corridor_summary %>%
+	slice_max(total_migrants, n = 100) %>%
+	mutate(corridor = paste(mx_state, mx_municipality, "->", us_state)) %>%
+	select(mx_state, mx_municipality, us_state, corridor, total_migrants)
+
+corridor_lifecycle_plot_data <- corridor_yearly %>%
+	inner_join(
+		top_lifecycle_corridors,
+		by = c("mx_state", "mx_municipality", "us_state")
+	) %>%
+	mutate(
+		active = yearly_migrants > 0,
+		corridor = reorder(corridor, total_migrants)
+	)
+
+corridor_lifecycle_heatmap_plot <- ggplot(
+	corridor_lifecycle_plot_data,
+	aes(x = year, y = corridor, fill = active)
+) +
+	geom_tile(color = "white", linewidth = 0.1) +
+	scale_fill_manual(values = c("FALSE" = "grey90", "TRUE" = "#2C7FB8"), name = "Active") +
+	labs(
+		title = "Persistence Calendar for Top Corridors",
+		subtitle = "Top 100 municipality-to-US-state links by total migrant volume",
+		x = "Year",
+		y = "Corridor"
+	) +
+	theme_minimal(base_size = 9) +
+	theme(
+		axis.text.y = element_text(size = 4.5),
+		panel.grid = element_blank(),
+		legend.position = "bottom"
+	)
+
+municipality_complementarity_plot <- municipality_destination_profile %>%
+	slice_max(municipality_total_migrants, n = 2000) %>%
+	ggplot(aes(x = top_us_state_share, y = effective_us_states)) +
+	geom_point(aes(size = municipality_total_migrants, color = diversification_type), alpha = 0.55) +
+	scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_size_area(max_size = 8, labels = scales::comma, name = "Total migrants") +
+	scale_color_brewer(palette = "Dark2", name = "Destination profile") +
+	labs(
+		title = "Municipality Destination Complementarity",
+		subtitle = "Higher effective states means outflows are spread across complementary US destinations",
+		x = "Share going to the top US state",
+		y = "Effective number of US destination states"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom")
+
+top_destination_persistence_plot <- municipality_top_destination_persistence %>%
+	slice_max(municipality_total_migrants, n = 40) %>%
+	mutate(municipality_label = reorder(paste(mx_state, mx_municipality, sep = " - "), year_share_as_top_destination)) %>%
+	ggplot(aes(x = year_share_as_top_destination, y = municipality_label, fill = top_destination_persistence_type)) +
+	geom_col() +
+	scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+	scale_fill_brewer(palette = "Set2", name = "Top-state persistence") +
+	labs(
+		title = "Persistence of the Top US Destination",
+		subtitle = "Top 40 municipalities by total migrant outflow",
+		x = "Share of years with same top US state",
+		y = "Mexican municipality"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(axis.text.y = element_text(size = 6), legend.position = "bottom")
+
+emerging_declining_corridors_plot <- corridor_growth_summary %>%
+	filter(change_class %in% c("Emerging", "Disappearing", "Growing", "Declining")) %>%
+	slice_max(abs(absolute_change), n = 50) %>%
+	mutate(
+		corridor = reorder(paste(mx_state, mx_municipality, "->", us_state), absolute_change),
+		change_direction = if_else(absolute_change >= 0, "Increasing", "Decreasing")
+	) %>%
+	ggplot(aes(x = absolute_change, y = corridor, fill = change_direction)) +
+	geom_col() +
+	geom_vline(xintercept = 0, color = "grey45") +
+	scale_x_continuous(labels = scales::comma) +
+	scale_fill_manual(values = c("Increasing" = "#1B9E77", "Decreasing" = "#D95F02"), name = NULL) +
+	labs(
+		title = "Emerging and Declining Corridors",
+		subtitle = paste(
+			"Change in average annual flow:",
+			paste(early_years, collapse = "-"),
+			"vs.",
+			paste(late_years, collapse = "-")
+		),
+		x = "Change in average annual migrants",
+		y = "Corridor"
+	) +
+	theme_minimal(base_size = 9) +
+	theme(axis.text.y = element_text(size = 5), legend.position = "bottom")
+
+link_magnitude_distribution_plot <- ggplot(corridor_summary, aes(x = total_migrants)) +
+	geom_histogram(bins = 80, fill = "#4C78A8", color = "white") +
+	scale_x_log10(labels = scales::comma) +
+	scale_y_continuous(labels = scales::comma) +
+	labs(
+		title = "Distribution of Corridor Magnitudes",
+		subtitle = "Positive municipality-to-US-state links over the full period",
+		x = "Total migrants through corridor, log scale",
+		y = "Corridors"
+	) +
+	theme_minimal(base_size = 11)
+
 save_and_print_plot(migration_heatmap_plot, "migration_heatmap_top_150_municipalities.png", 15, 24)
 save_and_print_plot(bivariate_exposure_plot, "bivariate_exposure_concentration.png", 10, 7)
 save_and_print_plot(migration_pulse_plot, "migration_pulse_top_10_corridors.png", 12, 8)
@@ -545,6 +858,13 @@ save_and_print_plot(slopegraph_plot, "rank_change_slopegraph.png", 9, 7)
 save_and_print_plot(sankey_alluvial_plot, "sankey_alluvial_mx_state_to_us_state.png", 13, 8)
 save_and_print_plot(chord_diagram_plot, "chord_style_corridor_connections.png", 12, 8)
 save_and_print_plot(lorenz_curve_plot, "lorenz_curve_destinations.png", 9, 7)
+save_and_print_plot(corridor_persistence_distribution_plot, "corridor_persistence_distribution.png", 10, 6)
+save_and_print_plot(corridor_magnitude_persistence_plot, "corridor_magnitude_vs_persistence.png", 10, 7)
+save_and_print_plot(corridor_lifecycle_heatmap_plot, "corridor_lifecycle_heatmap_top_100.png", 13, 18)
+save_and_print_plot(municipality_complementarity_plot, "municipality_destination_complementarity.png", 10, 7)
+save_and_print_plot(top_destination_persistence_plot, "top_destination_persistence_by_municipality.png", 10, 10)
+save_and_print_plot(emerging_declining_corridors_plot, "emerging_declining_corridors.png", 12, 10)
+save_and_print_plot(link_magnitude_distribution_plot, "corridor_magnitude_distribution.png", 10, 6)
 graphics.off()
 
 # 2) Average weighted migration matrices (FINAL*.xlsx)
@@ -564,6 +884,12 @@ calibrated_remittances_stats <- basic_stats(calibrated_remittances)
 View(yearly_migration_stats)
 View(concentration_ratio)
 View(corridor_stability)
+View(corridor_summary)
+View(corridor_growth_summary)
+View(municipality_destination_profile)
+View(municipality_top_destination_persistence)
+View(corridor_magnitude_distribution)
+View(corridor_persistence_by_class)
 View(top_corridors_table)
 View(migration_heatmap_data)
 View(bivariate_choropleth_data)

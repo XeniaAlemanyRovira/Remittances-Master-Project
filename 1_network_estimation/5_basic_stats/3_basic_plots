@@ -1,0 +1,367 @@
+#!/usr/bin/env Rscript
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+  library(ggplot2)
+  library(stringr)
+  library(forcats)
+  library(plotly)
+  library(htmlwidgets)
+})
+
+# Paths
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", cmd_args, value = TRUE)
+
+  if (length(file_arg) > 0) {
+    return(normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = TRUE))
+  }
+
+  frames <- sys.frames()
+  for (frame in rev(frames)) {
+    if (!is.null(frame$ofile)) {
+      return(normalizePath(frame$ofile, winslash = "/", mustWork = TRUE))
+    }
+  }
+
+  NA_character_
+}
+
+find_repo_root <- function(start_dir) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+
+  repeat {
+    if (
+      file.exists(file.path(current_dir, "Thesis.Rproj")) ||
+      dir.exists(file.path(current_dir, ".git"))
+    ) {
+      return(current_dir)
+    }
+
+    parent_dir <- dirname(current_dir)
+    if (identical(parent_dir, current_dir)) {
+      stop("Could not find the project root from: ", start_dir)
+    }
+    current_dir <- parent_dir
+  }
+}
+
+script_path <- get_script_path()
+project_dir <- if (!is.na(script_path)) {
+  find_repo_root(dirname(script_path))
+} else {
+  find_repo_root(getwd())
+}
+
+path_in_repo <- function(...) {
+  normalizePath(file.path(project_dir, ...), winslash = "/", mustWork = FALSE)
+}
+
+remittance_calibration_dir <- path_in_repo("1_network_estimation", "4_remittance_calibration", "output")
+plot_output_dir <- path_in_repo("1_network_estimation", "5_basic_stats", "output")
+dir.create(plot_output_dir, recursive = TRUE, showWarnings = FALSE)
+
+csv_path <- file.path(remittance_calibration_dir, "remittance_flows_origin_state_usd_2013q1_2024q4.csv")
+df <- read_csv(csv_path, show_col_types = FALSE)
+
+save_plotly <- function(plot, file_name) {
+  saveWidget(
+    plot,
+    file = file.path(plot_output_dir, file_name),
+    selfcontained = FALSE
+  )
+}
+
+save_ggplot <- function(plot, file_name, width = 10, height = 6) {
+  ggsave(
+    filename = file.path(plot_output_dir, file_name),
+    plot = plot,
+    width = width,
+    height = height,
+    dpi = 300
+  )
+}
+
+state_palette <- function(states) {
+  state_names <- sort(unique(states))
+  stats::setNames(
+    grDevices::hcl.colors(length(state_names), palette = "Dark 3"),
+    state_names
+  )
+}
+
+# Top 10 minus the 2 biggest = ranks 3 to 10
+top10_states <- df %>%
+  group_by(us_state) %>%
+  summarise(overall_total = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(overall_total)) %>%
+  slice(3:10) %>%
+  pull(us_state)
+
+df_top_states <- df %>%
+  filter(us_state %in% top10_states) %>%
+  group_by(us_state, year_quarter) %>%
+  summarise(total_remittance = sum(remittances_usd, na.rm = TRUE), .groups = "drop")
+
+# 1. Total remittances, interactive
+p_total_interactive <- plot_ly(
+  df_top_states,
+  x = ~year_quarter,
+  y = ~total_remittance,
+  color = ~us_state,
+  text = ~us_state,
+  type = "scatter",
+  mode = "lines",
+  colors = state_palette(df_top_states$us_state),
+  hovertemplate = "%{text}<extra></extra>"
+) %>%
+  layout(
+    title = "Total Remittances - Top 10 US States (excluding top 2)",
+    xaxis = list(title = "Year-Quarter", tickangle = -90),
+    yaxis = list(title = "Total Remittance (USD)"),
+    showlegend = TRUE
+  )
+
+save_plotly(p_total_interactive, "top_states_total_remittances.html")
+
+# 2. Percentage change, interactive
+df_top_states <- df_top_states %>%
+  group_by(us_state) %>%
+  arrange(year_quarter, .by_group = TRUE) %>%
+  mutate(pct_change = (total_remittance - lag(total_remittance)) / lag(total_remittance) * 100) %>%
+  ungroup()
+
+p_pct_change_interactive <- plot_ly(
+  df_top_states,
+  x = ~year_quarter,
+  y = ~pct_change,
+  color = ~us_state,
+  text = ~us_state,
+  type = "scatter",
+  mode = "lines",
+  colors = state_palette(df_top_states$us_state),
+  hovertemplate = "%{text}<extra></extra>"
+) %>%
+  layout(
+    title = "Percentage Change in Remittances - Top 10 US States (excluding top 2)",
+    xaxis = list(title = "Year-Quarter", tickangle = -90),
+    yaxis = list(title = "Percentage Change"),
+    showlegend = TRUE
+  )
+
+save_plotly(p_pct_change_interactive, "top_states_pct_change.html")
+
+# Prep for static plots
+df_summary <- df %>%
+  group_by(us_state, year_quarter) %>%
+  summarise(total_remittance = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+  mutate(
+    year = as.integer(substr(year_quarter, 1, 4)),
+    quarter = as.integer(substr(year_quarter, 6, 6))
+  )
+
+df_state_totals <- df_summary %>%
+  group_by(us_state) %>%
+  summarise(overall_total = sum(total_remittance, na.rm = TRUE), .groups = "drop")
+
+# 3. Histogram of remittance values
+p_hist <- ggplot(df_summary, aes(x = total_remittance)) +
+  geom_histogram(bins = 60, fill = "steelblue", color = "white") +
+  scale_x_log10(labels = scales::comma) +
+  labs(
+    title = "Distribution of Quarterly Remittances (log scale)",
+    x = "Total Remittance (USD, log)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+save_ggplot(p_hist, "quarterly_remittances_histogram.png")
+
+# 4. Boxplot by state, ordered by median
+p_box_state <- ggplot(
+  df_summary,
+  aes(x = fct_reorder(us_state, total_remittance, .fun = median), y = total_remittance)
+) +
+  geom_boxplot(outlier.size = 0.8) +
+  scale_y_log10(labels = scales::comma) +
+  coord_flip() +
+  labs(
+    title = "Distribution of Quarterly Remittances by State",
+    x = NULL,
+    y = "Total Remittance (USD, log)"
+  ) +
+  theme_minimal(base_size = 9)
+
+save_ggplot(p_box_state, "quarterly_remittances_boxplot_by_state.png", width = 9, height = 8)
+
+# 5. Boxplot by year, volatility over time
+p_box_year <- ggplot(df_summary, aes(x = factor(year), y = total_remittance, group = year)) +
+  geom_boxplot(outlier.size = 0.8, fill = "lightblue") +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Remittance Distribution by Year",
+    x = "Year",
+    y = "Total Remittance (USD, log)"
+  ) +
+  theme_minimal()
+
+save_ggplot(p_box_year, "remittance_distribution_by_year.png")
+
+# 6. Bar chart, all-time totals by state
+p_totals_state <- ggplot(
+  df_state_totals,
+  aes(x = fct_reorder(us_state, overall_total), y = overall_total)
+) +
+  geom_col(fill = "steelblue") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  labs(
+    title = "All-Time Total Remittances by State (2013-2024)",
+    x = NULL,
+    y = "Total Remittance (USD)"
+  ) +
+  theme_minimal(base_size = 9)
+
+save_ggplot(p_totals_state, "all_time_total_remittances_by_state.png", width = 9, height = 8)
+
+# 7. Stacked area, share of total over time
+df_area <- df_summary %>%
+  group_by(year_quarter) %>%
+  mutate(share = total_remittance / sum(total_remittance) * 100) %>%
+  ungroup()
+
+top10 <- df_state_totals %>%
+  slice_max(overall_total, n = 10) %>%
+  pull(us_state)
+
+p_area <- df_area %>%
+  mutate(us_state = if_else(us_state %in% top10, us_state, "Other")) %>%
+  group_by(us_state, year_quarter) %>%
+  summarise(share = sum(share), .groups = "drop") %>%
+  ggplot(
+    aes(
+      x = year_quarter,
+      y = share,
+      fill = fct_reorder(us_state, share, .fun = mean, .desc = TRUE),
+      group = fct_reorder(us_state, share, .fun = mean, .desc = TRUE)
+    )
+  ) +
+  geom_area() +
+  scale_x_discrete(
+    breaks = unique(df_summary$year_quarter)[seq(1, n_distinct(df_summary$year_quarter), by = 4)]
+  ) +
+  labs(
+    title = "Share of Total Remittances Over Time",
+    x = "Year-Quarter",
+    y = "Share (%)",
+    fill = "State"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+save_ggplot(p_area, "share_total_remittances_over_time.png", width = 10, height = 6)
+
+# 8. Seasonality, boxplot by quarter
+p_seasonality <- ggplot(df_summary, aes(x = factor(quarter), y = total_remittance)) +
+  geom_boxplot(fill = "lightblue", outlier.size = 0.8) +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Seasonality: Remittances by Quarter",
+    x = "Quarter",
+    y = "Total Remittance (USD, log)"
+  ) +
+  theme_minimal()
+
+save_ggplot(p_seasonality, "seasonality_remittances_by_quarter.png")
+
+# 9. Heatmap: selected states by year
+heatmap_states <- c(
+  "Illinois", "Florida", "Georgia", "New York", "Arizona",
+  "Colorado", "North Carolina", "Washington", "New Jersey",
+  "Minnesota", "Tennessee"
+)
+
+df_heatmap <- df_summary %>%
+  group_by(us_state, year) %>%
+  summarise(annual_total = sum(total_remittance, na.rm = TRUE), .groups = "drop") %>%
+  filter(us_state %in% heatmap_states)
+
+p_heatmap <- ggplot(
+  df_heatmap,
+  aes(
+    x = factor(year),
+    y = fct_reorder(us_state, annual_total, .fun = sum),
+    fill = annual_total
+  )
+) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(labels = scales::comma, option = "C") +
+  labs(
+    title = "Heatmap: Annual Remittances by State",
+    x = "Year",
+    y = NULL,
+    fill = "USD"
+  ) +
+  theme_minimal(base_size = 9) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+save_ggplot(p_heatmap, "annual_remittances_heatmap_by_state.png")
+
+# 10. YoY change, interactive
+df_yoy <- df_summary %>%
+  group_by(us_state, quarter) %>%
+  arrange(year, .by_group = TRUE) %>%
+  mutate(yoy_change = (total_remittance - lag(total_remittance)) / lag(total_remittance) * 100) %>%
+  ungroup()
+
+p_yoy_interactive <- plot_ly(
+  df_yoy,
+  x = ~year_quarter,
+  y = ~yoy_change,
+  color = ~us_state,
+  text = ~us_state,
+  type = "scatter",
+  mode = "lines",
+  colors = state_palette(df_yoy$us_state),
+  hovertemplate = "%{text}<extra></extra>"
+) %>%
+  layout(
+    title = "Year-over-Year Change in Remittances by State",
+    xaxis = list(title = "Year-Quarter", tickangle = -90),
+    yaxis = list(title = "YoY Change (%)"),
+    showlegend = FALSE
+  )
+
+save_plotly(p_yoy_interactive, "yoy_change_remittances_by_state.html")
+
+# 11. Scatter: total volume vs volatility, interactive
+df_scatter <- df_summary %>%
+  group_by(us_state) %>%
+  summarise(
+    mean_remittance = mean(total_remittance, na.rm = TRUE),
+    sd_remittance = sd(total_remittance, na.rm = TRUE),
+    cv = sd_remittance / mean_remittance * 100,
+    .groups = "drop"
+  )
+
+p_scatter_interactive <- plot_ly(
+  df_scatter,
+  x = ~mean_remittance,
+  y = ~cv,
+  text = ~us_state,
+  type = "scatter",
+  mode = "markers",
+  hovertemplate = "<b>%{text}</b><br>Mean: %{x:,.0f}<br>CV: %{y:.1f}%<extra></extra>",
+  marker = list(size = 8, color = "steelblue")
+) %>%
+  layout(
+    title = "Remittance Volume vs Volatility by State",
+    xaxis = list(title = "Mean Quarterly Remittance (USD)", type = "log"),
+    yaxis = list(title = "Coefficient of Variation (%)"),
+    showlegend = FALSE
+  )
+
+save_plotly(p_scatter_interactive, "remittance_volume_vs_volatility.html")
+
+cat("Saved plots into", plot_output_dir, "\n")
