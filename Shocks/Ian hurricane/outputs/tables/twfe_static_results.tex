@@ -1,0 +1,31 @@
+\begin{table}
+\centering
+\begin{talltblr}[         %% tabularray outer open
+entry=none,label=none,
+note{}={+ p \num{< 0.1}, * p \num{< 0.05}, ** p \num{< 0.01}, *** p \num{< 0.001}},
+note{ }={Outcome is log(1 + remittances in million USD).},
+note{  }={Standard errors are clustered by origin state and Mexican municipality.},
+note{   }={Clean controls exclude North Carolina and South Carolina. Top 50 restricts Mexican destinations to the largest pre-Ian Florida-linked municipalities.},
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]Q[]Q[]Q[]},
+hline{2}={1-5}{solid, black, 0.05em},
+hline{4}={1-5}{solid, black, 0.05em},
+hline{1}={1-5}{solid, black, 0.08em},
+hline{12}={1-5}{solid, black, 0.08em},
+column{2-5}={}{halign=c},
+column{1}={}{halign=l},
+}                     %% tabularray inner close
+& All states: quarter FE & All states: municipality-quarter FE & Clean controls & Top 50 clean controls \\
+Florida x post-Ian & 0.002 & 0.002 & 0.002 & 0.108*** \\
+& (0.004) & (0.004) & (0.004) & (0.023) \\
+Num.Obs. & 6000048 & 6000048 & 5764752 & 117600 \\
+R2 & 0.920 & 0.941 & 0.941 & 0.947 \\
+R2 Adj. & 0.919 & 0.939 & 0.938 & 0.945 \\
+R2 Within & 0.000 & 0.000 & 0.000 & 0.003 \\
+R2 Within Adj. & 0.000 & 0.000 & 0.000 & 0.003 \\
+FE: pair\_id & X & X & X & X \\
+FE: municipality\_period\_id &  & X & X & X \\
+FE: period\_date & X &  &  &  \\
+\end{talltblr}
+\end{table}
