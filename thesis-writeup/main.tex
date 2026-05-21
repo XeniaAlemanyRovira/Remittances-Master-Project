@@ -1,0 +1,183 @@
+\documentclass[12pt, a4paper]{report}
+
+% Packages 
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[lining]{ebgaramond}
+\usepackage[cmintegrals,cmbraces]{newtxmath}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{bbm}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage{parskip}          
+\usepackage{titlesec}             
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage[
+    colorlinks=true,
+    linkcolor=black,    
+    citecolor=black,    
+    urlcolor=blue       
+]{hyperref}
+\usepackage{csquotes}
+\usepackage[style=apa, backend=biber]{biblatex}
+\usepackage[skip=6pt]{caption}
+\usepackage{fancyhdr}
+
+% page style
+\pagestyle{fancy}
+\fancyhf{} 
+\fancyhead[L]{\nouppercase{\leftmark}} 
+\fancyfoot[C]{\thepage} 
+\renewcommand{\headrulewidth}{0.4pt} 
+\renewcommand{\footrulewidth}{0pt} 
+
+% This ensures that the very first page of the document doesn't get the header line
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+}
+
+% bibliography
+\addbibresource{references.bib} 
+
+% Image path
+\graphicspath{{./figures/}}
+
+% Break links
+\setcounter{biburlnumpenalty}{100}
+\setcounter{biburlucpenalty}{100}
+\setcounter{biburllcpenalty}{100}
+
+% Page geometry
+\geometry{
+    top=3cm,
+    bottom=3cm,
+    left=3cm,
+    right=3cm,
+    footnotesep=1cm,
+}
+
+% Line spacing
+\setstretch{1.5}
+
+% Font sizes for titles
+% Chapter titles: 16pt bold
+\titleformat{\chapter}[hang]
+    {\normalfont\fontsize{16}{20}\bfseries}
+    {\thechapter.}{0.5em}{}
+
+% Section titles: 16pt 
+\titleformat{\section}
+    {\normalfont\fontsize{16}{20}\rmfamily}
+    {\thesection.}{1em}{}
+
+% Subsection titles: 14pt italic
+\titleformat{\subsection}
+    {\normalfont\fontsize{14}{18}\itshape}
+    {\thesubsection.}{1em}{}
+
+% Title spacing
+\titlespacing*{\chapter}{0pt}{-30pt}{8pt}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+
+% Captions and footnotes: 11pt
+\DeclareCaptionFont{captionfont}{\fontsize{11}{13}\selectfont}
+\captionsetup{
+        font=captionfont,
+        justification=raggedright,
+        singlelinecheck=false
+    }
+
+% No paragraph indentation
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+
+\usepackage{etoolbox}
+\apptocmd{\normalsize}{%
+    \setlength{\abovedisplayshortskip}{\abovedisplayskip}%
+    \setlength{\belowdisplayshortskip}{\belowdisplayskip}%
+}{}{}
+
+% ════════════════════════════════════════════════════════════
+\begin{document}
+
+% Cover Page
+\begin{titlepage}
+    \centering
+
+    \vspace*{2cm}
+
+    {\large MASTER PROJECT\par}
+    \vspace{2cm}
+
+    {\Large \bfseries Shock propagation through the lens of remittances\par}
+    {\large Who bears the cost? Evidence from US--Mexico migration corridors\par}
+    \vspace{4cm}
+
+    {\large \bfseries Authors\par}
+    {
+    \setlength{\parskip}{2pt} 
+    \normalsize
+    Anqi Wang Liu,
+    Francesco Zucca,
+    Joan Costa Rodríguez, \par
+    Michael Fehl,
+    Xènia Alemany Rovira
+    }
+
+    \vspace{2cm}
+
+    {\large \bfseries Barcelona School of Economics\par}
+    {\large Master's program in Economics\par}
+
+    \vspace{2cm}
+
+    \noindent\makebox[\textwidth][s]{
+        \includegraphics[width=0.22\textwidth]{BSE_logo.png}
+        \hfill
+        {\normalsize Academic year 2025--2026}%
+    }
+
+\end{titlepage}
+
+% Front matter
+\pagenumbering{roman}
+\pagestyle{fancy}
+
+% Table of contents
+\tableofcontents
+\newpage
+
+% Abstract
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\newpage
+
+% Main body
+\pagenumbering{arabic}
+
+% Chapter 1: introduction
+\input{chapters/1_introduction}
+
+% Chapter 2: theoretical framework and estimation technique
+\input{chapters/2_framework_estimation}
+
+% Chapter 3: data and remittance estimation
+\input{chapters/3_data}
+
+% Chapter 4: shock selection
+\input{chapters/4_shock_results}
+
+% Conclusions
+\chapter{Conclusion}
+
+% Bibliography
+\printbibliography[heading=bibintoc, title={Bibliography}]
+
+\end{document}

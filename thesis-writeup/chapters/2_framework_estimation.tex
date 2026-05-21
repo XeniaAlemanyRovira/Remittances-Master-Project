@@ -1,0 +1,93 @@
+\chapter{Theoretical framework and empirical strategy}
+
+This chapter outlines the theoretical and empirical framework use for our analysis. We begin by adapting a heterogeneous-firm trade model to the context of individual remittance behavior, enstablishing the theoretical foundations of how a migrant's transfer decisions can be influenced by economic shocks. Next, we introduce Hurricane Ian, which hit Florida in 2022, as a natural experiment that acts as an exogenous shock to migrant income. Finally, we present our estimation strategy (explain the strategy here) and discuss how we examine potential spillover effects, which can bias our estimates if not properly accounted for.
+
+\section{Remittance model}
+
+To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, and where remitting requires paying both a fixed access cost and a variable cost proportional to the amount remitted. Formally, consider migrant $i$ from origin municipality $m$ in year $t$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and total resources available to the origin household:
+\begin{equation}
+    U_{imt} = \left[ \alpha \left( c^L_{imt} \right)^{\frac{\sigma-1}{\sigma}} 
+    + (1-\alpha) \left( \phi_{im} \left( R_{imt} + y^O_{mt} \right) \right) ^{\frac{\sigma-1}{\sigma}} \right]^{\frac{\sigma}{\sigma-1}}
+\end{equation}
+where $\phi_{im} > 0$ denotes the altruism or obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This stricly positive nature of this parameter ensures that sending remittances always increases the migrant's utility. The variable $c^L_{imt} \geq 0$ represents the migrant's consumption in the destination country, $R_{imt} \geq 0$ is the amount sent in remittances, and $y^O_{mt} \geq 0$ captures the origin hosehold's income as observed by the migrant. The weight of local consumption is given by $\alpha \in (0,1)$, and the elasticity of substitution between local consumption and origin-household resources is given by $\sigma$. Notably, origin-household total resources are defined as $R_{imt} + y^O_{mt}$, which we treat as a single composite good. The presence of $y^O_{mt}$ introduces a role for origin-country economic conditions: negative income shocks at origin (i.e. lower $y^O_{mt}$) increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
+
+\par 
+
+The migrant's budget constraint is given by:
+\begin{equation}
+    c^L_{imt} + f_{mt} \mathbbm{1}\{R_{imt} > 0\} + (1 + \tau_{mt})R_{imt} \leq w_{imt}
+\end{equation}
+where $w_{imt} \geq 0$ is the migrant's wage, $f_{mt} \geq 0$ is a fixed remitting cost capturing the per-transaction expense of accessing a remittance channel, analogous to the fixed export cost in \textcite{melitz2003}, and $\tau_{mt} > -1$ is the variable cost which scales with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}. Notice that, even though $\tau_{mt}$ is typically positive to reflect transaction fees or exchange rate spreads, we allow for the possibility of negative variable costs, which could arise from the presence of remittance subsidies or favorable exchange rate regimes.
+
+\par
+
+Assuming that the migrant maximizes utility subject to the budget constraint and chooses to remit a positive amount ($R_{imt} > 0$), solving the Lagrangian yields the optimal remittance function:
+\begin{equation}
+R^*_{imt} = \frac{\left( w_{imt} - f_{mt} + (1 + \tau_{mt})y^O_{mt} \right) A_{imt} - y^O_{mt}}{1 + (1 + \tau_{mt})A_{imt}}
+\end{equation}
+where we define the parameter $A_{imt}$ as:
+\begin{equation}
+A_{imt} \equiv \left( \frac{(1-\alpha)\phi_{im}}{\alpha(1+\tau_{mt})} \right)^\sigma
+\end{equation}
+The term $A_{imt}$ represents the optimal ratio of origin-household resources to own local consumption, adjusted for the variable cost of remitting. It comprises the migrant's altruism intensity ($\phi_{im}$), the utility weight of own consumption ($\alpha$), the elasticity of substitution ($\sigma$), and the variable cost of remitting ($\tau_{mt}$).
+
+\par
+
+To understand the effect of destination-country economic shocks on remittance flows, we analyze changes in the migrant's wage ($w_{imt}$). The partial derivative of optimal remittances with respect to wage is strictly positive:
+\begin{equation}
+\frac{\partial R^*_{imt}}{\partial w_{imt}} = \frac{A_{imt}}{1 + (1 + \tau_{mt})A_{imt}}\end{equation}
+Therefore, through an income effect, the model predicts that a positive shock to the migrant's wage will increase remittances, while a negative shock will decrease them. The fixed cost $f_{mt}$ enstablishes an entry threshold: if the migrant's wage is not sufficiently high relative to the fixed cost, they will not send remittances at all. Additionally, the variable cost $\tau_{mt}$ reduces the marginal benefit of each dollar sent, dampening the sensitity of remittances to wage flactuations.
+
+\par
+
+Ultimately, this model provides a theoretical framework to understand how shocks that affect migrants' income can influence remittance flows, which is the main focus of our empirical analysis. However, a negative shock to migrant's wage does not directly imply a significant decrease in remittances, as the response depends on the shock's magnitude, the migrant's altruism intensity, and the cost structure of remitting.
+
+\section{The natural experiment: Hurricane Ian (2022)}
+
+The shock selected for this analysis is Hurricane Ian, which struck the southwestern coast of Florida on September 28, 2022, with peak sustained winds of 140 kt (around 260 kph) \parencite{nhc_ian_2026}. Ian caused an estimated US\$\,112.9 billion in total damage in the United States, of which US\$\,109.5 billion occurred in Florida alone, making it simultaneously the costliest hurricane in Florida's history and the third-costliest in US history. In Lee County alone, at least 52,514 structures were impacted, of which 5,369 were completely destroyed \parencite{nhc_ian_2026}.
+
+\par
+
+Crucially for our identification strategy, Hurricane Ian did not affect Mexico. The storm originated in the Caribbean, made landfall in Cuba and Florida, and dissipated over the Atlantic after a final less impactful landfall in South Carolina \parencite{nhc_ian_2026}. Therefore, the shock is spatially clean. Indeed, remittance senders in Florida were directly exposed to a severe and sudden wealth shock (reference or data?), while remittance receivers in Mexican municipalities were entirely unaffected. This allows us to better isolate the transmission of the shock through the remittance channel.
+
+\section{Estimation technique}
+
+Nothing works we are doomed
+
+\section{Examining spillover effects}
+
+A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units. In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to a biased estimates (reference?). Therefore, it is necessary to explicitly separate direct treatment effects from spillover effects \parencite{hudgens2008, aronow2017}. To address this, we investigate both geographical spillovers across neighboring U.S. states and migration network spillovers across remittance corridors.
+
+\subsection{Geographical spillovers}
+
+To capture spatial spillovers, we adopt the geographical rings methodology proposed by \textcite{butts2023}. The underlying intuition is that the economic shock of Hurricane Ian may spill over into states near Florida, with the spillover effect decaying as distance increases. We classify non-Florida states into geographical rings based on their distance from Florida. For example, we define distance thresholds to construct Ring 1 ($0 < \text{distance} \leq 500$ miles), Ring 2 ($500 < \text{distance} \leq 1000$ miles), and Ring 3 ($1000 < \text{distance} \leq 1500$ miles). States located beyond the Ring 3 are assigned to the control group. 
+
+\par
+
+We estimate the geographical spillover effects using a Two-Way Fixed Effects (TWFE) specification:
+\begin{equation}
+    Y_{smt} = \alpha_{sm} + \lambda_t + \beta(\text{Florida}_s \times \text{Post}_t) + \sum_r \gamma_r(\text{Ring}_{rs} \times \text{Post}_t) + \varepsilon_{smt}
+\end{equation}
+where $\gamma_r$ captures the spillover effect on states within Ring $r$. If $\gamma_1$ is statistically significant but coefficients for farther rings are not, it suggests localized spillovers, while if all $\gamma_r$ are significant, geographical spillovers may be broader, suggesting that using all non-Florida states as controls could be problematic. 
+
+\subsection{Migration network spillovers}
+
+Beyond physical proximity, remittance corridors are deeply integrated in migrantion networks. An economic shock affecting migrants in Florida may indirectly influence remittances sent from other U.S. states if those migrants are connected to the same Mexican municipalities. For instance, if a Mexican municipality which is highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop in remittance inflows (can we connect it formally to our model?). 
+
+\par
+
+To formalize this, we apply the exposure mapping framework developed by \textcite{aronow2017}, which relaxes SUTVA by allowing a unit's outcome to depend on both its own treatment status ($D_i$) and its exposure to treatment through connected units ($h_i(D)$). Building on the network exposure measures established by \textcite{caballero_2023}, we construct a continuous exposure index defined as the share of a municipality's total remittances that originated from Florida prior to the hurricane:
+\begin{equation}
+    \text{ExposureFlorida}_m = \frac{\text{Remittances}_{\text{Florida}, m, \text{pre}}}{\sum_s \text{Remittances}_{s, m, \text{pre}}}
+\end{equation}
+
+\par
+
+To isolate the spillover effect, we restrict our sample to non-Florida remittance corridors ($s \neq \text{Florida}$) and estimate:
+\begin{equation}
+    Y_{smt} = \alpha_{sm} + \lambda_t + \theta(\text{ExposureFlorida}_{m,\text{pre}} \times \text{Post}_t) + \varepsilon_{smt}
+\end{equation}
+A strictly positive coefficient ($\theta > 0$) would indicate that municipalities highly dependent on Florida received larger remittance increases from other U.S.\ states after the hurricane, providing evidence of network insurance effects. To examine temporal dynamics and non-linearities, this continuous model can be expanded into an event study specification. Furthermore, the exposure index can be discretized into quantiles (e.g., low, medium, and high exposure bins) to capture non-linear indirect responses to the shock:
+\begin{equation}
+    Y_{smt} = \alpha_{sm} + \lambda_t + \sum_q \sum_{k \neq -1} \theta_{qk}(\text{ExposureQuantile}_{m,\text{pre},q} \times \mathbbm{1}\{t-T_0=k\}) + \varepsilon_{smt}
+\end{equation}

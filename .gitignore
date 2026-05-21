@@ -52,3 +52,23 @@ rsconnect/
 # macOS system files
 ._*
 .DS_Store
+
+# Latex stuff
+thesis-writeup/*.aux
+thesis-writeup/*.bbl
+thesis-writeup/*.bcf
+thesis-writeup/*.blg
+thesis-writeup/*.fdb_latexmk
+thesis-writeup/*.fls
+thesis-writeup/*.log
+thesis-writeup/*.out
+thesis-writeup/*.run.xml
+thesis-writeup/*.synctex.gz
+thesis-writeup/*.synctex-*.gz
+thesis-writeup/*.toc
+thesis-writeup/.vscode/
+thesis-writeup/.DS_Store
+thesis-writeup/._*
+
+# VSCode settings
+.vscode/
