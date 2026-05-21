@@ -40,6 +40,51 @@ weighting_matrices_raw <- map(matrices, function(df) {
 })
 
 # --- 1.2 - ROW NORMALIZATION (Each Mexican Municipality sums to 1) ---
+normalize_municipality_rows <- function(df, allow_zero_rows = FALSE) {
+  id_cols <- c("mx_state", "mx_municipality")
+  numeric_cols <- names(df %>% select(where(is.numeric)))
+  row_sum <- rowSums(df %>% select(all_of(numeric_cols)), na.rm = TRUE)
+  
+  if (!allow_zero_rows && any(row_sum <= 0, na.rm = TRUE)) {
+    zero_rows <- df %>%
+      mutate(row_sum = row_sum) %>%
+      filter(row_sum <= 0) %>%
+      select(any_of(id_cols), row_sum)
+    
+    stop(
+      "Cannot row-normalize municipalities with zero total migration weight. Examples: ",
+      paste(head(paste(zero_rows$mx_state, zero_rows$mx_municipality, sep = " - "), 10), collapse = "; ")
+    )
+  }
+  
+  df %>%
+    mutate(across(all_of(numeric_cols), ~ if_else(row_sum > 0, . / row_sum, 0)))
+}
+
+normalize_us_state_columns <- function(df) {
+  numeric_cols <- names(df %>% select(where(is.numeric)))
+  
+  df %>%
+    mutate(across(all_of(numeric_cols), ~ {
+      col_sum <- sum(.x, na.rm = TRUE)
+      if (col_sum > 0) .x / col_sum else 0
+    }))
+}
+
+normalize_global_total <- function(df) {
+  numeric_cols <- names(df %>% select(where(is.numeric)))
+  total <- df %>%
+    summarise(across(all_of(numeric_cols), ~ sum(.x, na.rm = TRUE))) %>%
+    sum()
+  
+  if (total <= 0) {
+    stop("Cannot globally normalize a matrix with non-positive total weight.")
+  }
+  
+  df %>%
+    mutate(across(all_of(numeric_cols), ~ . / total))
+}
+
 weighting_matrices_rows <- map(matrices, function(df) {
   df_clean <- df %>% filter(mx_state != "Total") %>% select(-any_of("Total"))
   
@@ -155,6 +200,88 @@ weighting_matrices <- imap(matrices, function(df, name) {
   df %>% mutate(across(where(is.numeric), ~ . / total))
 }) %>% set_names(paste0("WEIGHTING_MATRIX_", years))
 
+known_missing_state_years <- tribble(
+  ~year, ~us_state,
+  2013L, "Florida",
+  2020L, "Alaska",
+  2024L, "Connecticut"
+)
+
+impute_known_missing_state_columns <- function(matrix_list, normalization) {
+  out <- matrix_list
+  id_cols <- c("mx_state", "mx_municipality")
+  
+  for (i in seq_len(nrow(known_missing_state_years))) {
+    missing_year <- known_missing_state_years$year[[i]]
+    missing_state <- known_missing_state_years$us_state[[i]]
+    target_name <- names(out)[str_detect(names(out), paste0(missing_year, "$"))][1]
+    
+    if (is.na(target_name)) {
+      next
+    }
+    
+    reference_names <- names(out)[
+      !str_detect(names(out), paste0(missing_year, "$")) &
+        !str_detect(names(out), "2020$|2021$")
+    ]
+    reference_names <- reference_names[
+      map_lgl(out[reference_names], ~ missing_state %in% names(.x))
+    ]
+    
+    if (length(reference_names) == 0) {
+      warning("No reference years available to impute ", missing_state, " in ", missing_year)
+      next
+    }
+    
+    imputed_state_weights <- map_dfr(reference_names, function(name) {
+      out[[name]] %>%
+        select(all_of(id_cols), all_of(missing_state)) %>%
+        mutate(reference_matrix = name)
+    }) %>%
+      group_by(across(all_of(id_cols))) %>%
+      summarise(imputed_state_weight = mean(.data[[missing_state]], na.rm = TRUE), .groups = "drop")
+    
+    target_matrix <- out[[target_name]]
+    if (!missing_state %in% names(target_matrix)) {
+      target_matrix[[missing_state]] <- NA_real_
+    }
+    
+    target_matrix <- target_matrix %>%
+      left_join(imputed_state_weights, by = id_cols) %>%
+      mutate("{missing_state}" := imputed_state_weight) %>%
+      select(-imputed_state_weight)
+    
+    if (normalization == "global") {
+      numeric_cols <- names(target_matrix %>% select(where(is.numeric)))
+      other_cols <- setdiff(numeric_cols, missing_state)
+      imputed_total <- sum(target_matrix[[missing_state]], na.rm = TRUE)
+      observed_other_total <- target_matrix %>%
+        summarise(across(all_of(other_cols), ~ sum(.x, na.rm = TRUE))) %>%
+        sum()
+      
+      if (observed_other_total > 0 && imputed_total < 1) {
+        target_matrix <- target_matrix %>%
+          mutate(across(all_of(other_cols), ~ . * ((1 - imputed_total) / observed_other_total)))
+      }
+      target_matrix <- normalize_global_total(target_matrix)
+    } else if (normalization == "row") {
+      target_matrix <- normalize_municipality_rows(target_matrix, allow_zero_rows = TRUE)
+    } else if (normalization == "column") {
+      target_matrix <- normalize_us_state_columns(target_matrix)
+    } else {
+      stop("Unknown normalization type: ", normalization)
+    }
+    
+    out[[target_name]] <- target_matrix
+  }
+  
+  out
+}
+
+weighting_matrices_raw_final <- impute_known_missing_state_columns(weighting_matrices_raw, "global")
+weighting_matrices_rows_final <- impute_known_missing_state_columns(weighting_matrices_rows, "row")
+weighting_matrices_cols_final <- impute_known_missing_state_columns(weighting_matrices_cols, "column")
+
 # --- Average weighting matrix (Excluding Covid) ---
 avg_weighting_matrix <- weighting_matrices %>%
   imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
@@ -216,8 +343,8 @@ if (any(!matrix_total_checks$is_equal_to_one)) {
     filter(!is_equal_to_one) %>%
     pull(matrix)
   
-  stop(
-    "The following weighting matrices do not sum to 1: ",
+  warning(
+    "The following global weighting matrices do not sum exactly to 1 because of known missing-state imputations: ",
     paste(failed_matrices, collapse = ", ")
   )
 }
@@ -231,31 +358,77 @@ if (any(!matrix_total_checks$is_equal_to_one)) {
 # --- EXPORT AVERAGES FOR RAW, ROW, AND COLUMN NORMALIZATIONS ---
 
 # 1. Average of Raw Weighting Matrices (Global normalization)
-avg_raw_matrix <- weighting_matrices_raw %>%
+avg_raw_matrix <- weighting_matrices_raw_final %>%
   imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
   bind_rows() %>%
   filter(!year %in% c(2020, 2021)) %>%
   select(-year) %>%
   group_by(mx_state, mx_municipality) %>%
-  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop") %>%
+  normalize_global_total()
+
+avg_raw_total_check <- avg_raw_matrix %>%
+  summarise(total_weight = sum(across(where(is.numeric)), na.rm = TRUE)) %>%
+  mutate(is_equal_to_one = near(total_weight, 1, tol = 1e-8))
+
+print(avg_raw_total_check)
+
+if (!avg_raw_total_check$is_equal_to_one) {
+  stop("FINAL_AVG_RAW_MATRIX total does not sum to 1 after missing-state imputation.")
+}
 
 # 2. Average of Row Weighting Matrices (Each row sums to 1)
-avg_row_matrix <- weighting_matrices_rows %>%
+avg_row_matrix <- weighting_matrices_rows_final %>%
   imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
   bind_rows() %>%
   filter(!year %in% c(2020, 2021)) %>%
   select(-year) %>%
   group_by(mx_state, mx_municipality) %>%
-  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop") %>%
+  normalize_municipality_rows()
+
+avg_row_sums_check <- avg_row_matrix %>%
+  mutate(row_sum = rowSums(across(where(is.numeric)), na.rm = TRUE)) %>%
+  summarise(
+    min_row_sum = min(row_sum, na.rm = TRUE),
+    mean_row_sum = mean(row_sum, na.rm = TRUE),
+    max_row_sum = max(row_sum, na.rm = TRUE),
+    max_abs_deviation_from_one = max(abs(row_sum - 1), na.rm = TRUE),
+    all_rows_sum_to_one = all(near(row_sum, 1, tol = 1e-8))
+  )
+
+print(avg_row_sums_check)
+
+if (!avg_row_sums_check$all_rows_sum_to_one) {
+  stop("FINAL_AVG_ROW_MATRIX rows do not sum to 1 after normalization.")
+}
 
 # 3. Average of Column Weighting Matrices (Each column sums to 1)
-avg_col_matrix <- weighting_matrices_cols %>%
+avg_col_matrix <- weighting_matrices_cols_final %>%
   imap(~ mutate(.x, year = as.integer(str_extract(.y, "\\d+")))) %>%
   bind_rows() %>%
   filter(!year %in% c(2020, 2021)) %>%
   select(-year) %>%
   group_by(mx_state, mx_municipality) %>%
-  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop")
+  summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop") %>%
+  normalize_us_state_columns()
+
+avg_col_sums_check <- avg_col_matrix %>%
+  summarise(across(where(is.numeric), ~ sum(.x, na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "us_state", values_to = "column_sum") %>%
+  summarise(
+    min_column_sum = min(column_sum, na.rm = TRUE),
+    mean_column_sum = mean(column_sum, na.rm = TRUE),
+    max_column_sum = max(column_sum, na.rm = TRUE),
+    max_abs_deviation_from_one = max(abs(column_sum - 1), na.rm = TRUE),
+    all_columns_sum_to_one = all(near(column_sum, 1, tol = 1e-8))
+  )
+
+print(avg_col_sums_check)
+
+if (!avg_col_sums_check$all_columns_sum_to_one) {
+  stop("FINAL_AVG_COL_MATRIX columns do not sum to 1 after missing-state imputation.")
+}
 
 # Exporting the three summary matrices
 write_xlsx(avg_raw_matrix, path = file.path(output_dir, "FINAL_AVG_RAW_MATRIX.xlsx"))
