@@ -1,5 +1,5 @@
 ################################################################################
-# SHIFT-SHARE ESTIMATION OF MUNICIPALITY REMITTANCE INFLOWS
+# DIFF-IN-DIFF ESTIMATION OF MUNICIPALITY REMITTANCE INFLOWS
 ################################################################################
 
 # Load libraries
@@ -8,7 +8,7 @@ library(readxl)
 library(fixest)
 
 # Loading the data
-shares <- read_xlsx("Data/final-data/weighting_matrix_rows.xlsx")
+migration <- read_xlsx("Data/final-data/weighting_matrix_rows.xlsx")
 remit  <- read.csv("Data/final-data/municipality_inflows.csv")
 
 # Converting remittance data to unit dollars and formatting date variable
@@ -20,7 +20,7 @@ remit_clean <- remit %>%
   select(-remittances_musd, -c(year, quarter))
 
 # Extracting the Florida exposure variable and merging into a final panel
-florida_weights <- shares %>%
+florida_weights <- migration %>%
   select(mx_state, mx_municipality, Florida)
 master_panel <- remit_clean %>%
   inner_join(florida_weights, by = c("mx_state", "mx_municipality"))
@@ -48,7 +48,7 @@ analysis_data <- master_panel %>%
 # ESTIMATION
 ################################################################################ 
 
-# OLS Shift-Share without Mexican state-time fixed effects
+# OLS DiD without Mexican state-time fixed effects
 ols_no_state_fe <- feols(
   log(remittances + 1) ~ i(period_date, florida_pct, ref = as.Date("2022-07-01")) | 
     unit_id + period_date,
@@ -56,7 +56,7 @@ ols_no_state_fe <- feols(
   cluster = ~unit_id
 )
 
-# OLS Shift-Share with Mexican state-time fixed effects
+# OLS DiD with Mexican state-time fixed effects
 ols_with_state_fe <- feols(
   log(remittances + 1) ~ i(period_date, florida_pct, ref = as.Date("2022-07-01")) | 
     unit_id + mx_state^period_date,
@@ -64,7 +64,7 @@ ols_with_state_fe <- feols(
   cluster = ~unit_id
 )
 
-# PPML Shift-Share with Mexican state-time fixed effects
+# PPML DiD with Mexican state-time fixed effects
 ppml_with_state_fe <- fepois(
   remittances ~ i(period_date, florida_pct, ref = as.Date("2022-07-01")) | 
     unit_id + mx_state^period_date,
