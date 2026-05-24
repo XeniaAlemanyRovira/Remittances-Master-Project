@@ -8,7 +8,7 @@ library(readxl)
 library(fixest)
 
 # Loading the data
-migration <- read_xlsx("Data/final-data/weighting_matrix_rows.xlsx")
+migration <- read_xlsx("Data/final-data/migration_matrix_rows.xlsx")
 remit  <- read.csv("Data/final-data/municipality_inflows.csv")
 
 # Converting remittance data to unit dollars and formatting date variable
