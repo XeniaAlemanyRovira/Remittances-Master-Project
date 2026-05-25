@@ -1,0 +1,573 @@
+library(readxl)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Paths -----------------------------------------------------------------------
+get_script_path <- function() {
+	cmd_args <- commandArgs(trailingOnly = FALSE)
+	file_arg <- grep("^--file=", cmd_args, value = TRUE)
+
+	if (length(file_arg) > 0) {
+		return(normalizePath(sub("^--file=", "", file_arg[1]), winslash = "/", mustWork = TRUE))
+	}
+
+	frames <- sys.frames()
+	for (frame in rev(frames)) {
+		if (!is.null(frame$ofile)) {
+			return(normalizePath(frame$ofile, winslash = "/", mustWork = TRUE))
+		}
+	}
+
+	NA_character_
+}
+
+find_repo_root <- function(start_dir) {
+	current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+
+	repeat {
+		if (
+			file.exists(file.path(current_dir, "Thesis.Rproj")) ||
+			dir.exists(file.path(current_dir, ".git"))
+		) {
+			return(current_dir)
+		}
+
+		parent_dir <- dirname(current_dir)
+		if (identical(parent_dir, current_dir)) {
+			stop("Could not find the project root from: ", start_dir)
+		}
+		current_dir <- parent_dir
+	}
+}
+
+script_path <- get_script_path()
+project_dir <- if (!is.na(script_path)) {
+	find_repo_root(dirname(script_path))
+} else {
+	find_repo_root(getwd())
+}
+
+path_in_repo <- function(...) {
+	normalizePath(file.path(project_dir, ...), winslash = "/", mustWork = FALSE)
+}
+
+migration_matrix_dir <- path_in_repo(
+	"1_network_estimation",
+	"2_migration_matrix_estimation",
+	"yearly_migration_matrices_2"
+)
+
+output_dir <- path_in_repo(
+	"1_network_estimation",
+	"5_basic_stats",
+	"more_on_persistance_output"
+)
+
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Helpers ---------------------------------------------------------------------
+read_migration_matrix <- function(path) {
+	year <- as.integer(gsub("\\D", "", basename(path)))
+
+	read_excel(path) %>%
+		transmute(
+			year = year,
+			mx_state = as.character(mx_state),
+			mx_municipality = as.character(mx_municipality),
+			florida_migrants = coalesce(as.numeric(Florida), 0)
+		) %>%
+		filter(mx_state != "Total", mx_municipality != "Total") %>%
+		mutate(
+			corridor_id = paste(mx_state, mx_municipality, "Florida", sep = " -> "),
+			active = florida_migrants > 0
+		)
+}
+
+read_weighted_migration_matrix <- function(path) {
+	year <- as.integer(gsub("\\D", "", basename(path)))
+	matrix_df <- read_excel(path)
+	state_columns <- setdiff(names(matrix_df), c("mx_state", "mx_municipality", "Total"))
+
+	matrix_df %>%
+		filter(mx_state != "Total", mx_municipality != "Total") %>%
+		pivot_longer(
+			cols = all_of(state_columns),
+			names_to = "us_state",
+			values_to = "weighted_migrants"
+		) %>%
+		transmute(
+			year = year,
+			mx_state = as.character(mx_state),
+			mx_municipality = as.character(mx_municipality),
+			us_state = as.character(us_state),
+			weighted_migrants = coalesce(as.numeric(weighted_migrants), 0),
+			matrix_cell_id = paste(mx_state, mx_municipality, us_state, sep = " -> ")
+		)
+}
+
+save_plot <- function(plot, file_name, width, height, dpi = 300) {
+	ggsave(
+		filename = file.path(output_dir, file_name),
+		plot = plot,
+		width = width,
+		height = height,
+		dpi = dpi,
+		bg = "white"
+	)
+}
+
+safe_cor <- function(x) {
+	if (nrow(x) == 0 || ncol(x) == 0) {
+		return(matrix(numeric(0), nrow = 0, ncol = 0))
+	}
+
+	suppressWarnings(cor(x, use = "pairwise.complete.obs"))
+}
+
+matrix_files <- list.files(
+	migration_matrix_dir,
+	pattern = "^MIGRATION_MATRIX_\\d{4}\\.xlsx$",
+	full.names = TRUE
+)
+
+if (length(matrix_files) == 0) {
+	stop("No yearly migration matrices found in: ", migration_matrix_dir)
+}
+
+# Florida corridor panel -------------------------------------------------------
+florida_corridor_yearly <- bind_rows(lapply(matrix_files, read_migration_matrix)) %>%
+	arrange(mx_state, mx_municipality, year)
+
+weighted_migration_matrix_yearly <- bind_rows(lapply(matrix_files, read_weighted_migration_matrix)) %>%
+	arrange(mx_state, mx_municipality, us_state, year)
+
+all_years <- sort(unique(florida_corridor_yearly$year))
+total_years <- length(all_years)
+
+# Full weighted migration matrix persistence ---------------------------------
+weighted_migration_matrix_wide <- weighted_migration_matrix_yearly %>%
+	select(matrix_cell_id, year, weighted_migrants) %>%
+	pivot_wider(
+		names_from = year,
+		values_from = weighted_migrants,
+		values_fill = 0,
+		names_prefix = "year_"
+	) %>%
+	arrange(matrix_cell_id)
+
+weighted_migration_matrix_values <- weighted_migration_matrix_wide %>%
+	select(starts_with("year_")) %>%
+	as.matrix()
+
+weighted_migration_year_correlation <- safe_cor(weighted_migration_matrix_values)
+
+weighted_migration_year_correlation_long <- as.data.frame(
+	as.table(weighted_migration_year_correlation)
+) %>%
+	transmute(
+		base_year = as.integer(gsub("year_", "", Var1)),
+		comparison_year = as.integer(gsub("year_", "", Var2)),
+		pearson_correlation = Freq
+	)
+
+weighted_migration_consecutive_correlation <- weighted_migration_year_correlation_long %>%
+	filter(comparison_year == base_year + 1L) %>%
+	transmute(
+		year_from = base_year,
+		year_to = comparison_year,
+		pearson_correlation = pearson_correlation
+	)
+
+weighted_migration_base_year_lines <- weighted_migration_year_correlation_long %>%
+	mutate(
+		base_year = as.integer(base_year),
+		comparison_year = as.integer(comparison_year),
+		highlight_base_year = case_when(
+			base_year == min(all_years) ~ as.character(base_year),
+			base_year == 2015L ~ as.character(base_year),
+			TRUE ~ "Other base years"
+		)
+	)
+
+# Extensive margin: how many Florida paths are active each year ----------------
+florida_extensive_margin <- florida_corridor_yearly %>%
+	group_by(year) %>%
+	summarise(
+		active_paths = sum(active, na.rm = TRUE),
+		total_paths = n_distinct(corridor_id),
+		inactive_paths = total_paths - active_paths,
+		active_path_share = active_paths / total_paths,
+		total_florida_migrants = sum(florida_migrants, na.rm = TRUE),
+		mean_migrants_active_path = if_else(
+			active_paths > 0,
+			total_florida_migrants / active_paths,
+			NA_real_
+		),
+		.groups = "drop"
+	)
+
+observed_florida_years <- florida_extensive_margin %>%
+	filter(total_florida_migrants > 0, active_paths > 0) %>%
+	pull(year)
+
+missing_or_zero_florida_years <- setdiff(all_years, observed_florida_years)
+total_observed_florida_years <- length(observed_florida_years)
+
+florida_corridor_persistence <- florida_corridor_yearly %>%
+	group_by(mx_state, mx_municipality, corridor_id) %>%
+	summarise(
+		years_observed = n_distinct(year),
+		active_years = sum(active, na.rm = TRUE),
+		active_year_share = active_years / years_observed,
+		total_florida_migrants = sum(florida_migrants, na.rm = TRUE),
+		mean_annual_florida_migrants = mean(florida_migrants, na.rm = TRUE),
+		sd_annual_florida_migrants = sd(florida_migrants, na.rm = TRUE),
+		coefficient_of_variation = if_else(
+			mean_annual_florida_migrants > 0,
+			sd_annual_florida_migrants / mean_annual_florida_migrants,
+			NA_real_
+		),
+		.groups = "drop"
+	) %>%
+	filter(total_florida_migrants > 0) %>%
+	mutate(
+		persistence_class = case_when(
+			active_years == total_years & coefficient_of_variation <= 0.50 ~ "Always active / stable",
+			active_years == total_years ~ "Always active / volatile",
+			active_year_share >= 0.80 ~ "Highly persistent",
+			active_year_share >= 0.50 ~ "Intermittent",
+			TRUE ~ "Sparse"
+		)
+	) %>%
+	arrange(desc(total_florida_migrants), desc(active_year_share))
+
+florida_persistence_by_class <- florida_corridor_persistence %>%
+	count(persistence_class, name = "corridors") %>%
+	mutate(corridor_share = corridors / sum(corridors)) %>%
+	arrange(desc(corridors))
+
+# Year-to-year extensive-margin correlation: active/inactive status ------------
+florida_active_status_wide <- florida_corridor_yearly %>%
+	select(corridor_id, year, active) %>%
+	mutate(active = as.integer(active)) %>%
+	pivot_wider(
+		names_from = year,
+		values_from = active,
+		values_fill = 0,
+		names_prefix = "year_"
+	) %>%
+	arrange(corridor_id)
+
+active_status_matrix <- florida_active_status_wide %>%
+	select(starts_with("year_")) %>%
+	as.matrix()
+
+safe_cor <- function(x) {
+	if (nrow(x) == 0 || ncol(x) == 0) {
+		return(matrix(numeric(0), nrow = 0, ncol = 0))
+	}
+
+	cor_matrix <- suppressWarnings(cor(x, use = "pairwise.complete.obs"))
+	cor_matrix
+}
+
+florida_active_status_year_correlation <- safe_cor(active_status_matrix)
+
+florida_active_status_year_correlation_long <- as.data.frame(
+	as.table(florida_active_status_year_correlation)
+) %>%
+	transmute(
+		year_1 = as.integer(gsub("year_", "", Var1)),
+		year_2 = as.integer(gsub("year_", "", Var2)),
+		active_status_correlation = Freq
+	)
+
+# Intensive margin: flow correlations among corridors active in every observed
+# Florida year. Raw 2013 has no Florida flows, so the intensive margin excludes
+# all-zero Florida years and records them in the key statistics output.
+always_active_florida_corridors <- florida_corridor_persistence %>%
+	filter(active_years == total_observed_florida_years) %>%
+	select(mx_state, mx_municipality, corridor_id)
+
+florida_always_active_flows_wide <- florida_corridor_yearly %>%
+	filter(year %in% observed_florida_years) %>%
+	semi_join(always_active_florida_corridors, by = c("mx_state", "mx_municipality", "corridor_id")) %>%
+	select(corridor_id, year, florida_migrants) %>%
+	pivot_wider(
+		names_from = year,
+		values_from = florida_migrants,
+		names_prefix = "year_"
+	) %>%
+	arrange(corridor_id)
+
+always_active_flow_matrix <- florida_always_active_flows_wide %>%
+	select(starts_with("year_")) %>%
+	as.matrix()
+
+florida_intensive_year_correlation <- safe_cor(always_active_flow_matrix)
+
+florida_intensive_year_correlation_long <- as.data.frame(
+	as.table(florida_intensive_year_correlation)
+) %>%
+	transmute(
+		year_1 = as.integer(gsub("year_", "", Var1)),
+		year_2 = as.integer(gsub("year_", "", Var2)),
+		intensive_flow_correlation = Freq
+	)
+
+# Outputs ---------------------------------------------------------------------
+write_csv(florida_corridor_yearly, file.path(output_dir, "florida_corridor_yearly_panel.csv"))
+write_csv(florida_extensive_margin, file.path(output_dir, "florida_extensive_margin_active_paths_by_year.csv"))
+write_csv(florida_corridor_persistence, file.path(output_dir, "florida_corridor_persistence_summary.csv"))
+write_csv(florida_persistence_by_class, file.path(output_dir, "florida_corridor_persistence_by_class.csv"))
+write_csv(always_active_florida_corridors, file.path(output_dir, "florida_always_active_corridors.csv"))
+write_csv(florida_active_status_year_correlation_long, file.path(output_dir, "florida_active_status_year_correlation.csv"))
+write_csv(florida_intensive_year_correlation_long, file.path(output_dir, "florida_intensive_flow_year_correlation_always_active.csv"))
+write_csv(weighted_migration_year_correlation_long, file.path(output_dir, "weighted_migration_matrix_year_correlation.csv"))
+write_csv(weighted_migration_consecutive_correlation, file.path(output_dir, "weighted_migration_matrix_consecutive_year_correlation.csv"))
+write_csv(weighted_migration_base_year_lines, file.path(output_dir, "weighted_migration_matrix_all_base_year_correlations.csv"))
+
+write_csv(
+	tibble(
+		metric = c(
+		"years",
+		"observed_florida_years",
+		"missing_or_zero_florida_years",
+		"total_positive_florida_corridors",
+		"always_active_observed_year_florida_corridors",
+		"share_positive_corridors_always_active_observed_years",
+		"mean_active_paths_per_year",
+		"min_active_paths_per_year",
+		"max_active_paths_per_year"
+	),
+	value = c(
+			as.character(total_years),
+			paste(observed_florida_years, collapse = ", "),
+			if_else(
+				length(missing_or_zero_florida_years) == 0,
+				"None",
+				paste(missing_or_zero_florida_years, collapse = ", ")
+			),
+			nrow(florida_corridor_persistence),
+			nrow(always_active_florida_corridors),
+			nrow(always_active_florida_corridors) / nrow(florida_corridor_persistence),
+			mean(florida_extensive_margin$active_paths),
+			min(florida_extensive_margin$active_paths),
+			max(florida_extensive_margin$active_paths)
+		)
+	),
+	file.path(output_dir, "florida_persistence_key_statistics.csv")
+)
+
+# Plots -----------------------------------------------------------------------
+weighted_migration_correlation_heatmap <- ggplot(
+	weighted_migration_year_correlation_long,
+	aes(x = factor(base_year), y = factor(comparison_year), fill = pearson_correlation)
+) +
+	geom_tile(color = "white", linewidth = 0.2) +
+	scale_fill_gradient2(
+		low = "#B83232",
+		mid = "white",
+		high = "#1F5FBF",
+		midpoint = 0,
+		limits = c(-1, 1),
+		name = "Pearson r"
+	) +
+	labs(
+		title = "Weighted Migration Matrix Persistence",
+		subtitle = "Pearson correlation of full municipality-by-origin-state matrices across years",
+		x = "Base year",
+		y = "Comparison year"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(panel.grid = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1))
+
+weighted_migration_consecutive_plot <- ggplot(
+	weighted_migration_consecutive_correlation,
+	aes(x = year_to, y = pearson_correlation)
+) +
+	geom_line(color = "#1F5FBF", linewidth = 1) +
+	geom_point(color = "#1F5FBF", size = 2) +
+	scale_x_continuous(breaks = all_years) +
+	scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+	labs(
+		title = "Weighted Migration Matrix Persistence: Consecutive Years",
+		subtitle = "Pearson correlation between each year and the immediately previous year",
+		x = "Comparison year",
+		y = "Pearson correlation"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+highlight_base_years <- weighted_migration_base_year_lines %>%
+	filter(highlight_base_year != "Other base years") %>%
+	group_by(base_year) %>%
+	filter(comparison_year == max(comparison_year)) %>%
+	ungroup()
+
+weighted_migration_all_base_year_plot <- ggplot(
+	weighted_migration_base_year_lines,
+	aes(x = comparison_year, y = pearson_correlation, group = base_year)
+) +
+	geom_line(
+		data = weighted_migration_base_year_lines %>% filter(highlight_base_year == "Other base years"),
+		color = "grey75",
+		linewidth = 0.55,
+		alpha = 0.75
+	) +
+	geom_point(
+		data = weighted_migration_base_year_lines %>% filter(highlight_base_year == "Other base years"),
+		color = "grey75",
+		size = 1,
+		alpha = 0.65
+	) +
+	geom_line(
+		data = weighted_migration_base_year_lines %>% filter(highlight_base_year != "Other base years"),
+		aes(color = highlight_base_year),
+		linewidth = 0.95
+	) +
+	geom_point(
+		data = weighted_migration_base_year_lines %>% filter(highlight_base_year != "Other base years"),
+		aes(color = highlight_base_year),
+		size = 1.7
+	) +
+	geom_label(
+		data = highlight_base_years,
+		aes(label = base_year, color = highlight_base_year),
+		hjust = -0.05,
+		show.legend = FALSE,
+		label.size = 0.15,
+		fill = "white",
+		size = 3.5
+	) +
+	scale_color_manual(values = c("2010" = "#F8766D", "2015" = "#00BFC4"), name = "Base year") +
+	scale_x_continuous(breaks = all_years, expand = expansion(mult = c(0.02, 0.09))) +
+	scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+	labs(
+		title = "Network Persistence Decay: All Possible Base Years",
+		subtitle = "Lines show how the weighted migration matrix from a specific year correlates with others",
+		x = "Comparison year",
+		y = "Pearson correlation"
+	) +
+	coord_cartesian(clip = "off") +
+	theme_minimal(base_size = 11) +
+	theme(
+		legend.position = "none",
+		axis.text.x = element_text(angle = 45, hjust = 1),
+		plot.margin = margin(5.5, 35, 5.5, 5.5)
+	)
+
+florida_extensive_margin_plot <- ggplot(
+	florida_extensive_margin,
+	aes(x = year, y = active_paths)
+) +
+	geom_line(color = "#1F5FBF", linewidth = 1) +
+	geom_point(color = "#1F5FBF", size = 2) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_x_continuous(breaks = all_years) +
+	labs(
+		title = "Florida Corridors: Extensive Margin",
+		subtitle = "Number of Mexico-municipality-to-Florida paths active each year",
+		x = "Year",
+		y = "Active Florida paths"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+florida_persistence_distribution_plot <- ggplot(
+	florida_corridor_persistence,
+	aes(x = active_year_share, fill = persistence_class)
+) +
+	geom_histogram(binwidth = 0.05, color = "white", boundary = 0) +
+	scale_x_continuous(labels = scales::percent, limits = c(0, 1)) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_fill_brewer(palette = "Set2", name = "Persistence class") +
+	labs(
+		title = "Florida Corridors: Persistence Distribution",
+		subtitle = "Share of years in which each Florida path is active",
+		x = "Active-year share",
+		y = "Florida corridors"
+	) +
+	theme_minimal(base_size = 11) +
+	theme(legend.position = "bottom")
+
+florida_active_status_correlation_plot <- ggplot(
+	florida_active_status_year_correlation_long,
+	aes(x = factor(year_1), y = factor(year_2), fill = active_status_correlation)
+) +
+	geom_tile(color = "white", linewidth = 0.2) +
+	scale_fill_gradient2(
+		low = "#B83232",
+		mid = "white",
+		high = "#1F5FBF",
+		midpoint = 0,
+		limits = c(-1, 1),
+		name = "Correlation"
+	) +
+	labs(
+		title = "Florida Corridors: Year Correlation of Active Paths",
+		subtitle = "Correlation of active/inactive Florida corridor status across years",
+		x = "Year",
+		y = "Year"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(panel.grid = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1))
+
+florida_intensive_correlation_plot <- ggplot(
+	florida_intensive_year_correlation_long,
+	aes(x = factor(year_1), y = factor(year_2), fill = intensive_flow_correlation)
+) +
+	geom_tile(color = "white", linewidth = 0.2) +
+	scale_fill_gradient2(
+		low = "#B83232",
+		mid = "white",
+		high = "#1F5FBF",
+		midpoint = 0,
+		limits = c(-1, 1),
+		name = "Correlation"
+	) +
+	labs(
+		title = "Florida Corridors: Intensive-Margin Year Correlation",
+		subtitle = "Flow correlation across corridors active in every year",
+		x = "Year",
+		y = "Year"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(panel.grid = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1))
+
+top_always_active_florida_corridors <- florida_corridor_persistence %>%
+	filter(active_years == total_observed_florida_years) %>%
+	slice_max(total_florida_migrants, n = 25) %>%
+	select(corridor_id)
+
+florida_top_always_active_flows_plot <- florida_corridor_yearly %>%
+	semi_join(top_always_active_florida_corridors, by = "corridor_id") %>%
+	mutate(corridor_id = reorder(corridor_id, florida_migrants, sum)) %>%
+	ggplot(aes(x = year, y = florida_migrants, color = corridor_id)) +
+	geom_line(linewidth = 0.8, alpha = 0.85) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_x_continuous(breaks = all_years) +
+	labs(
+		title = "Florida Corridors: Top Always-Active Paths",
+		subtitle = "Annual migrant flows for the largest always-active Florida corridors",
+		x = "Year",
+		y = "Migrants to Florida",
+		color = "Corridor"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(
+		legend.position = "bottom",
+		legend.text = element_text(size = 6),
+		axis.text.x = element_text(angle = 45, hjust = 1)
+	)
+
+save_plot(florida_extensive_margin_plot, "florida_extensive_margin_active_paths_by_year.png", 10, 6)
+save_plot(florida_persistence_distribution_plot, "florida_corridor_persistence_distribution.png", 10, 6)
+save_plot(florida_active_status_correlation_plot, "florida_active_status_year_correlation_heatmap.png", 9, 8)
+save_plot(florida_intensive_correlation_plot, "florida_intensive_flow_year_correlation_heatmap.png", 9, 8)
+save_plot(florida_top_always_active_flows_plot, "florida_top_always_active_corridor_flows.png", 12, 8)
+save_plot(weighted_migration_correlation_heatmap, "weighted_migration_matrix_year_correlation_heatmap.png", 9, 8)
+save_plot(weighted_migration_consecutive_plot, "weighted_migration_matrix_consecutive_year_correlation.png", 10, 6)
+save_plot(weighted_migration_all_base_year_plot, "weighted_migration_matrix_all_base_year_correlation_lines.png", 11, 6.5)

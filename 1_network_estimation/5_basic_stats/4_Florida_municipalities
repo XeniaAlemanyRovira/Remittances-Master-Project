@@ -1,0 +1,231 @@
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+input_path <- "1_network_estimation/4_remittance_calibration/output/remittance_flows_origin_state_usd_2013q1_2024q4.csv"
+output_dir <- "1_network_estimation/5_basic_stats/florida_municipalities_output"
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+shock_year <- 2022
+shock_quarter <- 3
+
+remittances <- read_csv(input_path, show_col_types = FALSE) %>%
+	mutate(
+		quarter_id = year * 10 + quarter,
+		pre_shock = quarter_id < shock_year * 10 + shock_quarter
+	)
+
+make_share_table <- function(data, group_cols) {
+	state_totals <- data %>%
+		filter(us_state %in% c("Florida", "California", "Texas")) %>%
+		group_by(across(all_of(c(group_cols, "us_state")))) %>%
+		summarise(remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop") %>%
+		pivot_wider(
+			names_from = us_state,
+			values_from = remittances_usd,
+			values_fill = 0,
+			names_glue = "{tolower(us_state)}_remittances_usd"
+		)
+
+	total_remittances <- data %>%
+		group_by(across(all_of(group_cols))) %>%
+		summarise(total_remittances_usd = sum(remittances_usd, na.rm = TRUE), .groups = "drop")
+
+	total_remittances %>%
+		left_join(state_totals, by = group_cols) %>%
+		mutate(
+			across(
+				c(florida_remittances_usd, california_remittances_usd, texas_remittances_usd),
+				~ coalesce(.x, 0)
+			),
+			florida_share_pct = 100 * florida_remittances_usd / total_remittances_usd,
+			california_share_pct = 100 * california_remittances_usd / total_remittances_usd,
+			texas_share_pct = 100 * texas_remittances_usd / total_remittances_usd,
+			california_texas_remittances_usd = california_remittances_usd + texas_remittances_usd,
+			california_texas_share_pct = california_share_pct + texas_share_pct,
+			florida_california_texas_remittances_usd =
+				florida_remittances_usd + california_remittances_usd + texas_remittances_usd,
+			florida_california_texas_share_pct =
+				florida_share_pct + california_share_pct + texas_share_pct
+		)
+}
+
+municipality_cols <- c("mx_state", "mx_municipality")
+quarter_cols <- c("year", "quarter", "year_quarter", municipality_cols)
+
+pre_shock_rankings <- make_share_table(
+	remittances %>% filter(pre_shock),
+	municipality_cols
+) %>%
+	filter(florida_remittances_usd > 0) %>%
+	arrange(desc(florida_share_pct), desc(florida_remittances_usd)) %>%
+	mutate(
+		pre_shock_florida_share_rank = row_number(),
+		pre_shock_florida_amount_rank = min_rank(desc(florida_remittances_usd))
+	) %>%
+	select(
+		mx_state,
+		mx_municipality,
+		pre_shock_florida_share_rank,
+		pre_shock_florida_amount_rank,
+		pre_shock_total_remittances_usd = total_remittances_usd,
+		pre_shock_florida_share_pct = florida_share_pct,
+		pre_shock_florida_remittances_usd = florida_remittances_usd,
+		pre_shock_california_texas_share_pct = california_texas_share_pct,
+		pre_shock_california_texas_remittances_usd = california_texas_remittances_usd
+	)
+
+florida_receiving_municipalities_by_quarter <- make_share_table(remittances, quarter_cols) %>%
+	inner_join(pre_shock_rankings, by = municipality_cols) %>%
+	arrange(pre_shock_florida_share_rank, year, quarter) %>%
+	select(
+		pre_shock_florida_share_rank,
+		pre_shock_florida_amount_rank,
+		year,
+		quarter,
+		year_quarter,
+		mx_state,
+		mx_municipality,
+		total_remittances_usd,
+		florida_share_pct,
+		florida_remittances_usd,
+		california_share_pct,
+		california_remittances_usd,
+		texas_share_pct,
+		texas_remittances_usd,
+		california_texas_share_pct,
+		california_texas_remittances_usd,
+		florida_california_texas_share_pct,
+		florida_california_texas_remittances_usd,
+		pre_shock_total_remittances_usd,
+		pre_shock_florida_share_pct,
+		pre_shock_florida_remittances_usd,
+		pre_shock_california_texas_share_pct,
+		pre_shock_california_texas_remittances_usd
+	)
+
+write_csv(
+	pre_shock_rankings,
+	file.path(output_dir, "florida_receiving_municipalities_pre_shock_rankings.csv")
+)
+
+write_csv(
+	florida_receiving_municipalities_by_quarter,
+	file.path(output_dir, "florida_receiving_municipalities_quarterly_shares_ranked_pre_shock.csv")
+)
+
+make_top100_timeseries <- function(data, top_municipalities, plot_title, file_stub) {
+	plot_data <- data %>%
+		semi_join(top_municipalities, by = municipality_cols) %>%
+		group_by(year, quarter, year_quarter) %>%
+		summarise(
+			florida_remittances_usd = sum(florida_remittances_usd, na.rm = TRUE),
+			california_texas_remittances_usd = sum(california_texas_remittances_usd, na.rm = TRUE),
+			avg_florida_share_pct = mean(florida_share_pct, na.rm = TRUE),
+			avg_california_texas_share_pct = mean(california_texas_share_pct, na.rm = TRUE),
+			.groups = "drop"
+		) %>%
+		arrange(year, quarter) %>%
+		mutate(quarter_index = row_number())
+
+	amount_data <- plot_data %>%
+		select(quarter_index, year_quarter, Florida = florida_remittances_usd, `California + Texas` = california_texas_remittances_usd) %>%
+		pivot_longer(c(Florida, `California + Texas`), names_to = "state_group", values_to = "remittances_usd")
+
+	share_data <- plot_data %>%
+		select(quarter_index, year_quarter, Florida = avg_florida_share_pct, `California + Texas` = avg_california_texas_share_pct) %>%
+		pivot_longer(c(Florida, `California + Texas`), names_to = "state_group", values_to = "share_pct")
+
+	scale_factor <- max(amount_data$remittances_usd, na.rm = TRUE) / max(share_data$share_pct, na.rm = TRUE)
+
+	plot <- ggplot() +
+		geom_col(
+			data = amount_data,
+			aes(x = quarter_index, y = remittances_usd, fill = state_group),
+			position = "dodge",
+			width = 0.75,
+			alpha = 0.75
+		) +
+		geom_line(
+			data = share_data,
+			aes(x = quarter_index, y = share_pct * scale_factor, color = state_group),
+			linewidth = 1
+		) +
+		geom_point(
+			data = share_data,
+			aes(x = quarter_index, y = share_pct * scale_factor, color = state_group),
+			size = 1.4
+		) +
+		scale_x_continuous(
+			breaks = plot_data$quarter_index[seq(1, nrow(plot_data), by = 4)],
+			labels = plot_data$year_quarter[seq(1, nrow(plot_data), by = 4)]
+		) +
+		scale_y_continuous(
+			labels = scales::dollar,
+			sec.axis = sec_axis(~ . / scale_factor, name = "Average municipality share", labels = function(x) paste0(round(x, 1), "%"))
+		) +
+		scale_fill_manual(values = c("Florida" = "#2C7FB8", "California + Texas" = "#D95F02")) +
+		scale_color_manual(values = c("Florida" = "#08306B", "California + Texas" = "#8C2D04")) +
+		labs(
+			title = plot_title,
+			subtitle = "Bars are aggregate USD amounts; lines are simple average shares across the 100 municipalities",
+			x = "Quarter",
+			y = "Aggregate remittances, USD",
+			fill = "Amount",
+			color = "Average share"
+		) +
+		theme_minimal(base_size = 10) +
+		theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+	write_csv(plot_data, file.path(output_dir, paste0(file_stub, ".csv")))
+	ggsave(file.path(output_dir, paste0(file_stub, ".png")), plot, width = 13, height = 7, dpi = 300, bg = "white")
+}
+
+top100_by_pre_shock_florida_amount <- pre_shock_rankings %>%
+	arrange(pre_shock_florida_amount_rank) %>%
+	slice_head(n = 100) %>%
+	select(mx_state, mx_municipality)
+
+top100_by_pre_shock_florida_share <- pre_shock_rankings %>%
+	arrange(pre_shock_florida_share_rank) %>%
+	slice_head(n = 100) %>%
+	select(mx_state, mx_municipality)
+
+make_top100_timeseries(
+	florida_receiving_municipalities_by_quarter,
+	top100_by_pre_shock_florida_amount,
+	"Top 100 Florida-Receiving Municipalities by Pre-Shock Florida Amount",
+	"top100_by_pre_shock_florida_amount_quarterly_amounts_and_shares"
+)
+
+make_top100_timeseries(
+	florida_receiving_municipalities_by_quarter,
+	top100_by_pre_shock_florida_share,
+	"Top 100 Municipalities by Pre-Shock Florida Share",
+	"top100_by_pre_shock_florida_share_quarterly_amounts_and_shares"
+)
+
+top30_pre_shock_share <- pre_shock_rankings %>%
+	slice_head(n = 30) %>%
+	mutate(municipality_label = reorder(paste(mx_state, mx_municipality, sep = " - "), pre_shock_florida_share_pct))
+
+pre_shock_share_plot <- ggplot(top30_pre_shock_share, aes(x = pre_shock_florida_share_pct, y = municipality_label)) +
+	geom_col(fill = "#2C7FB8") +
+	scale_x_continuous(labels = function(x) paste0(round(x, 1), "%")) +
+	labs(
+		title = "Top Florida-Exposed Municipalities Before the Shock",
+		subtitle = "Ranked by Florida's share of total remittances before 2022Q3",
+		x = "Pre-shock Florida share",
+		y = NULL
+	) +
+	theme_minimal(base_size = 10)
+
+ggsave(
+	file.path(output_dir, "top30_pre_shock_florida_receiving_municipalities_by_share.png"),
+	pre_shock_share_plot,
+	width = 10,
+	height = 8,
+	dpi = 300,
+	bg = "white"
+)
