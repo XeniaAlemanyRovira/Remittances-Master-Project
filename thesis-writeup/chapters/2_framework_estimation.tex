@@ -56,22 +56,6 @@ Nothing works we are doomed
 
 \section{Examining spillover effects}
 
-A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units. In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to a biased estimates (reference?). Therefore, it is necessary to explicitly separate direct treatment effects from spillover effects \parencite{hudgens2008, aronow2017}. To address this, we investigate both geographical spillovers across neighboring U.S. states and migration network spillovers across remittance corridors.
-
-\subsection{Geographical spillovers}
-
-To capture spatial spillovers, we adopt the geographical rings methodology proposed by \textcite{butts2023}. The underlying intuition is that the economic shock of Hurricane Ian may spill over into states near Florida, with the spillover effect decaying as distance increases. We classify non-Florida states into geographical rings based on their distance from Florida. For example, we define distance thresholds to construct Ring 1 ($0 < \text{distance} \leq 500$ miles), Ring 2 ($500 < \text{distance} \leq 1000$ miles), and Ring 3 ($1000 < \text{distance} \leq 1500$ miles). States located beyond the Ring 3 are assigned to the control group. 
-
-\par
-
-We estimate the geographical spillover effects using a Two-Way Fixed Effects (TWFE) specification:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \beta(\text{Florida}_s \times \text{Post}_t) + \sum_r \gamma_r(\text{Ring}_{rs} \times \text{Post}_t) + \varepsilon_{smt}
-\end{equation}
-where $\gamma_r$ captures the spillover effect on states within Ring $r$. If $\gamma_1$ is statistically significant but coefficients for farther rings are not, it suggests localized spillovers, while if all $\gamma_r$ are significant, geographical spillovers may be broader, suggesting that using all non-Florida states as controls could be problematic. 
-
-\subsection{Migration network spillovers}
-
 A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units.
 
 In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to biased estimates \citep{clarke2017}. For instance, given that California and Texas all host a big proportion of Mexican migrants, we hypothesize later in the paper that these two states might have played a role in offsetting the negative Florida shock. If a Mexican municipality highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop. If this was the case, \textbf{ the estimated Florida-exposure effect on total remittances would capture the net effect of the shock after within-network adjustment, rather than the direct fall in Florida-origin remittance}. 
