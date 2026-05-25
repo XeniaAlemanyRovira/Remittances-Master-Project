@@ -1,3 +1,4 @@
+% !TEX root = ../main.tex
 \chapter{Results}
 
 \section{Preliminary statistics}
@@ -8,8 +9,65 @@ statistics before (e.g. average over the past year), 1, 2, 3, and 4 quarters aft
 
 \section{DiD results}
 
-\section{Spillover effects results}
-
-\subsection {Benchmark model}
-
-\subsection {Testing for spillover effects}
+\section{Arguing for Potential Spillover Effects}
+As argued above, given that the biggest hosts of Mexican migrants are Texas and California, it is likely that those municipalities exposed to the Florida shock might also be connected to a certain extent to California and Texas. Plot \ref{fig:stacked_bar_top30_fl_tx_ca_composition} helps us visualize that there exists indeed some migrant networks spanning across Florida and California and Florida and Texas.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/05b_stacked_bar_top30_fl_tx_ca_composition.png}
+    \caption{For the Top 30 Florida exposed municipalities, the plot shows the composition of migrants spread across the three US states.}
+    \label{fig:stacked_bar_top30_fl_tx_ca_composition}
+\end{figure}
+Figure \ref{fig:time_series_bilateral_fl_tx_ca_with_2022q4_line} suggests that there has been a dip in all 3 states in 2022Q4, after the Hurricane Ian hit Florida. However, we are interested in examining \textbf{how the inflow of remittances from Texas and California evolved around the shock relative to the evolution of Florida inflows}, specifically for the municipalities that are jointly highly exposed to Florida and California or Florida and Texas, provided there exist \textcolor{red}{\textbf{parallel trends in the remittance patterns between these two groups (WE NEED PPML MAYBE!!!)}}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/06_time_series_bilateral_fl_tx_ca_with_2022q4_line.png}
+    \caption{Evolution of Remittances Inflows from FL, TX and CA to all Mexican municipalities}
+    \label{fig:time_series_bilateral_fl_tx_ca_with_2022q4_line}
+\end{figure}
+Let's define a measure of joint exposure FL-TX of Mexican municipality $m$ as the geometric mean of its exposure to Florida and its exposure to Texas, as follows:
+$$JointExposure_m^{FL,TX} = sqrt(Exposure_m^{FL} \times Exposure_m^{TX})$$
+Similarly, we can also define a measure of joint exposure FL-CA.
+As an example, \ref{tab:joint_exposure_tx} ranks the municipalities by highest joint exposure to both Florida and Texas.\\ 
+\begin{table}[h]
+\centering
+\caption{Top 10 Joint Exposure FL-TX} % Moved outside tabular
+\label{tab:joint_exposure_tx}         % Moved outside tabular
+\begin{tabular}{rllrr}
+\toprule
+Rank & State & Municipality & GeoMean & GeoMean \% \\
+\midrule
+1 & Chiapas & Emiliano Zapata & 0.3373 & 33.7261 \\
+2 & Queretaro & Landa De Matamoros & 0.3262 & 32.6221 \\
+3 & Hidalgo & Pisaflores & 0.3157 & 31.5685 \\
+4 & Veracruz & Ignacio De La Llave & 0.2703 & 27.0324 \\
+5 & Michoacan De Ocampo & San Lucas & 0.2673 & 26.7327 \\
+6 & Chiapas & La Libertad & 0.2539 & 25.3916 \\
+7 & Veracruz & Tihuatlan & 0.2532 & 25.3234 \\
+8 & Chiapas & Chicoasen & 0.2391 & 23.9073 \\
+9 & Chiapas & Sabanilla & 0.2371 & 23.7081 \\
+10 & Chiapas & Rayon & 0.2348 & 23.4797 \\
+\bottomrule
+\end{tabular}
+\end{table}
+We now define as "High joint exposure" as the top quartile municipalities with the highest joint exposure and "Low joint exposure" as the bottom quartile municipalities with the lowest joint exposure and estimate two log remittances regressions under the following specifications: 
+\begin{align*}
+\log(1 + R_{mst}) &= \alpha_t + \gamma_{ms} + \beta_{TX} (Texas_s \times Post_t) + \varepsilon_{mst} \\
+\log(1 + R_{mst}) &= \alpha_t + \gamma_{ms} + \beta_{CA} (California_s \times Post_t) + \varepsilon_{mst}
+\end{align*}
+Note that in the TX-FL regression, the sample is restricted to the highly exposed municipalities (As defined above). Similarly, in the CA-FL regression, the sample is also restricted to the corresponding high jointly exposed municipalities.\\
+We include $\alpha_t$ as the quarter FE, $\gamma_{ms}$ as the corridor MX municipality - US State FE and $Post_t$ is defined such that $Post_t = 1$ for quarters from 2022Q4 onward, and 0 otherwise. Since Florida is the baseline category, the coefficient of interest $\beta_{TX}$ (or $\beta_{CA}$) compares the post-2022Q4 change in Texas remittances to the post-2022Q4 change in Florida remittances (among our subsamples of interest). To ensure robustness of results, we also clustered at corridor and quarter level.\\
+In other words, the coefficients $\beta_{TX}$ and $\beta_{CA}$ capture respectively:
+\begin{align*}
+\beta_{TX} &= [\Delta \log R_{m,Texas}] - [\Delta \log R_{m,Florida}] \\
+\beta_{CA} &= [\Delta \log R_{m,California}] - [\Delta \log R_{m,Florida}]
+\end{align*} 
+The following figure \ref{fig:corridor_fe_event_study_two_way_cluster_corridor_quarter} shows that in relative terms, the inflows of remittances from Texas and California to high joint exposure municipalities have experienced a significant increase in the two quarters posterior to the Hurricane shock, followed by an immediate decline. This could suggest a \textbf{short-term change of remittance patterns of these subsamples} right after the shock: municipalities that are strongly related to both Florida and the California or Texas might have been \textbf{relatively less affected by the Florida shock since they also received relatively more inflows of remittances from the other state that could potentially offset the decrease in inflows from FL.}\\
+In other words, it could also suggest that the \textcolor{red}{REVISE: the estimates we found in the earlier sections on the drop in remittances received by Florida households are actually attenuated by these potential spillover effects.}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/11f_corridor_fe_event_study_two_way_cluster_corridor_quarter.png}
+    \caption{Change in log remittances inflows from TX and CA rel. to FL to high joint exposure municipalities}
+    \label{fig:corridor_fe_event_study_two_way_cluster_corridor_quarter}
+\end{figure}
+Despite the increase of remittances to high exposure municipalities from Texas and California relative to Florida, in order to support our intuition and confirm the existence of spillovers, we would need to check a for parallel trends between the high and low exposure municipalities and their inflows of remittances from Texas/California. In other words, we do not want to \textbf{confound the compensating effect that has risen due to the Hurrican shock with a general upward trend in remittances received in Texas relative to Florida}, for instance.\\
+\textcolor{red}{here, we should actually test for parallel trends. control: low exposure municipalities TX-FL, treatment: high exposure municipalities TX-FL. We want to check if the trends in remittances received from Texas relative to Florida were parallel between the high and low exposure municipalities before the shock. If they were parallel, then we can be more confident that the divergence we see after the shock is indeed due to the shock and not due to some pre-existing trend.} 
