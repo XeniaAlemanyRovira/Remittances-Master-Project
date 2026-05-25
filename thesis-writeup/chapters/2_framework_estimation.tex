@@ -53,27 +53,27 @@ Crucially for our identification strategy, Hurricane Ian did not affect Mexico. 
 
 \section{Estimation technique}
 
-To estimate the impact of the Hurricane Ian shock on Florida remittance outflows, we employ three complementary panel-data estimators: Two-Way Fixed Effects (TWFE), Synthetic Control (SC), and Synthetic Difference-in-Differences (SDID). In all specifications, Florida is treated as the exposed unit, while the remaining U.S. states constitute the donor pool. The outcome variable is the logarithm of remittance outflows, and the sample period spans from 2013Q1 to 2024Q4. The treatment period begins in 2022Q4, corresponding to the landfall of Hurricane Ian. To account for the potentially temporary nature of disaster-induced remittance responses, treatment effects are estimated over several post-treatment horizons, including the full post-treatment sample as well as restricted windows covering the first four and six post-treatment quarters.
+To estimate the impact of the Hurricane Ian shock on Florida remittance outflows, we employ three complementary panel-data estimators: Two-Way Fixed Effects (TWFE), Synthetic Control (SC), and Synthetic Difference-in-Differences (SDID). In all specifications, Florida is treated as the exposed unit, while the remaining U.S. states constitute the donor pool \footnote{\textcolor{red}{Here but just to not forget to mention it, we can move it or remove it if you think is useless} We have not worked on TWFE or SDID methods with selected controls given the few number of potential controls available, only 50 states}. The outcome variable is the logarithm of remittance outflows, and the sample period spans from 2013Q1 to 2024Q4. The treatment period begins in 2022Q4, corresponding to the immediate quarter after the landfall of Hurricane Ian. To account for the potentially temporary nature of disaster-induced remittance responses, treatment effects are estimated over several post-treatment horizons, including the full post-treatment sample as well as restricted windows covering the first four and six post-treatment quarters. 
 
 The baseline econometric specification is a standard Two-Way Fixed Effects (TWFE) model of the form:
 
-\[
+\begin{equation}
 Y_{it} = \alpha_i + \gamma_t + \beta (Florida_i \times Post_t) + \varepsilon_{it}
-\]
+\end{equation}
 
-where \(Y_{it}\) denotes the logarithm of remittance outflows for state \(i\) in quarter \(t\), \(\alpha_i\) represents state fixed effects, and \(\gamma_t\) denotes time fixed effects. The interaction term \(Florida_i \times Post_t\) captures the average treatment effect of Hurricane Ian on Florida relative to the control states. Standard errors are clustered at the state level. Additional TWFE specifications incorporate state-specific linear trends and seasonal fixed effects to account for differential long-run trajectories and recurrent seasonal patterns in remittance flows. The identifying assumption underlying TWFE is the parallel trends assumption, which is evaluated using an event-study design estimating dynamic leads and lags of treatment relative to the quarter immediately preceding the hurricane.
+where \(Y_{it}\) denotes the logarithm of remittance outflows for state \(i\) in quarter \(t\), \(\alpha_i\) represents state fixed effects, and \(\gamma_t\) denotes time fixed effects. The interaction term \(Florida_i \times Post_t\) captures the average treatment effect of Hurricane Ian on Florida relative to the control states. Standard errors are clustered at the state level. \textcolor{red}{Grey section could be removed/reprased in case of lack of space for important stuff}\textcolor{grey}{Additional TWFE specifications, used for robustness checks, incorporate state-specific linear trends and seasonal fixed effects to account for differential long-run trajectories and recurrent seasonal patterns in remittance flows.} The identifying assumption underlying TWFE is the parallel trends assumption, which is evaluated using an event-study design estimating dynamic leads and lags of treatment relative to the quarter immediately preceding the hurricane.
 
 To complement the TWFE analysis, we estimate a Synthetic Control (SC) model following the framework of (\cite{abadie2015synthetic}) The SC estimator constructs a weighted average of untreated states that minimizes the pre-treatment discrepancy between Florida and its synthetic counterpart. Formally, the estimator selects weights \(w_j\) such that:
 
-\[
+\begin{equation}
 \sum_{j=1}^{J} w_j Y_{jt}
-\]
+\end{equation}
 
 closely reproduces Florida’s pre-treatment outcome trajectory, subject to \(w_j \geq 0\) and \(\sum_j w_j = 1\). The estimated treatment effect is then computed as the post-treatment gap between observed Florida remittances and the synthetic Florida series. Inference is conducted through placebo reassignments, where each control state is iteratively treated as if exposed to Hurricane Ian, generating a placebo distribution of treatment effects. We additionally compute Root Mean Squared Prediction Error (RMSPE) ratios comparing pre- and post-treatment fit to evaluate whether Florida exhibits unusually large post-treatment deviations relative to placebo units.
 
-Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, following the methodology proposed by Arkhangelsky et al. (2021). SDID combines the weighting structure of Synthetic Control with the fixed-effects adjustment of Difference-in-Differences, thereby improving robustness to imperfect pre-treatment fit and treatment effect heterogeneity. The estimator jointly constructs unit weights and time weights to balance pre-treatment outcomes between treated and control units before applying a Difference-in-Differences correction. The SDID estimator can be expressed as:
+Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, following the methodology proposed by Arkhangelsky et al. (2021) \cite{arkhangelsky2021synthetic}. SDID combines the weighting structure of Synthetic Control with the fixed-effects adjustment of Difference-in-Differences, thereby improving robustness to imperfect pre-treatment fit and treatment effect heterogeneity. The estimator jointly constructs unit weights and time weights to balance pre-treatment outcomes between treated and control units before applying a Difference-in-Differences correction. The SDID estimator can be expressed as:
 
-\[
+\begin{equation}
 \hat{\tau}^{SDID} =
 \left(
 \bar{Y}^{post}_{treated} - \sum_i \omega_i \bar{Y}^{post}_{i}
@@ -84,7 +84,7 @@ Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, followi
 -
 \sum_i \omega_i \sum_t \lambda_t Y^{pre}_{it}
 \right)
-\]
+\end{equation}
 
 where \(\omega_i\) denote unit weights and \(\lambda_t\) denote time weights estimated from the pre-treatment period. Confidence intervals for SDID estimates are computed using placebo-based variance estimators. Together, the three estimators provide a comprehensive framework for evaluating the robustness of the estimated hurricane effects under different identifying assumptions and counterfactual constructions.
 

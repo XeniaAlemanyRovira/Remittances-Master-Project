@@ -193,7 +193,7 @@ estimate_sc <- function(data, horizon_label) {
 
   run_synth_one <- function(treated_state_id) {
     control_ids_placebo <- synth_data %>%
-      filter(state_id != treated_state_id) %>%
+      filter(state_id != treated_state_id, unit_id != "Florida") %>%
       pull(state_id) %>%
       unique()
 
@@ -499,4 +499,171 @@ ggsave(
   width = 9,
   height = 5,
   dpi = 300
+)
+
+# -------------------------------------------------------------------------------------
+# 5. SYNTHETIC CONTROL ROBUSTNESS: PRE-RMSPE VALIDITY AND FILTERED PLACEBOS
+# -------------------------------------------------------------------------------------
+
+estimate_sc_rmspe_robustness <- function(horizon_label, max_post_periods) {
+  rmspe_data <- make_horizon_data(reg_data_full, max_post_periods)
+
+  synth_data_rmspe <- rmspe_data %>%
+    mutate(
+      state_id = as.numeric(factor(unit_id)),
+      time_id = as.numeric(factor(period_date, levels = sort(unique(period_date))))
+    ) %>%
+    arrange(state_id, time_id)
+
+  pre_period_rmspe <- synth_data_rmspe %>%
+    filter(period_date < shock_date) %>%
+    pull(time_id) %>%
+    unique()
+
+  all_period_rmspe <- sort(unique(synth_data_rmspe$time_id))
+  all_dates_rmspe <- sort(unique(synth_data_rmspe$period_date))
+  all_state_ids_rmspe <- sort(unique(synth_data_rmspe$state_id))
+  state_lookup_rmspe <- synth_data_rmspe %>% distinct(state_id, unit_id)
+
+  run_synth_for_rmspe <- function(treated_state_id) {
+    treated_unit_name <- state_lookup_rmspe %>%
+      filter(state_id == treated_state_id) %>%
+      pull(unit_id)
+
+    control_ids_rmspe <- synth_data_rmspe %>%
+      filter(
+        state_id != treated_state_id,
+        unit_id != "Florida" | treated_unit_name == "Florida"
+      ) %>%
+      pull(state_id) %>%
+      unique()
+
+    dp <- dataprep(
+      foo = synth_data_rmspe,
+      predictors = c("log_remit"),
+      predictors.op = "mean",
+      dependent = "log_remit",
+      unit.variable = "state_id",
+      unit.names.variable = "unit_id",
+      time.variable = "time_id",
+      treatment.identifier = treated_state_id,
+      controls.identifier = control_ids_rmspe,
+      time.predictors.prior = pre_period_rmspe,
+      time.optimize.ssr = pre_period_rmspe,
+      time.plot = all_period_rmspe
+    )
+
+    so <- synth(dp, verbose = FALSE)
+
+    tibble(
+      horizon = horizon_label,
+      treated_state_id = treated_state_id,
+      time_id = all_period_rmspe,
+      period_date = all_dates_rmspe,
+      gap = as.numeric(dp$Y1plot - dp$Y0plot %*% so$solution.w)
+    )
+  }
+
+  placebo_gaps <- map_dfr(
+    all_state_ids_rmspe,
+    possibly(run_synth_for_rmspe, otherwise = NULL)
+  ) %>%
+    left_join(state_lookup_rmspe, by = c("treated_state_id" = "state_id"))
+
+  rmspe_results <- placebo_gaps %>%
+    group_by(horizon, unit_id) %>%
+    summarise(
+      pre_rmspe = sqrt(mean(gap[period_date < shock_date]^2, na.rm = TRUE)),
+      post_rmspe = sqrt(mean(gap[period_date >= shock_date]^2, na.rm = TRUE)),
+      rmspe_ratio = post_rmspe / pre_rmspe,
+      avg_post_gap = mean(gap[period_date >= shock_date], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(horizon, desc(rmspe_ratio))
+
+  florida_rmspe <- rmspe_results %>%
+    filter(unit_id == "Florida")
+
+  good_placebo_states <- rmspe_results %>%
+    filter(unit_id != "Florida", pre_rmspe <= 2 * florida_rmspe$pre_rmspe) %>%
+    pull(unit_id)
+
+  filtered_placebo_effects <- rmspe_results %>%
+    filter(unit_id %in% good_placebo_states)
+
+  filtered_placebo_ci <- filtered_placebo_effects %>%
+    summarise(
+      ci_lower = quantile(avg_post_gap, 0.025, na.rm = TRUE),
+      ci_upper = quantile(avg_post_gap, 0.975, na.rm = TRUE)
+    )
+
+  filtered_placebo_p_value <- mean(
+    abs(filtered_placebo_effects$avg_post_gap) >= abs(florida_rmspe$avg_post_gap),
+    na.rm = TRUE
+  )
+
+  summary <- tibble(
+    horizon = horizon_label,
+    method = "Synthetic Control",
+    florida_avg_post_gap = florida_rmspe$avg_post_gap,
+    florida_percent_effect = 100 * (exp(florida_rmspe$avg_post_gap) - 1),
+    florida_pre_rmspe = florida_rmspe$pre_rmspe,
+    florida_post_rmspe = florida_rmspe$post_rmspe,
+    florida_rmspe_ratio = florida_rmspe$rmspe_ratio,
+    retained_placebo_states = length(good_placebo_states),
+    filtered_placebo_p_value = filtered_placebo_p_value,
+    filtered_ci_lower = filtered_placebo_ci$ci_lower,
+    filtered_ci_upper = filtered_placebo_ci$ci_upper,
+    filtered_percent_ci_lower = 100 * (exp(filtered_placebo_ci$ci_lower) - 1),
+    filtered_percent_ci_upper = 100 * (exp(filtered_placebo_ci$ci_upper) - 1)
+  )
+
+  list(
+    gaps = placebo_gaps,
+    diagnostics = rmspe_results,
+    filtered_placebos = filtered_placebo_effects,
+    summary = summary
+  )
+}
+
+sc_rmspe_robustness_by_horizon <- pmap(
+  horizon_specs,
+  ~ estimate_sc_rmspe_robustness(..1, ..2)
+)
+
+sc_rmspe_placebo_gaps_all_horizons <- map_dfr(sc_rmspe_robustness_by_horizon, "gaps")
+sc_rmspe_diagnostics_all_horizons <- map_dfr(sc_rmspe_robustness_by_horizon, "diagnostics")
+sc_filtered_placebo_effects_all_horizons <- map_dfr(sc_rmspe_robustness_by_horizon, "filtered_placebos")
+sc_rmspe_robustness_summary <- map_dfr(sc_rmspe_robustness_by_horizon, "summary") %>%
+  mutate(
+    across(
+      where(is.numeric),
+      ~ round(.x, 4)
+    )
+  )
+
+print(sc_rmspe_robustness_summary)
+
+write.csv(
+  sc_rmspe_placebo_gaps_all_horizons,
+  file.path(estimation_output_dir, "sc_rmspe_placebo_gaps_all_horizons.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  sc_rmspe_diagnostics_all_horizons,
+  file.path(estimation_output_dir, "sc_rmspe_placebo_diagnostics_all_horizons.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  sc_filtered_placebo_effects_all_horizons,
+  file.path(estimation_output_dir, "sc_filtered_placebo_effects_pre_rmspe_2x_all_horizons.csv"),
+  row.names = FALSE
+)
+
+write.csv(
+  sc_rmspe_robustness_summary,
+  file.path(estimation_output_dir, "sc_rmspe_robustness_summary_all_horizons.csv"),
+  row.names = FALSE
 )

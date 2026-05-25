@@ -3,12 +3,28 @@
 
 \section{Preliminary statistics}
 
+\begin{figure}
+    % FOR REMITTANCES: THE PLOT OF THE REMITTANCES DISTRIBUTION + THE BOXPLOTS ACROSS STATES --> BUT FIRST WE NEED TO DOUBLE CHECK THE X AXIS.
+\end{figure}
+
 check parallel trends
 
-statistics before (e.g. average over the past year), 1, 2, 3, and 4 quarters after the shock. I would do this with growth rates even if the estimation is in levels because quarterly growth rates are more interpretable and take into account the trend. Note that there is also seasonality to take into account.
+statistics before (e.g. average over the past year), 1, 2, 3, and 4 quarters after the shock. I would do this with growth rates even if the estimation is in levels because quarterly growth rates are more interpretable and take into account the trend. Note that there is also seasonality to take into account. \textcolor{red}{If I'm not wrong I think we decided to do it raw log remittances, not with growth rates.}
 
 \section{DiD results}
 
+% explain the main results (betas and whether they are significant or not + interpretation) 
+% explain that through the event study we do not have paralell trends + potential reasons for that. 
+% that is the main reason why we go for Synthetic specifications (also because given our setting is what makes more sense, only one control and a pool of very different and macroeconomically aggregate donors)
+% explain the result and the inference results from SC and SDID and tell that even though the inference seems weak, it is a bit more decent for the 4 periods. 
+% add the table with all the betas and the inference results
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/03_sc_full_post_path.png}
+    \caption{Synthetic Florida versus Actual Florida: Evolution of Remittances Inflows from Florida to all Mexican municipalities}
+    \label{fig:sc_full_post_path}
+\end{figure}
 
 \section{Arguing for Potential Spillover Effects}
 As argued above, given that the biggest hosts of Mexican migrants are Texas and California, it is likely that those municipalities exposed to the Florida shock might also be connected to a certain extent to California and Texas. Plot \ref{fig:stacked_bar_top30_fl_tx_ca_composition} helps us visualize that there exists indeed some migrant networks spanning across Florida and California and Florida and Texas.
