@@ -1,3 +1,4 @@
+% !TEX root = ../main.tex
 \chapter{Theoretical framework and empirical strategy}
 
 This chapter outlines the theoretical and empirical framework use for our analysis. We begin by adapting a heterogeneous-firm trade model to the context of individual remittance behavior, enstablishing the theoretical foundations of how a migrant's transfer decisions can be influenced by economic shocks. Next, we introduce Hurricane Ian, which hit Florida in 2022, as a natural experiment that acts as an exogenous shock to migrant income. Finally, we present our estimation strategy (explain the strategy here) and discuss how we examine potential spillover effects, which can bias our estimates if not properly accounted for.
@@ -52,42 +53,45 @@ Crucially for our identification strategy, Hurricane Ian did not affect Mexico. 
 
 \section{Estimation technique}
 
-Nothing works we are doomed
+To estimate the impact of the Hurricane Ian shock on Florida remittance outflows, we employ three complementary panel-data estimators: Two-Way Fixed Effects (TWFE), Synthetic Control (SC), and Synthetic Difference-in-Differences (SDID). In all specifications, Florida is treated as the exposed unit, while the remaining U.S. states constitute the donor pool. The outcome variable is the logarithm of remittance outflows, and the sample period spans from 2013Q1 to 2024Q4. The treatment period begins in 2022Q4, corresponding to the landfall of Hurricane Ian. To account for the potentially temporary nature of disaster-induced remittance responses, treatment effects are estimated over several post-treatment horizons, including the full post-treatment sample as well as restricted windows covering the first four and six post-treatment quarters.
+
+The baseline econometric specification is a standard Two-Way Fixed Effects (TWFE) model of the form:
+
+\[
+Y_{it} = \alpha_i + \gamma_t + \beta (Florida_i \times Post_t) + \varepsilon_{it}
+\]
+
+where \(Y_{it}\) denotes the logarithm of remittance outflows for state \(i\) in quarter \(t\), \(\alpha_i\) represents state fixed effects, and \(\gamma_t\) denotes time fixed effects. The interaction term \(Florida_i \times Post_t\) captures the average treatment effect of Hurricane Ian on Florida relative to the control states. Standard errors are clustered at the state level. Additional TWFE specifications incorporate state-specific linear trends and seasonal fixed effects to account for differential long-run trajectories and recurrent seasonal patterns in remittance flows. The identifying assumption underlying TWFE is the parallel trends assumption, which is evaluated using an event-study design estimating dynamic leads and lags of treatment relative to the quarter immediately preceding the hurricane.
+
+To complement the TWFE analysis, we estimate a Synthetic Control (SC) model following the framework of (\cite{abadie2015synthetic}) The SC estimator constructs a weighted average of untreated states that minimizes the pre-treatment discrepancy between Florida and its synthetic counterpart. Formally, the estimator selects weights \(w_j\) such that:
+
+\[
+\sum_{j=1}^{J} w_j Y_{jt}
+\]
+
+closely reproduces Florida’s pre-treatment outcome trajectory, subject to \(w_j \geq 0\) and \(\sum_j w_j = 1\). The estimated treatment effect is then computed as the post-treatment gap between observed Florida remittances and the synthetic Florida series. Inference is conducted through placebo reassignments, where each control state is iteratively treated as if exposed to Hurricane Ian, generating a placebo distribution of treatment effects. We additionally compute Root Mean Squared Prediction Error (RMSPE) ratios comparing pre- and post-treatment fit to evaluate whether Florida exhibits unusually large post-treatment deviations relative to placebo units.
+
+Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, following the methodology proposed by Arkhangelsky et al. (2021). SDID combines the weighting structure of Synthetic Control with the fixed-effects adjustment of Difference-in-Differences, thereby improving robustness to imperfect pre-treatment fit and treatment effect heterogeneity. The estimator jointly constructs unit weights and time weights to balance pre-treatment outcomes between treated and control units before applying a Difference-in-Differences correction. The SDID estimator can be expressed as:
+
+\[
+\hat{\tau}^{SDID} =
+\left(
+\bar{Y}^{post}_{treated} - \sum_i \omega_i \bar{Y}^{post}_{i}
+\right)
+-
+\left(
+\sum_t \lambda_t Y^{pre}_{treated,t}
+-
+\sum_i \omega_i \sum_t \lambda_t Y^{pre}_{it}
+\right)
+\]
+
+where \(\omega_i\) denote unit weights and \(\lambda_t\) denote time weights estimated from the pre-treatment period. Confidence intervals for SDID estimates are computed using placebo-based variance estimators. Together, the three estimators provide a comprehensive framework for evaluating the robustness of the estimated hurricane effects under different identifying assumptions and counterfactual constructions.
 
 \section{Examining spillover effects}
 
-A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units. In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to a biased estimates (reference?). Therefore, it is necessary to explicitly separate direct treatment effects from spillover effects \parencite{hudgens2008, aronow2017}. To address this, we investigate both geographical spillovers across neighboring U.S. states and migration network spillovers across remittance corridors.
+A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units.
 
-\subsection{Geographical spillovers}
+In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to biased estimates \citep{clarke2017}. For instance, given that California and Texas all host a big proportion of Mexican migrants, we hypothesize later in the paper that these two states might have played a role in offsetting the negative Florida shock. If a Mexican municipality highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop. If this was the case, \textbf{ the estimated Florida-exposure effect on total remittances would capture the net effect of the shock after within-network adjustment, rather than the direct fall in Florida-origin remittance}. 
 
-To capture spatial spillovers, we adopt the geographical rings methodology proposed by \textcite{butts2023}. The underlying intuition is that the economic shock of Hurricane Ian may spill over into states near Florida, with the spillover effect decaying as distance increases. We classify non-Florida states into geographical rings based on their distance from Florida. For example, we define distance thresholds to construct Ring 1 ($0 < \text{distance} \leq 500$ miles), Ring 2 ($500 < \text{distance} \leq 1000$ miles), and Ring 3 ($1000 < \text{distance} \leq 1500$ miles). States located beyond the Ring 3 are assigned to the control group. 
-
-\par
-
-We estimate the geographical spillover effects using a Two-Way Fixed Effects (TWFE) specification:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \beta(\text{Florida}_s \times \text{Post}_t) + \sum_r \gamma_r(\text{Ring}_{rs} \times \text{Post}_t) + \varepsilon_{smt}
-\end{equation}
-where $\gamma_r$ captures the spillover effect on states within Ring $r$. If $\gamma_1$ is statistically significant but coefficients for farther rings are not, it suggests localized spillovers, while if all $\gamma_r$ are significant, geographical spillovers may be broader, suggesting that using all non-Florida states as controls could be problematic. 
-
-\subsection{Migration network spillovers}
-
-Beyond physical proximity, remittance corridors are deeply integrated in migrantion networks. An economic shock affecting migrants in Florida may indirectly influence remittances sent from other U.S. states if those migrants are connected to the same Mexican municipalities. For instance, if a Mexican municipality which is highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop in remittance inflows (can we connect it formally to our model?). 
-
-\par
-
-To formalize this, we apply the exposure mapping framework developed by \textcite{aronow2017}, which relaxes SUTVA by allowing a unit's outcome to depend on both its own treatment status ($D_i$) and its exposure to treatment through connected units ($h_i(D)$). Building on the network exposure measures established by \textcite{caballero_2023}, we construct a continuous exposure index defined as the share of a municipality's total remittances that originated from Florida prior to the hurricane:
-\begin{equation}
-    \text{ExposureFlorida}_m = \frac{\text{Remittances}_{\text{Florida}, m, \text{pre}}}{\sum_s \text{Remittances}_{s, m, \text{pre}}}
-\end{equation}
-
-\par
-
-To isolate the spillover effect, we restrict our sample to non-Florida remittance corridors ($s \neq \text{Florida}$) and estimate:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \theta(\text{ExposureFlorida}_{m,\text{pre}} \times \text{Post}_t) + \varepsilon_{smt}
-\end{equation}
-A strictly positive coefficient ($\theta > 0$) would indicate that municipalities highly dependent on Florida received larger remittance increases from other U.S.\ states after the hurricane, providing evidence of network insurance effects. To examine temporal dynamics and non-linearities, this continuous model can be expanded into an event study specification. Furthermore, the exposure index can be discretized into quantiles (e.g., low, medium, and high exposure bins) to capture non-linear indirect responses to the shock:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \sum_q \sum_{k \neq -1} \theta_{qk}(\text{ExposureQuantile}_{m,\text{pre},q} \times \mathbbm{1}\{t-T_0=k\}) + \varepsilon_{smt}
-\end{equation}
+Therefore, in later sections we will try to argue that our estimates are subject to general equilibrium effects. We base our analysis on the exposure-mapping logic of \citep{aronow2017} to define indirect exposure through alternative migrant networks. Rather than assuming that a municipality’s remittances respond only to Florida exposure, we allow the response to vary with exposure to other major U.S. destinations, especially Texas and California. 
