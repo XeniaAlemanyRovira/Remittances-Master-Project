@@ -72,22 +72,8 @@ where $\gamma_r$ captures the spillover effect on states within Ring $r$. If $\g
 
 \subsection{Migration network spillovers}
 
-Beyond physical proximity, remittance corridors are deeply integrated in migrantion networks. An economic shock affecting migrants in Florida may indirectly influence remittances sent from other U.S. states if those migrants are connected to the same Mexican municipalities. For instance, if a Mexican municipality which is highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop in remittance inflows (can we connect it formally to our model?). 
+A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units.
 
-\par
+In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to biased estimates \citep{clarke2017}. For instance, given that California and Texas all host a big proportion of Mexican migrants, we hypothesize later in the paper that these two states might have played a role in offsetting the negative Florida shock. If a Mexican municipality highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop. If this was the case, \textbf{ the estimated Florida-exposure effect on total remittances would capture the net effect of the shock after within-network adjustment, rather than the direct fall in Florida-origin remittance}. 
 
-To formalize this, we apply the exposure mapping framework developed by \textcite{aronow2017}, which relaxes SUTVA by allowing a unit's outcome to depend on both its own treatment status ($D_i$) and its exposure to treatment through connected units ($h_i(D)$). Building on the network exposure measures established by \textcite{caballero_2023}, we construct a continuous exposure index defined as the share of a municipality's total remittances that originated from Florida prior to the hurricane:
-\begin{equation}
-    \text{ExposureFlorida}_m = \frac{\text{Remittances}_{\text{Florida}, m, \text{pre}}}{\sum_s \text{Remittances}_{s, m, \text{pre}}}
-\end{equation}
-
-\par
-
-To isolate the spillover effect, we restrict our sample to non-Florida remittance corridors ($s \neq \text{Florida}$) and estimate:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \theta(\text{ExposureFlorida}_{m,\text{pre}} \times \text{Post}_t) + \varepsilon_{smt}
-\end{equation}
-A strictly positive coefficient ($\theta > 0$) would indicate that municipalities highly dependent on Florida received larger remittance increases from other U.S.\ states after the hurricane, providing evidence of network insurance effects. To examine temporal dynamics and non-linearities, this continuous model can be expanded into an event study specification. Furthermore, the exposure index can be discretized into quantiles (e.g., low, medium, and high exposure bins) to capture non-linear indirect responses to the shock:
-\begin{equation}
-    Y_{smt} = \alpha_{sm} + \lambda_t + \sum_q \sum_{k \neq -1} \theta_{qk}(\text{ExposureQuantile}_{m,\text{pre},q} \times \mathbbm{1}\{t-T_0=k\}) + \varepsilon_{smt}
-\end{equation}
+Therefore, in later sections we will try to argue that our estimates are subject to general equilibrium effects. We base our analysis on the exposure-mapping logic of \citep{aronow2017} to define indirect exposure through alternative migrant networks. Rather than assuming that a municipality’s remittances respond only to Florida exposure, we allow the response to vary with exposure to other major U.S. destinations, especially Texas and California. 
