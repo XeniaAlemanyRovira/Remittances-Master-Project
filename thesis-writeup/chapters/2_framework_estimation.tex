@@ -3,45 +3,126 @@
 
 This chapter outlines the theoretical and empirical framework use for our analysis. We begin by adapting a heterogeneous-firm trade model to the context of individual remittance behavior, enstablishing the theoretical foundations of how a migrant's transfer decisions can be influenced by economic shocks. Next, we introduce Hurricane Ian, which hit Florida in 2022, as a natural experiment that acts as an exogenous shock to migrant income. Finally, we present our estimation strategy (explain the strategy here) and discuss how we examine potential spillover effects, which can bias our estimates if not properly accounted for.
 
-\section{Remittance model}
+\section{A Remittance Model with Network Spillovers and Heterogeneous Migrants}
 
-To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, and where remitting requires paying both a fixed access cost and a variable cost proportional to the amount remitted. Formally, consider migrant $i$ from origin municipality $m$ in year $t$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and total resources available to the origin household:
+To analyze the impact of shocks on remittance flows, we adapt the logic of heterogeneous-firm trade models to the context of remittances. Specifically, we consider a model where migrants differ in income and altruism intensity, and where remitting requires paying both a fixed access cost and a variable cost proportional to the amount remitted. We then augment the model to allow migrants connected to the same origin municipality to respond to each other's transfers. Formally, consider migrant $i$, who resides in U.S. state $s$, originates from Mexican municipality $m$, and chooses remittances in period $t$.
+
+We decompose origin-household resources into local non-remittance income and remittances received from migrants in other U.S. states. Perceived origin-household resources excluding migrant $i$'s own remittance are
 \begin{equation}
-    U_{imt} = \left[ \alpha \left( c^L_{imt} \right)^{\frac{\sigma-1}{\sigma}} 
-    + (1-\alpha) \left( \phi_{im} \left( R_{imt} + y^O_{mt} \right) \right) ^{\frac{\sigma-1}{\sigma}} \right]^{\frac{\sigma}{\sigma-1}}
+    y^O_{imst}
+    =
+    \tilde{y}^O_{mt}
+    +
+    \sum_{s' \neq s} R_{s'mt},
 \end{equation}
-where $\phi_{im} > 0$ denotes the altruism or obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This stricly positive nature of this parameter ensures that sending remittances always increases the migrant's utility. The variable $c^L_{imt} \geq 0$ represents the migrant's consumption in the destination country, $R_{imt} \geq 0$ is the amount sent in remittances, and $y^O_{mt} \geq 0$ captures the origin hosehold's income as observed by the migrant. The weight of local consumption is given by $\alpha \in (0,1)$, and the elasticity of substitution between local consumption and origin-household resources is given by $\sigma$. Notably, origin-household total resources are defined as $R_{imt} + y^O_{mt}$, which we treat as a single composite good. The presence of $y^O_{mt}$ introduces a role for origin-country economic conditions: negative income shocks at origin (i.e. lower $y^O_{mt}$) increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
+where $\tilde{y}^O_{mt}$ denotes local non-remittance income in municipality $m$, and $\sum_{s' \neq s} R_{s'mt}$ captures remittance inflows from migrants residing in U.S. states other than $s$. The migrant faces a utility maximization problem under a CES aggregator over local consumption and total resources available to the origin household:
+\begin{equation}
+    U_{imst}
+    =
+    \left[
+    \alpha
+    \left(c^L_{imst}\right)^{\frac{\sigma-1}{\sigma}}
+    +
+    (1-\alpha)
+    \left(
+    \phi_{im}
+    \left[
+    R_{imst}
+    +
+    \tilde{y}^O_{mt}
+    +
+    \sum_{s' \neq s} R_{s'mt}
+    \right]
+    \right)^{\frac{\sigma-1}{\sigma}}
+    \right]^{\frac{\sigma}{\sigma-1}}.
+\end{equation}
+Here $\phi_{im} > 0$ denotes the altruism or obligation intensity parameter, analogous to the productivity parameter in \textcite{melitz2003}. This strictly positive parameter ensures that sending remittances can increase the migrant's utility by raising origin-household resources. The variable $c^L_{imst} \geq 0$ represents the migrant's consumption in the destination country, and $R_{imst} \geq 0$ is the amount sent in remittances by migrant $i$. The weight of local consumption is given by $\alpha \in (0,1)$, and the elasticity of substitution between local consumption and origin-household resources is given by $\sigma$. Origin-household total resources are therefore defined as $R_{imst} + y^O_{imst}$, which we treat as a single composite good. The presence of $y^O_{imst}$ introduces a role for both origin-country economic conditions and migration-network transfers: lower perceived origin resources increase the marginal utility of remittances, generating an insurance motive consistent with \textcite{yang_choi_2007}. 
 
 \par 
 
 The migrant's budget constraint is given by:
 \begin{equation}
-    c^L_{imt} + f_{mt} \mathbbm{1}\{R_{imt} > 0\} + (1 + \tau_{mt})R_{imt} \leq w_{imt}
+    c^L_{imst}
+    +
+    f_{mt}\mathbbm{1}\{R_{imst} > 0\}
+    +
+    (1 + \tau_{mt})R_{imst}
+    \leq
+    w_{imst},
 \end{equation}
-where $w_{imt} \geq 0$ is the migrant's wage, $f_{mt} \geq 0$ is a fixed remitting cost capturing the per-transaction expense of accessing a remittance channel, analogous to the fixed export cost in \textcite{melitz2003}, and $\tau_{mt} > -1$ is the variable cost which scales with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}. Notice that, even though $\tau_{mt}$ is typically positive to reflect transaction fees or exchange rate spreads, we allow for the possibility of negative variable costs, which could arise from the presence of remittance subsidies or favorable exchange rate regimes.
+where $w_{imst} \geq 0$ is the migrant's wage, $f_{mt} \geq 0$ is a fixed remitting cost capturing the per-transaction expense of accessing a remittance channel, analogous to the fixed export cost in \textcite{melitz2003}, and $\tau_{mt} > -1$ is the variable cost which scales with the amount remitted, analogous to the iceberg cost structure in \textcite{melitz2003}. Notice that, even though $\tau_{mt}$ is typically positive to reflect transaction fees or exchange rate spreads, we allow for the possibility of negative variable costs, which could arise from the presence of remittance subsidies or favorable exchange rate regimes.
 
 \par
 
-Assuming that the migrant maximizes utility subject to the budget constraint and chooses to remit a positive amount ($R_{imt} > 0$), solving the Lagrangian yields the optimal remittance function:
+Assuming that the migrant maximizes utility subject to the budget constraint and chooses to remit a positive amount ($R_{imst} > 0$), solving the Lagrangian yields the optimal remittance function:
 \begin{equation}
-R^*_{imt} = \frac{\left( w_{imt} - f_{mt} + (1 + \tau_{mt})y^O_{mt} \right) A_{imt} - y^O_{mt}}{1 + (1 + \tau_{mt})A_{imt}}
+    R^{*}_{imst}
+    =
+    \frac{
+    A_{imst}
+    \left[
+    w_{imst}
+    -
+    f_{mt}
+    +
+    (1+\tau_{mt})
+    \left(
+    \tilde{y}^O_{mt}
+    +
+    \sum_{s' \neq s} R_{s'mt}
+    \right)
+    \right]
+    }{
+    1+(1+\tau_{mt})A_{imst}
+    }
+    -
+    \left(
+    \tilde{y}^O_{mt}
+    +
+    \sum_{s' \neq s} R_{s'mt}
+    \right),
 \end{equation}
-where we define the parameter $A_{imt}$ as:
+where we define the parameter $A_{imst}$ as:
 \begin{equation}
-A_{imt} \equiv \left( \frac{(1-\alpha)\phi_{im}}{\alpha(1+\tau_{mt})} \right)^\sigma
+    A_{imst}
+    \equiv
+    \left(
+    \frac{(1-\alpha)\phi_{im}}
+    {\alpha(1+\tau_{mt})}
+    \right)^{\sigma}.
 \end{equation}
-The term $A_{imt}$ represents the optimal ratio of origin-household resources to own local consumption, adjusted for the variable cost of remitting. It comprises the migrant's altruism intensity ($\phi_{im}$), the utility weight of own consumption ($\alpha$), the elasticity of substitution ($\sigma$), and the variable cost of remitting ($\tau_{mt}$).
+The term $A_{imst}$ represents the optimal ratio of origin-household resources to own local consumption, adjusted for the variable cost of remitting. It comprises the migrant's altruism intensity ($\phi_{im}$), the utility weight of own consumption ($\alpha$), the elasticity of substitution ($\sigma$), and the variable cost of remitting ($\tau_{mt}$).
 
 \par
 
-To understand the effect of destination-country economic shocks on remittance flows, we analyze changes in the migrant's wage ($w_{imt}$). The partial derivative of optimal remittances with respect to wage is strictly positive:
+To understand the effect of destination-country economic shocks on remittance flows, we analyze changes in the migrant's wage ($w_{imst}$). The partial derivative of optimal remittances with respect to wage is strictly positive:
 \begin{equation}
-\frac{\partial R^*_{imt}}{\partial w_{imt}} = \frac{A_{imt}}{1 + (1 + \tau_{mt})A_{imt}}\end{equation}
-Therefore, through an income effect, the model predicts that a positive shock to the migrant's wage will increase remittances, while a negative shock will decrease them. The fixed cost $f_{mt}$ enstablishes an entry threshold: if the migrant's wage is not sufficiently high relative to the fixed cost, they will not send remittances at all. Additionally, the variable cost $\tau_{mt}$ reduces the marginal benefit of each dollar sent, dampening the sensitity of remittances to wage flactuations.
+    \frac{\partial R^*_{imst}}{\partial w_{imst}}
+    =
+    \frac{A_{imst}}{1 + (1 + \tau_{mt})A_{imst}}
+    >
+    0.
+\end{equation}
+Therefore, through an income effect, the model predicts that a positive shock to the migrant's wage will increase remittances, while a negative shock will decrease them. The fixed cost $f_{mt}$ establishes an entry threshold: if the migrant's wage is not sufficiently high relative to the fixed cost, they will not send remittances at all. Additionally, the variable cost $\tau_{mt}$ reduces the marginal benefit of each dollar sent, dampening the sensitivity of remittances to wage fluctuations.
 
 \par
 
-Ultimately, this model provides a theoretical framework to understand how shocks that affect migrants' income can influence remittance flows, which is the main focus of our empirical analysis. However, a negative shock to migrant's wage does not directly imply a significant decrease in remittances, as the response depends on the shock's magnitude, the migrant's altruism intensity, and the cost structure of remitting.
+The augmented model also delivers a spillover prediction. Holding the migrant's own wage and remitting costs fixed, remittances from other migrants enter the decision through perceived origin-household resources:
+\begin{equation}
+    \frac{\partial R^*_{imst}}{\partial R_{s'mt}}
+    =
+    -
+    \frac{1}{1 + (1 + \tau_{mt})A_{imst}}
+    <
+    0
+    \qquad
+    \text{for } s' \neq s.
+\end{equation}
+A fall in remittances from one destination lowers perceived resources at origin and raises the optimal remittance from migrants in other destinations. For municipalities highly exposed to the shocked destination, this lowers origin-household resources and increases the marginal utility of additional transfers from migrants residing elsewhere. The model therefore provides a theoretical basis for compensatory migration-network spillovers: the same shock can generate a direct fall in remittances from the affected destination and an offsetting response from other connected destinations.
+
+\par
+
+The model delivers three empirical implications that guide the analysis. First, because optimal remittances are increasing in migrant income, a negative wage or income shock in the country where migrants reside should reduce remittances sent by affected migrants. Second, origin municipalities with greater pre-existing exposure to the affected migrant destination should experience larger declines in total remittance receipts, all else equal. This exposure effect is a reduced-form object: it captures the direct loss in transfers from the affected destination net of any adjustment by migrants in other destinations. Third, because remittances from other destinations enter the migrant's decision through perceived origin-household resources, a decline in transfers from the affected destination raises the marginal value of remittances from migrants in alternative destinations connected to the same municipality. The model therefore predicts compensatory responses from other high-sending destinations, especially for municipalities jointly exposed to the affected destination and those alternatives. These implications map directly into the empirical strategy below: we first estimate whether remittances fall from the shocked destination, then test whether municipal receipts fall more in places more exposed to that destination, and finally examine whether alternative corridors increase transfers relative to the shocked corridor among jointly exposed municipalities.
 
 \section{The natural experiment: Hurricane Ian (2022)}
 
@@ -49,7 +130,7 @@ The shock selected for this analysis is Hurricane Ian, which struck the southwes
 
 \par
 
-Crucially for our identification strategy, Hurricane Ian did not affect Mexico. The storm originated in the Caribbean, made landfall in Cuba and Florida, and dissipated over the Atlantic after a final less impactful landfall in South Carolina \parencite{nhc_ian_2026}. Therefore, the shock is spatially clean. Indeed, remittance senders in Florida were directly exposed to a severe and sudden wealth shock (reference or data?), while remittance receivers in Mexican municipalities were entirely unaffected. This allows us to better isolate the transmission of the shock through the remittance channel.
+Crucially for our identification strategy, Hurricane Ian did not affect Mexico. The storm originated in the Caribbean, made landfall in Cuba and Florida, and dissipated over the Atlantic after a final less impactful landfall in South Carolina \parencite{nhc_ian_2026}. Therefore, the shock is spatially clean. Indeed, remittance senders in Florida were directly exposed to a severe and sudden wealth shock (reference or data?), while remittance receivers in Mexican municipalities were entirely unaffected. This allows us to better isolate the transmission of the shock through the remittance channel. In the language of the model, Hurricane Ian is the negative shock to migrants' economic resources in the country where they reside, Florida is the affected destination, and Mexican municipalities differ in their pre-existing exposure to Florida through migration networks.
 
 \section{Estimation technique}
 
@@ -63,7 +144,7 @@ Y_{it} = \alpha_i + \gamma_t + \beta (Florida_i \times Post_t) + \varepsilon_{it
 
 where \(Y_{it}\) denotes the logarithm of remittance outflows for state \(i\) in quarter \(t\), \(\alpha_i\) represents state fixed effects, and \(\gamma_t\) denotes time fixed effects. The interaction term \(Florida_i \times Post_t\) captures the average treatment effect of Hurricane Ian on Florida relative to the control states. Standard errors are clustered at the state level. \textcolor{red}{Grey section could be removed/reprased in case of lack of space for important stuff}\textcolor{grey}{Additional TWFE specifications, used for robustness checks, incorporate state-specific linear trends and seasonal fixed effects to account for differential long-run trajectories and recurrent seasonal patterns in remittance flows.} The identifying assumption underlying TWFE is the parallel trends assumption, which is evaluated using an event-study design estimating dynamic leads and lags of treatment relative to the quarter immediately preceding the hurricane.
 
-To complement the TWFE analysis, we estimate a Synthetic Control (SC) model following the framework of (\cite{abadie2015synthetic}) The SC estimator constructs a weighted average of untreated states that minimizes the pre-treatment discrepancy between Florida and its synthetic counterpart. Formally, the estimator selects weights \(w_j\) such that:
+To complement the TWFE analysis, we estimate a Synthetic Control (SC) model following \textcite{abadie2010synthetic}. The SC estimator constructs a weighted average of untreated states that minimizes the pre-treatment discrepancy between Florida and its synthetic counterpart. Formally, the estimator selects weights \(w_j\) such that:
 
 \begin{equation}
 \sum_{j=1}^{J} w_j Y_{jt}
@@ -71,7 +152,7 @@ To complement the TWFE analysis, we estimate a Synthetic Control (SC) model foll
 
 closely reproduces Florida’s pre-treatment outcome trajectory, subject to \(w_j \geq 0\) and \(\sum_j w_j = 1\). The estimated treatment effect is then computed as the post-treatment gap between observed Florida remittances and the synthetic Florida series. Inference is conducted through placebo reassignments, where each control state is iteratively treated as if exposed to Hurricane Ian, generating a placebo distribution of treatment effects. We additionally compute Root Mean Squared Prediction Error (RMSPE) ratios comparing pre- and post-treatment fit to evaluate whether Florida exhibits unusually large post-treatment deviations relative to placebo units.
 
-Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, following the methodology proposed by Arkhangelsky et al. (2021) \cite{arkhangelsky2021synthetic}. SDID combines the weighting structure of Synthetic Control with the fixed-effects adjustment of Difference-in-Differences, thereby improving robustness to imperfect pre-treatment fit and treatment effect heterogeneity. The estimator jointly constructs unit weights and time weights to balance pre-treatment outcomes between treated and control units before applying a Difference-in-Differences correction. The SDID estimator can be expressed as:
+Finally, we estimate a Synthetic Difference-in-Differences (SDID) model, following the methodology proposed by Arkhangelsky et al. (2021). SDID combines the weighting structure of Synthetic Control with the fixed-effects adjustment of Difference-in-Differences, thereby improving robustness to imperfect pre-treatment fit and treatment effect heterogeneity. The estimator jointly constructs unit weights and time weights to balance pre-treatment outcomes between treated and control units before applying a Difference-in-Differences correction. The SDID estimator can be expressed as:
 
 \begin{equation}
 \hat{\tau}^{SDID} =
@@ -92,6 +173,6 @@ where \(\omega_i\) denote unit weights and \(\lambda_t\) denote time weights est
 
 A fundamental requirement for standard causal inference models is the Stable Unit Treatment Value Assumption (SUTVA), formalized by \textcite{rubin1980}. SUTVA assumes that the potential outcomes of any unit depend exclusively on its own treatment assignment, excluding the possibility of any indirect spillover between units.
 
-In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to biased estimates \citep{clarke2017}. For instance, given that California and Texas all host a big proportion of Mexican migrants, we hypothesize later in the paper that these two states might have played a role in offsetting the negative Florida shock. If a Mexican municipality highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop. If this was the case, \textbf{ the estimated Florida-exposure effect on total remittances would capture the net effect of the shock after within-network adjustment, rather than the direct fall in Florida-origin remittance}. 
+In our context, U.S. states not directly exposed to a local shock might still be affected if control units are exposed to the treatment through indirect channels, leading to biased estimates \parencite{clarke2017}. For instance, given that California and Texas all host a big proportion of Mexican migrants, we hypothesize later in the paper that these two states might have played a role in offsetting the negative Florida shock. If a Mexican municipality highly dependent on Florida remittances experiences an income shock due to Hurricane Ian, connected migrants residing in Texas might respond by increasing their transfers to compensate for the drop. If this was the case, \textbf{ the estimated Florida-exposure effect on total remittances would capture the net effect of the shock after within-network adjustment, rather than the direct fall in Florida-origin remittance}. 
 
-Therefore, in later sections we will try to argue that our estimates are subject to general equilibrium effects. We base our analysis on the exposure-mapping logic of \citep{aronow2017} to define indirect exposure through alternative migrant networks. Rather than assuming that a municipality’s remittances respond only to Florida exposure, we allow the response to vary with exposure to other major U.S. destinations, especially Texas and California. 
+Therefore, in later sections we will try to argue that our estimates are subject to general equilibrium effects. We base our analysis on the exposure-mapping logic of \textcite{aronow2017} to define indirect exposure through alternative migrant networks. Rather than assuming that a municipality’s remittances respond only to Florida exposure, we allow the response to vary with exposure to other major U.S. destinations, especially Texas and California. 
