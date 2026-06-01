@@ -229,3 +229,186 @@ ggsave(
 	dpi = 300,
 	bg = "white"
 )
+
+
+# MCAS: Mexican immigrant counts in Texas and California over time
+# The MCAS workbooks report consular ID registrations ("matriculas consulares").
+# This table uses the TOTAL row in each US-state workbook and computes each
+# state's share of the yearly total across all available US states.
+if (!requireNamespace("readxl", quietly = TRUE)) {
+	stop("Package 'readxl' is required to read the MCAS Excel files.")
+}
+
+mcas_base_dir <- "Data_clean/MCAS/Estados_US"
+
+normalize_us_state_name <- function(x) {
+	x <- gsub("_", " ", x)
+	x <- gsub("\\s+", " ", trimws(x))
+	x <- tools::toTitleCase(tolower(x))
+	x <- gsub("\\bOf\\b", "of", x)
+	x
+}
+
+get_mcas_state_from_path <- function(file_path, year_dir, year) {
+	relative_path <- normalizePath(file_path, winslash = "/", mustWork = FALSE)
+	relative_path <- sub(paste0("^", normalizePath(year_dir, winslash = "/", mustWork = FALSE), "/?"), "", relative_path)
+	path_parts <- strsplit(relative_path, "/", fixed = TRUE)[[1]]
+
+	if (length(path_parts) == 1) {
+		state_name <- sub(paste0("([ _]info)?[ _]+", year, "\\.xlsx$"), "", path_parts[1], ignore.case = TRUE)
+	} else {
+		state_name <- path_parts[1]
+	}
+
+	normalize_us_state_name(state_name)
+}
+
+is_mcas_state_origin_workbook <- function(file_path, year_dir, year) {
+	file_name <- basename(file_path)
+	file_name_lower <- tolower(file_name)
+	is_root_state_workbook <- identical(
+		normalizePath(dirname(file_path), winslash = "/", mustWork = FALSE),
+		normalizePath(year_dir, winslash = "/", mustWork = FALSE)
+	) && grepl(paste0(year, "\\.xlsx$"), file_name_lower)
+
+	is_old_state_origin_workbook <- (
+		file_name_lower == "edo.xlsx" ||
+			grepl("edomexgral|mexgral|edomex[0-9]{2,4}f?\\.xlsx$", file_name_lower)
+	) && !grepl("muni|gen|educa|ocupa|edad", file_name_lower)
+
+	is_root_state_workbook || is_old_state_origin_workbook
+}
+
+read_mcas_state_total <- function(file_path, year_dir, year) {
+	sheets <- readxl::excel_sheets(file_path)
+	state_origin_sheet <- sheets[grepl("edomexgral", sheets, ignore.case = TRUE)]
+	sheet_to_read <- if (length(state_origin_sheet) > 0) state_origin_sheet[1] else sheets[1]
+
+	raw_table <- suppressMessages(
+		readxl::read_excel(file_path, sheet = sheet_to_read, col_names = FALSE, .name_repair = "minimal")
+	)
+	raw_values <- as.data.frame(lapply(raw_table, as.character), stringsAsFactors = FALSE)
+	value_matrix <- as.matrix(raw_values)
+	header_matches <- matrix(
+		grepl("Estado de Origen", value_matrix, ignore.case = TRUE),
+		nrow = nrow(value_matrix),
+		ncol = ncol(value_matrix)
+	)
+	header_position <- which(header_matches, arr.ind = TRUE)
+
+	if (nrow(header_position) == 0) {
+		warning("Could not find 'Estado de Origen' header in: ", file_path)
+		return(NULL)
+	}
+
+	header_row <- header_position[1, "row"]
+	origin_col <- header_position[1, "col"]
+	count_col <- origin_col + 1
+	if (count_col > ncol(value_matrix)) {
+		warning("Could not find count column in: ", file_path)
+		return(NULL)
+	}
+
+	origin_values <- value_matrix[(header_row + 1):nrow(value_matrix), origin_col]
+	count_values <- readr::parse_number(value_matrix[(header_row + 1):nrow(value_matrix), count_col])
+	total_row <- which(toupper(trimws(origin_values)) == "TOTAL")
+	mexican_immigrants <- if (length(total_row) > 0) {
+		count_values[total_row[1]]
+	} else {
+		sum(count_values, na.rm = TRUE)
+	}
+
+	tibble(
+		year = year,
+		us_state = get_mcas_state_from_path(file_path, year_dir, year),
+		mexican_immigrants = mexican_immigrants,
+		source_file = file_path
+	)
+}
+
+mcas_year_dirs <- list.dirs(mcas_base_dir, recursive = FALSE, full.names = TRUE)
+
+mcas_state_year_totals <- bind_rows(lapply(mcas_year_dirs, function(year_dir) {
+	year <- as.integer(sub(".*Edos_USA_(\\d{4}).*", "\\1", basename(year_dir)))
+	year_files <- list.files(year_dir, pattern = "\\.xlsx$", recursive = TRUE, full.names = TRUE)
+	year_files <- year_files[vapply(
+		year_files,
+		is_mcas_state_origin_workbook,
+		logical(1),
+		year_dir = year_dir,
+		year = year
+	)]
+
+	bind_rows(lapply(year_files, read_mcas_state_total, year_dir = year_dir, year = year))
+}))
+
+mcas_texas_california_mexican_immigrants <- mcas_state_year_totals %>%
+	group_by(year) %>%
+	mutate(total_mexican_migrants = sum(mexican_immigrants, na.rm = TRUE)) %>%
+	ungroup() %>%
+	filter(us_state %in% c("Texas", "California")) %>%
+	mutate(share_of_total_mexican_migrants_pct = 100 * mexican_immigrants / total_mexican_migrants) %>%
+	arrange(year, us_state) %>%
+	select(year, us_state, mexican_immigrants, total_mexican_migrants, share_of_total_mexican_migrants_pct)
+
+write_csv(
+	mcas_texas_california_mexican_immigrants,
+	file.path(output_dir, "mcas_texas_california_mexican_immigrants_over_time.csv")
+)
+
+mcas_texas_california_plot <- ggplot(
+	mcas_texas_california_mexican_immigrants,
+	aes(x = year, y = mexican_immigrants, color = us_state)
+) +
+	geom_line(linewidth = 1) +
+	geom_point(size = 2) +
+	scale_x_continuous(breaks = sort(unique(mcas_texas_california_mexican_immigrants$year))) +
+	scale_y_continuous(labels = scales::comma) +
+	scale_color_manual(values = c("California" = "#2C7FB8", "Texas" = "#D95F02")) +
+	labs(
+		title = "Mexican Immigrants in California and Texas Over Time",
+		x = "Year",
+		y = "Mexican immigrants",
+		color = "State"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+ggsave(
+	file.path(output_dir, "mcas_texas_california_mexican_immigrants_over_time.png"),
+	mcas_texas_california_plot,
+	width = 10,
+	height = 6,
+	dpi = 300,
+	bg = "white"
+)
+
+mcas_texas_california_share_plot <- ggplot(
+	mcas_texas_california_mexican_immigrants,
+	aes(x = year, y = share_of_total_mexican_migrants_pct, color = us_state)
+) +
+	geom_line(linewidth = 1) +
+	geom_point(size = 2) +
+	scale_x_continuous(breaks = sort(unique(mcas_texas_california_mexican_immigrants$year))) +
+	scale_y_continuous(labels = function(x) paste0(round(x, 1), "%")) +
+	scale_color_manual(values = c("California" = "#2C7FB8", "Texas" = "#D95F02")) +
+	labs(
+		title = "Share of Mexican Immigrants in California and Texas Over Time",
+		x = "Year",
+		y = "Share of total Mexican migrants",
+		color = "State"
+	) +
+	theme_minimal(base_size = 10) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+ggsave(
+	file.path(output_dir, "mcas_texas_california_mexican_immigrants_share_over_time.png"),
+	mcas_texas_california_share_plot,
+	width = 10,
+	height = 6,
+	dpi = 300,
+	bg = "white"
+)
+
+print(mcas_texas_california_mexican_immigrants)
+
